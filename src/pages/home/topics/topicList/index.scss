@@ -1,0 +1,62 @@
+@import "~taro-ui/dist/style/components/tag.scss";
+
+.topicList {
+  font-size: 28px;
+
+  .itemWrapper {
+    &> view {
+      border-bottom: 1px #eee solid;
+      &:active {
+        background: #eeeeee;
+      }
+    }
+  }
+  .topicItem {
+    overflow: hidden;
+    padding: 25px 20px;
+
+    .line {
+
+    }
+
+    .line1 {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      height: 55px;
+      justify-content: space-between;
+
+      .user {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+
+        .avatar image {
+          border-radius: 25px;
+          height: 50px;
+          width: 50px;
+          display: block;
+        }
+
+        .userName {
+          margin-left: 10px;
+          font-size: 30px;
+        }
+      }
+
+      .lastUpdateTime {
+        font-size: 20px;
+      }
+    }
+
+    .title {
+      font-size: 36px;
+      padding: 10px 0;
+      height: 100px;
+    }
+
+    .meta {
+      height: 30px;
+    }
+  }
+}

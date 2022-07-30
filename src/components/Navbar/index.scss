@@ -1,0 +1,17 @@
+.searchEntry {
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+  background: #eeeeee;
+  border-radius: 20px;
+  height: 100%;
+  margin-right: 20px;
+  font-size: 28px;
+  color: #333333;
+  .text {
+    margin-left: 10px;
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+  }
+}

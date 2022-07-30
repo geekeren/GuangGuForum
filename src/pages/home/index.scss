@@ -1,0 +1,21 @@
+@import "taro-ui/dist/style/components/tab-bar.scss";
+@import "taro-ui/dist/style/components/icon.scss";
+@import "~taro-ui/dist/style/components/badge.scss";
+@import "~taro-ui/dist/style/components/toast.scss";
+@import "~taro-ui/dist/style/components/nav-bar.scss";
+
+.root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  .bottomTab {
+    height: 150px;
+  }
+
+  .tabContent {
+    flex: auto;
+    overflow: hidden;
+  }
+}

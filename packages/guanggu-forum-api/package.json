@@ -1,0 +1,8 @@
+{
+  "name": "guanggu-forum-api",
+  "private": true,
+  "main": "src/index.ts",
+  "dependencies": {
+    "node-html-parser": "^5.3.3"
+  }
+}
