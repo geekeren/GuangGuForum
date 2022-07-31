@@ -1,12 +1,16 @@
 import React, { Component } from 'react'
-import { Image, View } from '@tarojs/components'
+import { Image, Text, View } from '@tarojs/components'
 import Taro from "@tarojs/taro";
-import { AtTag } from 'taro-ui'
-import { Buffer } from 'buffer';
 import VirtualList from '@tarojs/components/virtual-list'
 import { getRecentTopics, GetTopicsParam, TopicSummary } from "guanggu-forum-api";
 import Loading from '../../../../components/Loading'
 import './index.scss'
+import { getFromLocalCache } from "../../../../utils/localAssets";
+import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from '../../../config';
+import Tag from '../../../../components/Tag';
+import NodeIcon from '../../../../assets/topic_node.svg';
+import CommentIcon from '../../../../assets/comment.svg';
+import { base64Encode } from '../../../../utils/routes';
 
 interface State {
   topics: TopicSummary[];
@@ -19,17 +23,9 @@ interface ListRow {
   data: TopicSummary[]
 }
 
-const ItemWrapper = ({children, ...rest}: any) => {
-  return <View {...rest} className='itemWrapper'>
-    {
-      children
-    }
-  </View>
-}
-
-const TopicItem = React.memo(({id, index, style, data}: ListRow) => {
+const TopicItem = React.memo(({ id, index, style, data }: ListRow) => {
   const topic = data[index];
-  const {userAvatarUrl, username, title, category, link, lastUpdated} = topic;
+  const { userAvatarUrl, username, title, category, link, lastUpdated, commentCount } = topic;
   return (
     <View
       id={id}
@@ -37,28 +33,33 @@ const TopicItem = React.memo(({id, index, style, data}: ListRow) => {
       style={style}
       onClick={async () => {
         await Taro.navigateTo({
-          url: `/pages/topicDetail/index?id=${Buffer.from(link, 'utf-8').toString('base64')}`
+          url: `/pages/topicDetail/index?id=${base64Encode(link)}`
         })
       }}
     >
       <View className='line1'>
         <View className='user'>
           <View className='avatar'>
-            <Image src={userAvatarUrl}/>
+            <Image src={getFromLocalCache(userAvatarUrl)} />
           </View>
           <View className='userName'>
             {username}
           </View>
         </View>
-        <View className='lastUpdateTime'>最后更新：{lastUpdated}</View>
+        <View className='lastUpdateTime'>{lastUpdated.replace(' ', '')}更新</View>
       </View>
-      <View className='title'>
+      <Text className='title' userSelect selectable>
         {title}
-      </View>
+      </Text>
       <View className='meta'>
-        <AtTag size='small' name={category}>
-          #{category}
-        </AtTag>
+        <Tag>
+          <Image src={NodeIcon} svg className='tagIcon' />
+          <View style={{ display: 'inline-block' }}>{category}</View>
+        </Tag>
+        <View className='right'>
+          <Image src={CommentIcon} svg className='commentIcon'  />
+          {commentCount === '' ? 0 : commentCount}
+        </View>
       </View>
     </View>
   );
@@ -67,6 +68,7 @@ const rpxToPx = (rpx: number) => {
   const pixelRatio = 750 / Taro.getSystemInfoSync().windowWidth;
   return rpx / pixelRatio;
 }
+
 interface TopicListProps {
   type: GetTopicsParam['type']
 }
@@ -90,11 +92,10 @@ export default class TopicList extends Component<TopicListProps, State> {
       <VirtualList
         className='.topicList'
         width='100%'
-        height={Taro.getSystemInfoSync().windowHeight - 180}
+        height={Taro.getSystemInfoSync().windowHeight - (HIDE_TAB ? 52 : 150) - (ENABLE_CUSTOM_NAVBAR ? 70 : 0)}
         itemData={this.state.topics}
         itemCount={this.state?.topics.length}
-        itemSize={rpxToPx(250)}
-        innerElementType={ItemWrapper}
+        itemSize={rpxToPx(300)}
       >
         {TopicItem}
       </VirtualList>

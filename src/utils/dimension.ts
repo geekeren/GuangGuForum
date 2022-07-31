@@ -9,7 +9,6 @@ export const getNavInfo = () => {
   const {statusBarHeight = 0, screenWidth, screenHeight, windowHeight} = Taro.getSystemInfoSync()
   // 获取胶囊信息
   const {width, height, left, top, right} = Taro.getMenuButtonBoundingClientRect()
-  console.log(left);
   // 计算标题栏高度
   const capsulePaddingTop = top - statusBarHeight;
   const titleBarHeight = height + (top - statusBarHeight) * 2

@@ -20,7 +20,7 @@ export function getDataFromHtml(element: HTMLElement | null | undefined, dataDom
   let data: Record<string, any> | string | any[];
   if (_type === 'object') {
     data = {};
-    const rootDom = element.querySelector(_selector) || element;
+    const rootDom = _selector ? element.querySelector(_selector) : element;
     const properties = Object.entries(rest);
     properties.forEach(([k, v]) => {
 
@@ -34,6 +34,7 @@ export function getDataFromHtml(element: HTMLElement | null | undefined, dataDom
       (data as any[]).push(
         getDataFromHtml(dom, {
           ...dataDom,
+          _selector: '',
           _type: _item as DataDom['_type'],
         }))
     })
@@ -41,7 +42,8 @@ export function getDataFromHtml(element: HTMLElement | null | undefined, dataDom
     const dom = element.querySelector(_selector);
     data = dom?.toString() || '';
   } else {
-    const dom = element.querySelector(_selector);
+    const dom = _selector ? element.querySelector(_selector) : element;
+
     if (_attribute) {
       data = dom?.getAttribute(_attribute) || '';
     } else {

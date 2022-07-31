@@ -1,45 +1,148 @@
-@import "@tarojs/taro/html5.css";
+@import "@tarojs/taro/html.css";
 
 .topicDetail {
   background: #eee;
   height: 100vh;
+
   .main {
     background: #fff;
     padding: 16px;
 
     .title {
-      font-size: 40px;
+      font-size: 34px;
       font-weight: bold;
+      margin-bottom: 20px;
     }
+    .header {
+      font-size: 24px;
+      .meta {
+        background: rgb(247, 248, 249);
+        padding: 20px 12px;
+        box-sizing: border-box;
+        border-radius: 8px;
+        display: flex;
+        .avatar {
+          margin-right: 20px;
+          image {
+            width: 80px;
+            height: 80px;
+            border-radius: 40px;
+          }
+        }
+        .author {
+          font-size: 30px;
+          font-weight: bold;
+        }
+        .moreInfo {
+          display: flex;
+        }
+        .createTime {
+          margin-right: 20px;
+        }
+      }
+    }
+
     .content {
       overflow: hidden;
+      padding: 10px;
+      line-height: 1.6;
 
       image, img {
         max-width: 100%;
         overflow: hidden;
       }
     }
+    .extra {
+      display: flex;
+      justify-content: space-between;
+      font-size: 24px;
+      color: rgba(14, 21, 28, 0.4);
+      .right {
+        display: flex;
+      }
+      .tagIcon {
+        width: 28px;
+        height: 28px;
+        margin-right: 4px;
+        display: inline-block;
+      }
+    }
   }
 
-  .comments {
+  .section {
+    background: white;
     padding: 16px;
+    margin: 20px 0;
+    .header {
+      font-weight: bold;
+      font-size: 30px;
+      margin-bottom: 32px;
+    }
+  }
+  .comments {
+
     font-size: 30px;
 
     .comment-item {
-      margin: 20px 0;
       display: flex;
       flex-direction: row;
+      padding: 10px 8px;
+
       .comment-author-avatar {
+        margin-right: 16px;
+
         image {
           width: 60px;
           height: 60px;
           border-radius: 10px;
         }
       }
-      .comment-right {
-        padding-left: 30px;
-        .comment-content {
 
+      .comment-right {
+        display: block;
+        padding: 0 10px 30px 20px;
+        flex: auto;
+        border-bottom: solid 1Px rgba(14, 21, 28, 0.1);
+        .comment-author {
+          font-size: 24px;
+          text-transform: capitalize;
+        }
+        .comment-content {
+          margin: 10px 0 20px 0;
+          user-select: auto;
+        }
+        .comment-meta {
+          font-size: 24px;
+          color: rgba(14, 21, 28, 0.4);
+        }
+      }
+    }
+  }
+  .relatingTopics {
+    margin: 20px 0 20px;
+    background: white;
+    line-height: 1.8;
+    font-size: 30px;
+
+    .content {
+      background: rgb(247, 248, 249);
+      padding: 20px;
+      line-height: 2;
+      .relatingTopicItem {
+        color: #1c86d1;
+        border-radius: 40px;
+        display: flex;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 100%;
+        vertical-align: center;
+        align-items: center;
+
+        .icon {
+          width: 30px;
+          height: 30px;
+          margin-right: 10px;
         }
       }
     }

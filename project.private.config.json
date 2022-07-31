@@ -1,6 +1,6 @@
 {
     "projectname": "guanggu-forum-app",
     "setting": {
-        "compileHotReLoad": false
+        "compileHotReLoad": true
     }
 }

@@ -4,6 +4,7 @@ import { AtTabBar, AtToast } from "taro-ui";
 import './index.scss'
 import Topics from "./topics";
 import Navbar from "../../components/Navbar/index";
+import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from '../config';
 
 interface State {
   selectedTabIndex: number;
@@ -39,31 +40,34 @@ export default class Index extends Component<{}, State> {
   }
 
   render() {
-    console.log('Navbar', Navbar);
     return (
       <>
         <View className='root'>
-          <Navbar onClickSearch={() => {
-            this.setState({
-              showToast: true,
-            })
-          }}
-          />
+          {
+            ENABLE_CUSTOM_NAVBAR && <Navbar onClickSearch={() => {
+              this.setState({
+                showToast: true,
+              })
+            }}
+            />
+          }
           <View
             className='tabContent'
           >
-            <Topics/>
+            <Topics />
           </View>
-          <AtTabBar
-            className='bottomTab'
-            tabList={[
-              {title: '首页', iconType: 'home'},
-              {title: '消息', iconType: 'bell', text: '100', max: 99},
-              {title: '我的', iconType: 'user'}
-            ]}
-            onClick={this.handleClick.bind(this)}
-            current={this.state.selectedTabIndex}
-          />
+          {
+            !HIDE_TAB && <AtTabBar
+              className='bottomTab'
+              tabList={[
+                { title: '首页', iconType: 'home' },
+                { title: '消息', iconType: 'bell', text: '100', max: 99 },
+                { title: '我的', iconType: 'user' }
+              ]}
+              onClick={this.handleClick.bind(this)}
+              current={this.state.selectedTabIndex}
+            />
+          }
         </View>
         <AtToast
           onClose={() => {
@@ -76,7 +80,6 @@ export default class Index extends Component<{}, State> {
           text='功能开发中...'
         />
       </>
-
     )
   }
 }

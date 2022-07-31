@@ -9,6 +9,7 @@ export interface TopicSummary {
   userAvatarUrl: string;
   title: string;
   link: string;
+  commentCount: string;
 }
 
 const domStructure: DataDom = {
@@ -27,6 +28,11 @@ const domStructure: DataDom = {
     },
     lastUpdated: {
       _selector: ".meta .last-touched",
+      _attribute: "",
+      _type: 'string',
+    },
+    commentCount: {
+      _selector: ".count",
       _attribute: "",
       _type: 'string',
     },
