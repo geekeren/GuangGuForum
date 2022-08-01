@@ -1,5 +1,5 @@
 import { Image, ScrollView, Text, View } from "@tarojs/components";
-import Taro, { useRouter, useShareAppMessage } from "@tarojs/taro";
+import Taro, { useRouter, useShareAppMessage, useShareTimeline } from "@tarojs/taro";
 import React, { useEffect, useState } from "react";
 import queryString from "query-string";
 import { Buffer } from 'buffer';
@@ -29,6 +29,11 @@ const Index = () => {
   const url = `${router.path}?${queryString.stringify(router.params)}`;
 
   useShareAppMessage(() => ({
+    title: topicDetail?.title,
+    path: url,
+  }))
+
+  useShareTimeline(() => ({
     title: topicDetail?.title,
     path: url,
   }))

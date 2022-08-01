@@ -1,5 +1,4 @@
 @import "../../../../vars.scss";
-@import "~taro-ui/dist/style/components/tag.scss";
 
 .topicList {
   font-size: 28px;
@@ -19,7 +18,6 @@
       background: $bgColor;
     }
     .title {
-      font-weight: lighter;
     }
 
     .line1 {

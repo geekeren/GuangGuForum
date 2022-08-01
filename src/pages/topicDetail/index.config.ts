@@ -1,4 +1,5 @@
 export default definePageConfig({
   navigationBarTitleText: '帖子详情',
-  enableShareAppMessage: true
+  enableShareAppMessage: true,
+  enableShareTimeline: true
 })

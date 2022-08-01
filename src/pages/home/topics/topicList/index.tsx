@@ -96,6 +96,7 @@ export default class TopicList extends Component<TopicListProps, State> {
         itemData={this.state.topics}
         itemCount={this.state?.topics.length}
         itemSize={rpxToPx(300)}
+        overscanCount={10}
       >
         {TopicItem}
       </VirtualList>
