@@ -12,10 +12,6 @@ import NodeIcon from '../../../../assets/topic_node.svg';
 import CommentIcon from '../../../../assets/comment.svg';
 import { base64Encode } from '../../../../utils/routes';
 
-interface State {
-  topics: TopicSummary[];
-}
-
 interface ListRow {
   id: string;
   index: number;
@@ -57,7 +53,7 @@ const TopicItem = React.memo(({ id, index, style, data }: ListRow) => {
           <View style={{ display: 'inline-block' }}>{category}</View>
         </Tag>
         <View className='right'>
-          <Image src={CommentIcon} svg className='commentIcon'  />
+          <Image src={CommentIcon} svg className='commentIcon' />
           {commentCount === '' ? 0 : commentCount}
         </View>
       </View>
@@ -73,16 +69,46 @@ interface TopicListProps {
   type: GetTopicsParam['type']
 }
 
+interface State {
+  topics: TopicSummary[];
+  loadingPage: number;
+}
+
 export default class TopicList extends Component<TopicListProps, State> {
+  constructor(props, state) {
+    super(props, state);
+    this.state = {
+      topics: [],
+      loadingPage: 1,
+    }
+  }
 
   componentWillMount() {
     const { type } = this.props;
-    getRecentTopics({ type }).then((topics) => {
+    getRecentTopics({ type, page: 1 }).then((topics) => {
       this.setState({
         topics,
       })
     })
   }
+
+  loading = false
+
+  listReachBottom() {
+    this.loading = true
+    getRecentTopics({
+      type: this.props.type, page: this.state.loadingPage + 1
+    }).then(
+      (newTopics) => {
+        this.loading = false
+        this.setState({
+          topics: this.state.topics.concat(newTopics),
+          loadingPage: this.state.loadingPage + 1
+        })
+      });
+  }
+
+  itemSize = rpxToPx(300);
 
   render() {
     if (!this.state?.topics) {
@@ -95,8 +121,17 @@ export default class TopicList extends Component<TopicListProps, State> {
         height={Taro.getSystemInfoSync().windowHeight - (HIDE_TAB ? 52 : 150) - (ENABLE_CUSTOM_NAVBAR ? 70 : 0)}
         itemData={this.state.topics}
         itemCount={this.state?.topics.length}
-        itemSize={rpxToPx(300)}
+        itemSize={this.itemSize}
         overscanCount={10}
+        onScroll={({ scrollDirection, scrollOffset }) => {
+          if (
+            !this.loading &&
+            scrollDirection === 'forward' &&
+            scrollOffset > ((this.state.topics.length - 5) * this.itemSize)
+          ) {
+            this.listReachBottom()
+          }
+        }}
       >
         {TopicItem}
       </VirtualList>

@@ -63,19 +63,25 @@ const domStructure: DataDom = {
     }
   }
 };
+
 export interface GetTopicsParam {
-  type: 'default' | 'latestPublish' | 'elite'
+  type: 'default' | 'latest' | 'elite',
+  page: number,
 }
 
 export function getRecentTopics(param: GetTopicsParam): Promise<TopicSummary[]> {
-  const { type = 'default' } = param;
+  const { type = 'default', page = 1 } = param;
 
-  const relativeUrl: Record<GetTopicsParam['type'], string> = {
-    default: '/',
-    latestPublish: '/?tab=latest',
-    elite: '/?tab=elite',
+  const tabUrlValue = {
+    default: undefined,
+    latest: 'latest',
+    elite: 'elite',
   }
-  return request(relativeUrl[type]).then((element) => {
+
+  return request('/', {
+    p: String(page),
+    tab: tabUrlValue[type]
+  }).then((element) => {
     return (getDataFromHtml(element, domStructure) as Record<string, any>)
       .topics as TopicSummary[];
   });

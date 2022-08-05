@@ -9048,6 +9048,7 @@ __metadata:
     guanggu-forum-api: "workspace:^"
     linaria: ^4.1.1
     node-html-parser: 5.2.0
+    path-to-regexp: ^6.2.1
     query-string: ^7.1.1
     react: ^17.0.0
     react-dom: ^17.0.0
@@ -9055,6 +9056,7 @@ __metadata:
     stylelint: ^14.4.0
     taro-ui: ^3.0.0-alpha.9
     typescript: ^4.1.0
+    url: ^0.11.0
     webpack: 4.46.0
   languageName: unknown
   linkType: soft
@@ -13212,6 +13214,13 @@ __metadata:
   version: 3.2.0
   resolution: "path-to-regexp@npm:3.2.0"
   checksum: c3d35cda3b26d9e604d789b9a1764bb9845f53ca8009d5809356b4677a3c064b0f01117a05a5b4b77bafd5ae002a82592e3f3495e885c22961f8b1dab8bd6ae7
+  languageName: node
+  linkType: hard
+
+"path-to-regexp@npm:^6.2.1":
+  version: 6.2.1
+  resolution: "path-to-regexp@npm:6.2.1"
+  checksum: f0227af8284ea13300f4293ba111e3635142f976d4197f14d5ad1f124aebd9118783dd2e5f1fe16f7273743cc3dbeddfb7493f237bb27c10fdae07020cc9b698
   languageName: node
   linkType: hard
 

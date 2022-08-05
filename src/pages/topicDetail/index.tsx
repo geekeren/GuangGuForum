@@ -53,7 +53,7 @@ const Index = () => {
         <View className='title'>{topicDetail.title}</View>
         <View className='meta'>
           <View className='avatar'>
-            <Image src={getFromLocalCache(topicDetail.authorAvatarUrl)} />
+            <Image lazyLoad src={getFromLocalCache(topicDetail.authorAvatarUrl)} />
           </View>
           <View>
             <View className='author'>{topicDetail.author}</View>
@@ -92,7 +92,7 @@ const Index = () => {
         hasComments && topicDetail.comments.map((comment) => (
             <View className='comment-item'>
               <View className='comment-author-avatar'>
-                <Image src={getFromLocalCache(comment.authorAvatarUrl)} />
+                <Image lazyLoad src={getFromLocalCache(comment.authorAvatarUrl)} />
               </View>
               <View className='comment-right'>
                 <View className='comment-author'>

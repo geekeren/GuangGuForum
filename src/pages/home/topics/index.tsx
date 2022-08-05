@@ -13,7 +13,7 @@ interface State {
 
 const tabs: { title: string; type: GetTopicsParam['type'] }[] = [
   {title: '最近更新', type: 'default'},
-  {title: '最近发布', type: 'latestPublish'},
+  {title: '最近发布', type: 'latest'},
   {title: '精华', type: 'elite'}
 ]
 
