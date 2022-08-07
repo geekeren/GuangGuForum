@@ -1,0 +1,22 @@
+.content {
+    background: rgb(247, 248, 249);
+    padding: 20px;
+    line-height: 2;
+    .relatingTopicItem {
+      color: #1c86d1;
+      border-radius: 40px;
+      display: flex;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      width: 100%;
+      vertical-align: center;
+      align-items: center;
+
+      .icon {
+        width: 30px;
+        height: 30px;
+        margin-right: 10px;
+      }
+    }
+  }

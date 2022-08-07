@@ -3981,6 +3981,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"axios@npm:0.19.2":
+  version: 0.19.2
+  resolution: "axios@npm:0.19.2"
+  dependencies:
+    follow-redirects: 1.5.10
+  checksum: dcace11a0a25fdf9b3b97fc9d011d23dd9c67cc13d91778080482ddddbbfe731f7410a090b11aa0bbbdf83686c5911ccb4289fd3683b7488c1b0c4d3c882380c
+  languageName: node
+  linkType: hard
+
 "babel-code-frame@npm:^6.26.0, babel-code-frame@npm:^6.8.0":
   version: 6.26.0
   resolution: "babel-code-frame@npm:6.26.0"
@@ -6425,21 +6434,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"debug@npm:=3.1.0, debug@npm:~3.1.0":
+  version: 3.1.0
+  resolution: "debug@npm:3.1.0"
+  dependencies:
+    ms: 2.0.0
+  checksum: 0b52718ab957254a5b3ca07fc34543bc778f358620c206a08452251eb7fc193c3ea3505072acbf4350219c14e2d71ceb7bdaa0d3370aa630b50da790458d08b3
+  languageName: node
+  linkType: hard
+
 "debug@npm:^3.1.0, debug@npm:^3.1.1, debug@npm:^3.2.6, debug@npm:^3.2.7":
   version: 3.2.7
   resolution: "debug@npm:3.2.7"
   dependencies:
     ms: ^2.1.1
   checksum: b3d8c5940799914d30314b7c3304a43305fd0715581a919dacb8b3176d024a782062368405b47491516d2091d6462d4d11f2f4974a405048094f8bfebfa3071c
-  languageName: node
-  linkType: hard
-
-"debug@npm:~3.1.0":
-  version: 3.1.0
-  resolution: "debug@npm:3.1.0"
-  dependencies:
-    ms: 2.0.0
-  checksum: 0b52718ab957254a5b3ca07fc34543bc778f358620c206a08452251eb7fc193c3ea3505072acbf4350219c14e2d71ceb7bdaa0d3370aa630b50da790458d08b3
   languageName: node
   linkType: hard
 
@@ -8357,6 +8366,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"follow-redirects@npm:1.5.10":
+  version: 1.5.10
+  resolution: "follow-redirects@npm:1.5.10"
+  dependencies:
+    debug: =3.1.0
+  checksum: 0edc4b74e37e7b88ee716188a8f2a790238877c1d954f00c7b78d560f3bef40061c130536d13bee8e47b4e8e71edf1175a2de2729e51ab8206e4646b2370e484
+  languageName: node
+  linkType: hard
+
 "follow-redirects@npm:^1.0.0":
   version: 1.15.1
   resolution: "follow-redirects@npm:1.15.1"
@@ -9054,6 +9072,7 @@ __metadata:
     react-dom: ^17.0.0
     react-refresh: 0.11.0
     stylelint: ^14.4.0
+    taro-axios: ^1.1.1
     taro-ui: ^3.0.0-alpha.9
     typescript: ^4.1.0
     url: ^0.11.0
@@ -16175,6 +16194,17 @@ __metadata:
     mkdirp: ^1.0.3
     yallist: ^4.0.0
   checksum: a04c07bb9e2d8f46776517d4618f2406fb977a74d914ad98b264fc3db0fe8224da5bec11e5f8902c5b9bcb8ace22d95fbe3c7b36b8593b7dfc8391a25898f32f
+  languageName: node
+  linkType: hard
+
+"taro-axios@npm:^1.1.1":
+  version: 1.1.1
+  resolution: "taro-axios@npm:1.1.1"
+  dependencies:
+    axios: 0.19.2
+  peerDependencies:
+    "@tarojs/taro": ^3
+  checksum: 867ce934eaf3d726b5f113f8cff67f0b90140b1684e4d319160fe8a6f174d61550af99cb750ee675d5f63556824d1a51b8a8098be1c0e6dbc057225780e19d25
   languageName: node
   linkType: hard
 

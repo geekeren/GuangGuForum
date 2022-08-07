@@ -1,6 +1,7 @@
 import React, { Component } from 'react'
 import { Image, Text, View } from '@tarojs/components'
 import Taro from "@tarojs/taro";
+import url from "url";
 import VirtualList from '@tarojs/components/virtual-list'
 import { getRecentTopics, GetTopicsParam, TopicSummary } from "guanggu-forum-api";
 import Loading from '../../../../components/Loading'
@@ -11,6 +12,8 @@ import Tag from '../../../../components/Tag';
 import NodeIcon from '../../../../assets/topic_node.svg';
 import CommentIcon from '../../../../assets/comment.svg';
 import { base64Encode } from '../../../../utils/routes';
+import { urlPathVaiable } from '../../../../utils/urls';
+import { URLS } from 'guanggu-forum-api';
 
 interface ListRow {
   id: string;
@@ -22,6 +25,8 @@ interface ListRow {
 const TopicItem = React.memo(({ id, index, style, data }: ListRow) => {
   const topic = data[index];
   const { userAvatarUrl, username, title, category, link, lastUpdated, commentCount } = topic;
+  const tid = urlPathVaiable(URLS.TOPIC_DETAIL)(link)?.params?.tid;
+
   return (
     <View
       id={id}
@@ -29,7 +34,7 @@ const TopicItem = React.memo(({ id, index, style, data }: ListRow) => {
       style={style}
       onClick={async () => {
         await Taro.navigateTo({
-          url: `/pages/topicDetail/index?id=${base64Encode(link)}`
+          url: `/pages/topicDetail/index?id=${base64Encode(link)}&tid=${tid}`
         })
       }}
     >

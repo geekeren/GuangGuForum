@@ -1,5 +1,7 @@
+import { getUrl } from "./utils/urls";
 import { request } from "./client";
-import { getDataFromHtml } from "./utils/getDataFromHtml";
+import { URLS } from "./urls";
+import { DataDom, getDataFromHtml } from "./utils/getDataFromHtml";
 
 export interface TopicDetail {
   author: string;
@@ -22,32 +24,15 @@ export interface TopicDetail {
     replyMetas: string[];
   }[],
   commentTotalCount: string;
+  createCommentXSRF: string;
   relatingTopics: {
     title: string;
     link: string;
   }[]
 }
 
-type DataDomMeta = {
-  _selector: string;
-  _type: 'object' | 'string' | 'html';
-  _attribute: string;
-} | {
-  _selector: string;
-  _type: 'array';
-  _item: string;
-  _attribute: string;
-}
 
-type DataToms<T extends Record<string, any> | string> =
-  T extends string ?
-    DataDomMeta
-    :
-    DataDomMeta & {
-    -readonly [P in keyof T]: T[P] extends (infer E)[] ? DataToms<E>: DataToms<T[P]>;
-  }
-
-const domStructure: DataToms<TopicDetail> = {
+const domStructure: DataDom<TopicDetail> = {
   _selector: ".container .row",
   _type: 'object',
   _attribute: '',
@@ -111,6 +96,11 @@ const domStructure: DataToms<TopicDetail> = {
     _attribute: '',
     _selector: '.topic-reply .ui-header',
   },
+  createCommentXSRF: {
+    _type: 'string',
+    _attribute: 'value',
+    _selector: '.topic-reply-create form input[name="_xsrf"]',
+  },
   comments: {
     _selector: '.topic-reply .reply-item',
     _type: 'array',
@@ -166,8 +156,10 @@ const domStructure: DataToms<TopicDetail> = {
   }
 };
 
-export function getTopicDetail(id: string): Promise<TopicDetail> {
-  return request(id).then((element) => {
-    return (getDataFromHtml(element, domStructure) as Record<string, any>) as TopicDetail;
+export function getTopicDetail(tid: string): Promise<TopicDetail> {
+  return request(getUrl(URLS.TOPIC_DETAIL, {
+    tid
+  })).then(({ body }) => {
+    return getDataFromHtml(body, domStructure) as TopicDetail;
   });
 }

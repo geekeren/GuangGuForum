@@ -1,8 +1,100 @@
 @import "@tarojs/taro/html.css";
+@import "~taro-ui/dist/style/components/action-sheet.scss";
+@import "~taro-ui/dist/style/components/badge.scss";
 
 .topicDetail {
   background: #eee;
   height: 100vh;
+  flex-direction: column;
+  display: flex;
+
+  .scrollContent {
+    flex: auto;
+    overflow: hidden;
+  }
+
+  .actions {
+    height: 120px;
+    box-shadow: 0 0.13636rem 0.81818rem rgb(0 0 0 / 10%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: white;
+    font-size: 34px;
+    box-sizing: border-box;
+    position: relative;
+    padding: 30px 30px 40px 30px;
+
+    .commentActions {
+      display:flex;
+      justify-content: space-between;
+    }
+    .commentTextArea {
+      margin-top: 20px;
+      background-color: #f6f7f8;
+      border-radius: 15px;
+      padding: 15px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .left {
+      flex: 1 1;
+      background: #f7f8f9;
+      border-radius: 40px;
+      display: flex;
+      align-items: center;
+      position: relative;
+      box-sizing: border-box;
+      padding: 15px 30px;
+    }
+
+    .right {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      height: 100%;
+      padding: 0;
+      margin-left: 10px;
+      width: 200px;
+
+      .commentIcon {
+        width: 38px;
+        height: 38px;
+        display: inline-block;
+      }
+
+      .comment {
+        margin-right: 40px;
+        .at-badge__num {
+          top: -4rpx;
+          right: -4PX;
+          font-size: 15px;
+          background: unset;
+          color: #FF4949;
+          box-shadow: none;
+        }
+      }
+      .share {
+        .icon {
+          width: 48px;
+          height: 48px;
+          margin-right: 8px;
+        }
+        font-size: 24px;
+        display: inline-flex;
+        background-color: #1cc4c6;
+        border-radius: 24px;
+        color: white;
+        align-items: center;
+        padding: 0 12px 0 0 !important;
+        line-height: unset;
+        border: none;
+        outline: none;
+      }
+    }
+  }
+
 
   .main {
     background: #fff;
@@ -13,29 +105,36 @@
       font-weight: bold;
       margin-bottom: 20px;
     }
+
     .header {
       font-size: 24px;
+
       .meta {
         background: rgb(247, 248, 249);
         padding: 20px 12px;
         box-sizing: border-box;
         border-radius: 8px;
         display: flex;
+
         .avatar {
           margin-right: 20px;
+
           image {
             width: 80px;
             height: 80px;
             border-radius: 40px;
           }
         }
+
         .author {
           font-size: 30px;
           font-weight: bold;
         }
+
         .moreInfo {
           display: flex;
         }
+
         .createTime {
           margin-right: 20px;
         }
@@ -47,19 +146,23 @@
       padding: 10px;
       line-height: 1.6;
 
-      image, img {
+      image,
+      img {
         max-width: 100%;
         overflow: hidden;
       }
     }
+
     .extra {
       display: flex;
       justify-content: space-between;
       font-size: 24px;
       color: rgba(14, 21, 28, 0.4);
+
       .right {
         display: flex;
       }
+
       .tagIcon {
         width: 28px;
         height: 28px;
@@ -73,12 +176,14 @@
     background: white;
     padding: 16px;
     margin: 20px 0;
+
     .header {
       font-weight: bold;
       font-size: 30px;
       margin-bottom: 32px;
     }
   }
+
   .comments {
 
     font-size: 30px;
@@ -103,14 +208,21 @@
         padding: 0 10px 30px 20px;
         flex: auto;
         border-bottom: solid 1Px rgba(14, 21, 28, 0.1);
+
+        .line1 {
+          display: flex;
+          justify-content: space-between;
+        }
         .comment-author {
           font-size: 24px;
           text-transform: capitalize;
         }
+
         .comment-content {
           margin: 10px 0 20px 0;
           user-select: auto;
         }
+
         .comment-meta {
           font-size: 24px;
           color: rgba(14, 21, 28, 0.4);
@@ -118,33 +230,11 @@
       }
     }
   }
+
   .relatingTopics {
     margin: 20px 0 20px;
     background: white;
     line-height: 1.8;
     font-size: 30px;
-
-    .content {
-      background: rgb(247, 248, 249);
-      padding: 20px;
-      line-height: 2;
-      .relatingTopicItem {
-        color: #1c86d1;
-        border-radius: 40px;
-        display: flex;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        width: 100%;
-        vertical-align: center;
-        align-items: center;
-
-        .icon {
-          width: 30px;
-          height: 30px;
-          margin-right: 10px;
-        }
-      }
-    }
   }
 }

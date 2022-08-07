@@ -1,21 +1,31 @@
 import { HTMLElement } from "node-html-parser";
 
-type Key = `_${string}` | string;
-
-export interface DataDom extends Record<Key, DataDom | string> {
+export type DataDomMeta = {
   _selector: string;
-  _type: 'object' | 'array' | 'string' | 'html';
+  _type: 'object' | 'string' | 'html';
+  _attribute: string;
+} | {
+  _selector: string;
+  _type: 'array';
+  _item: string;
   _attribute: string;
 }
 
+export type DataDom<T extends Record<string, any> | string | any[] = any> =
+  T extends string ?
+    DataDomMeta
+    :
+    DataDomMeta & {
+    -readonly [P in keyof T]: T[P] extends (infer E)[] ? DataDom<E>: DataDom<T[P]>;
+  }
 
-export function getDataFromHtml(element: HTMLElement | null | undefined, dataDom: DataDom):
-  Record<string, any> | string | any[] | undefined {
+export function getDataFromHtml<T = any>(element: HTMLElement | null | undefined, dataDom: DataDom<T>):
+  T {
   if (!element || !dataDom) {
     return undefined;
   }
 
-  const {_selector, _type, _attribute, _item, ...rest} = dataDom;
+  const {_selector, _type, _attribute, ...rest} = dataDom;
 
   let data: Record<string, any> | string | any[];
   if (_type === 'object') {
@@ -30,12 +40,13 @@ export function getDataFromHtml(element: HTMLElement | null | undefined, dataDom
   } else if (_type === 'array') {
     data = [];
     const itemDoms = element.querySelectorAll(_selector);
+    const {_item} = dataDom;
     itemDoms.forEach((dom) => {
       (data as any[]).push(
         getDataFromHtml(dom, {
           ...dataDom,
           _selector: '',
-          _type: _item as DataDom['_type'],
+          _type: _item as any as DataDom['_type'],
         }))
     })
   } else if (_type === 'html') {

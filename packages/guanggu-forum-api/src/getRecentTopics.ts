@@ -12,57 +12,52 @@ export interface TopicSummary {
   commentCount: string;
 }
 
-const domStructure: DataDom = {
-  _selector: ".topics",
-  _type: 'object',
+const domStructure: DataDom<TopicSummary> = {
   _attribute: '',
-  topics: {
+  _type: 'array',
+  _item: 'object',
+  _selector: ".topics .topic-item",
+  category: {
+    _selector: ".meta .node a",
+    _attribute: "",
+    _type: 'string',
+  },
+  lastUpdated: {
+    _selector: ".meta .last-touched",
+    _attribute: "",
+    _type: 'string',
+  },
+  commentCount: {
+    _selector: ".count",
+    _attribute: "",
+    _type: 'string',
+  },
+  username: {
+    _selector: ".meta .username a",
+    _attribute: "",
+    _type: 'string',
+  },
+  userLink: {
+    _selector: "a",
+    _attribute: "href",
+    _type: 'string',
+  },
+  userAvatarUrl: {
+    _selector: "a img",
+    _attribute: "src",
+    _type: 'string',
+  },
+  title: {
+    _selector: ".main .title a",
     _attribute: '',
-    _type: 'array',
-    _item: 'object',
-    _selector: ".topic-item",
-    category: {
-      _selector: ".meta .node a",
-      _attribute: "",
-      _type: 'string',
-    },
-    lastUpdated: {
-      _selector: ".meta .last-touched",
-      _attribute: "",
-      _type: 'string',
-    },
-    commentCount: {
-      _selector: ".count",
-      _attribute: "",
-      _type: 'string',
-    },
-    username: {
-      _selector: ".meta .username a",
-      _attribute: "",
-      _type: 'string',
-    },
-    userLink: {
-      _selector: "a",
-      _attribute: "href",
-      _type: 'string',
-    },
-    userAvatarUrl: {
-      _selector: "a img",
-      _attribute: "src",
-      _type: 'string',
-    },
-    title: {
-      _selector: ".main .title a",
-      _attribute: '',
-      _type: 'string',
-    },
-    link: {
-      _selector: ".main .title a",
-      _attribute: "href",
-      _type: 'string',
-    }
+    _type: 'string',
+  },
+  link: {
+    _selector: ".main .title a",
+    _attribute: "href",
+    _type: 'string',
   }
-};
+}
 
 export interface GetTopicsParam {
   type: 'default' | 'latest' | 'elite',
@@ -79,10 +74,11 @@ export function getRecentTopics(param: GetTopicsParam): Promise<TopicSummary[]> 
   }
 
   return request('/', {
-    p: String(page),
-    tab: tabUrlValue[type]
-  }).then((element) => {
-    return (getDataFromHtml(element, domStructure) as Record<string, any>)
-      .topics as TopicSummary[];
+    query: {
+      p: String(page),
+      tab: tabUrlValue[type]
+    }
+  }).then(({ body }) => {
+    return getDataFromHtml(body, domStructure) as TopicSummary[];
   });
 }
