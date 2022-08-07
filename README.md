@@ -10,6 +10,7 @@
 
   - 帖子浏览
   - 用户登录、回复、发帖
+  - 用户分享、点赞、收藏
   - 用户个人页
   - 板块主页
   - 消息中心
@@ -29,8 +30,10 @@ https://docs.taro.zone/docs/GETTING-STARTED
 
 - 技术原理
 
-技术涉及初衷：尽量在无任何后端代理完成所有功能，降低后期维护复杂度和运营成本，直接在小程序端拉取并解析网站的HTML，转成json数据，渲染小程序界面
-
+  - 技术设计初衷：尽量在无任何后端代理完成所有功能，降低后期维护复杂度和运营成本，直接在小程序端拉取并解析网站的HTML，转成json数据，渲染小程序界面
+  - 工程采用 monorepo 管理，html 转 json api 代码 在 packages/guanggu-forum-api 单独维护
+  - packages/guanggu-forum-api 使用 node-html-parser 解析 HTML
+ 
 > 例外: 由于登录接口过早客网站通过 302 进行跳转，微信小程序对于 302 返回会自动 follow-redirect，直接给上层返回跳转后的页面，所以小程序无法存储登录后的 cookie。
 所以登录接口使用了本项目唯一的后端代理，部署在了阿里云的serverless 服务上。
 相关代码位于packages/login-proxy-service
