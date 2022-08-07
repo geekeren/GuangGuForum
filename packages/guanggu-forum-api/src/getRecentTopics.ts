@@ -60,7 +60,7 @@ const domStructure: DataDom<TopicSummary> = {
 }
 
 export interface GetTopicsParam {
-  type: 'default' | 'latest' | 'elite',
+  type: 'default' | 'latest' | 'elite' | 'follows',
   page: number,
 }
 
@@ -71,6 +71,7 @@ export function getRecentTopics(param: GetTopicsParam): Promise<TopicSummary[]> 
     default: undefined,
     latest: 'latest',
     elite: 'elite',
+    follows: 'follows',
   }
 
   return request('/', {
@@ -78,7 +79,8 @@ export function getRecentTopics(param: GetTopicsParam): Promise<TopicSummary[]> 
       p: String(page),
       tab: tabUrlValue[type]
     }
-  }).then(({ body }) => {
+  }).then(({ body, rawRes }) => {
+    console.log('rawRes', rawRes) 
     return getDataFromHtml(body, domStructure) as TopicSummary[];
   });
 }

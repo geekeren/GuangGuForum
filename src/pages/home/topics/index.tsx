@@ -14,12 +14,11 @@ interface State {
 const tabs: { title: string; type: GetTopicsParam['type'] }[] = [
   {title: '最近更新', type: 'default'},
   {title: '最近发布', type: 'latest'},
-  {title: '精华', type: 'elite'}
+  {title: '精华', type: 'elite'},
+  {title: '我的关注', type: 'follows'}
 ]
 
 export default class Topics extends Component<TopicsProps, State> {
-  private renderedTab: Record<number, React.ReactNode> = {};
-
   constructor(props, state) {
     super(props, state)
     this.state = {
@@ -33,14 +32,6 @@ export default class Topics extends Component<TopicsProps, State> {
     })
   }
 
-  renderTab(tab, index) {
-    if(!this.renderedTab[index]) {
-      this.renderedTab[index] = <Suspense fallback={null}>
-        <TopicList type={tab.type} />
-      </Suspense>;
-    }
-    return this.renderedTab[index];
-  }
 
   render() {
     return (
@@ -58,10 +49,9 @@ export default class Topics extends Component<TopicsProps, State> {
               current={this.state.current}
               index={index}
             >
-              {
-                this.state.current === index ?
-                  this.renderTab(tab, index) : null
-              }
+              <Suspense fallback={null}>
+                <TopicList type={tab.type} />
+              </Suspense>
             </AtTabsPane>
           ))
         }

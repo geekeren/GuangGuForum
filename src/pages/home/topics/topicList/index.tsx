@@ -11,7 +11,6 @@ import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from '../../../config';
 import Tag from '../../../../components/Tag';
 import NodeIcon from '../../../../assets/topic_node.svg';
 import CommentIcon from '../../../../assets/comment.svg';
-import { base64Encode } from '../../../../utils/routes';
 import { urlPathVaiable } from '../../../../utils/urls';
 import { URLS } from 'guanggu-forum-api';
 
@@ -34,7 +33,7 @@ const TopicItem = React.memo(({ id, index, style, data }: ListRow) => {
       style={style}
       onClick={async () => {
         await Taro.navigateTo({
-          url: `/pages/topicDetail/index?id=${base64Encode(link)}&tid=${tid}`
+          url: `/pages/topicDetail/index?tid=${tid}`
         })
       }}
     >
@@ -127,7 +126,7 @@ export default class TopicList extends Component<TopicListProps, State> {
         itemData={this.state.topics}
         itemCount={this.state?.topics.length}
         itemSize={this.itemSize}
-        overscanCount={10}
+        overscanCount={5}
         onScroll={({ scrollDirection, scrollOffset }) => {
           if (
             !this.loading &&

@@ -25,7 +25,6 @@ const Index = () => {
   const router = useRouter();
 
   useEffect(() => {
-    console.log(router);
     const { tid } = router.params;
     if (!tid) {
       Taro.navigateBack().then();
