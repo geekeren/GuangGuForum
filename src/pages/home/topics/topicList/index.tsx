@@ -1,9 +1,8 @@
 import React, { Component } from 'react'
 import { Image, Text, View } from '@tarojs/components'
 import Taro from "@tarojs/taro";
-import url from "url";
 import VirtualList from '@tarojs/components/virtual-list'
-import { getRecentTopics, GetTopicsParam, TopicSummary } from "guanggu-forum-api";
+import { getRecentTopics, GetTopicsParam, TopicSummary, URLS } from "guanggu-forum-api";
 import Loading from '../../../../components/Loading'
 import './index.scss'
 import { getFromLocalCache } from "../../../../utils/localAssets";
@@ -12,7 +11,6 @@ import Tag from '../../../../components/Tag';
 import NodeIcon from '../../../../assets/topic_node.svg';
 import CommentIcon from '../../../../assets/comment.svg';
 import { urlPathVaiable } from '../../../../utils/urls';
-import { URLS } from 'guanggu-forum-api';
 
 interface ListRow {
   id: string;
@@ -29,6 +27,7 @@ const TopicItem = React.memo(({ id, index, style, data }: ListRow) => {
   return (
     <View
       id={id}
+      key={tid}
       className='topicItem'
       style={style}
       onClick={async () => {
@@ -70,10 +69,12 @@ const rpxToPx = (rpx: number) => {
 }
 
 interface TopicListProps {
-  type: GetTopicsParam['type']
+  type: GetTopicsParam['type'];
+  version?: number; // 用于刷新数据
 }
 
 interface State {
+  // loading: boolean;
   topics: TopicSummary[];
   loadingPage: number;
 }
@@ -84,27 +85,52 @@ export default class TopicList extends Component<TopicListProps, State> {
     this.state = {
       topics: [],
       loadingPage: 1,
+      // loading: true,
     }
   }
 
-  componentWillMount() {
+  async getRecentTopics(params: GetTopicsParam) {
+   this.loading = true;
+    Taro.showNavigationBarLoading();
+    return await getRecentTopics(params).finally(() => {
+      this.loading = false;
+      Taro.hideNavigationBarLoading();
+    });
+  }
+  componentDidMount() {
+    this.refreshTopics();
+  }
+
+  refreshTopics() {
     const { type } = this.props;
-    getRecentTopics({ type, page: 1 }).then((topics) => {
+
+    this.setState({
+      // loading: true,
+      loadingPage: 1,
+    })
+    this.getRecentTopics({ type, page: 1 }).then((topics) => {
       this.setState({
         topics,
       })
-    })
+    });
+  }
+
+  componentWillReceiveProps(nextProps: TopicListProps) {
+    if (nextProps.version !== this.props.version) {
+      console.log('refreshTopics');
+      this.refreshTopics();
+    }
   }
 
   loading = false
+  itemSize = rpxToPx(300);
 
   listReachBottom() {
-    this.loading = true
-    getRecentTopics({
-      type: this.props.type, page: this.state.loadingPage + 1
+    this.getRecentTopics({
+      type: this.props.type,
+      page: this.state.loadingPage + 1
     }).then(
       (newTopics) => {
-        this.loading = false
         this.setState({
           topics: this.state.topics.concat(newTopics),
           loadingPage: this.state.loadingPage + 1
@@ -112,33 +138,31 @@ export default class TopicList extends Component<TopicListProps, State> {
       });
   }
 
-  itemSize = rpxToPx(300);
-
   render() {
-    if (!this.state?.topics) {
-      return <Loading />;
-    }
     return (
-      <VirtualList
-        className='.topicList'
-        width='100%'
-        height={Taro.getSystemInfoSync().windowHeight - (HIDE_TAB ? 52 : 150) - (ENABLE_CUSTOM_NAVBAR ? 70 : 0)}
-        itemData={this.state.topics}
-        itemCount={this.state?.topics.length}
-        itemSize={this.itemSize}
-        overscanCount={5}
-        onScroll={({ scrollDirection, scrollOffset }) => {
-          if (
-            !this.loading &&
-            scrollDirection === 'forward' &&
-            scrollOffset > ((this.state.topics.length - 5) * this.itemSize)
-          ) {
-            this.listReachBottom()
-          }
-        }}
-      >
-        {TopicItem}
-      </VirtualList>
+      <View style={{ position: 'relative'}}>
+        <VirtualList
+          className='.topicList'
+          width='100%'
+          height={Taro.getSystemInfoSync().windowHeight - (HIDE_TAB ? 52 : 150) - (ENABLE_CUSTOM_NAVBAR ? 70 : 0)}
+          itemData={this.state.topics}
+          itemCount={this.state?.topics.length}
+          itemSize={this.itemSize}
+          overscanCount={5}
+          onScroll={({ scrollDirection, scrollOffset }) => {
+            if (
+              !this.loading &&
+              scrollDirection === 'forward' &&
+              scrollOffset > ((this.state.topics.length - 5) * this.itemSize)
+            ) {
+              this.listReachBottom()
+            }
+          }}
+        >
+          {TopicItem}
+        </VirtualList>
+        { this.loading && <Loading size={40} /> }
+      </View>
     )
   }
 }

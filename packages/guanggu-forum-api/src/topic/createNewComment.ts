@@ -9,7 +9,7 @@ export interface CreateNewConmmentPayload {
     _xsrf: string;
 }
 
-export async function createNewConmment(payload: CreateNewConmmentPayload) {
+export async function createNewComment(payload: CreateNewConmmentPayload) {
     const { tid } = payload;
     return request(
         getUrl(URLS.TOPIC_DETAIL, { tid}), {
@@ -22,8 +22,12 @@ export async function createNewConmment(payload: CreateNewConmmentPayload) {
             Accept: "text/html,application/xhtml+xml",
         }
     }).then(({ body }) => {
+      let response = body?.querySelector('.topic-reply-create .alert')?.text?.trim() || '';
+      if(response.includes('本站已开启回复审核模式')) {
+        response = '回复审核中'
+      }
         Taro.showToast({
-            title: body?.querySelector('.topic-reply-create .alert')?.text?.trim() || '',
+            title: response,
             icon: 'success',
             duration: 2000
         })

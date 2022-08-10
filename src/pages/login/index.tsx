@@ -14,7 +14,7 @@ export default function Login() {
     const router = useRouter();
     const { redirect } = router.params;
     const validate = (input: LoginParams) => {
-        return input?.user && (input?.password?.length || 0) > 6;
+        return input?.user && (input?.password?.length || 0) >= 6;
     };
 
     const handleSubmit = () => {

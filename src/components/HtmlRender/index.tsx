@@ -12,17 +12,25 @@ Taro.options.html.transformElement = (taroEle: TaroElement, htmlEle: HTMLElement
   if (htmlEle.tagName === 'a') {
     taroEle.tagName = 'VIEW';
     taroEle.nodeName = 'view';
-    taroEle.setAttribute('mode', 'aspectFit');
     taroEle.addEventListener('tap', () => {
-      Taro.setClipboardData({
-        data: taroEle.props.href,
-        success: function (res) {
-          Taro.showToast({
-            title: '链接已复制！',
-            icon: 'success',
-            duration: 2000
-          }).then()
-        }
+      if (taroEle.children.length === 0) {
+        Taro.setClipboardData({
+          data: taroEle.props.href,
+          success: () => {
+            Taro.showToast({
+              title: '链接已复制！',
+              icon: 'success',
+              duration: 2000
+            }).then()
+          }
+        }).then();
+      }
+    }, {});
+  } else if (htmlEle.tagName === 'img') {
+    taroEle.setAttribute('mode', 'widthFix');
+    taroEle.addEventListener('tap', () => {
+      Taro.previewImage({
+        urls: [taroEle.props.src]
       }).then();
     }, {});
   }

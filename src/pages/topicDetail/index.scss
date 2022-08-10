@@ -8,10 +8,17 @@
   flex-direction: column;
   display: flex;
 
-  .scrollContent {
+  .scrollViewContainer {
     flex: auto;
     overflow: hidden;
+
+    .scrollContent {
+      height: 100%;
+      //overflow: hidden;
+      //height: 100vh;
+    }
   }
+
 
   .actions {
     height: 120px;

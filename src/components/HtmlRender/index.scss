@@ -1,4 +1,5 @@
 @import "@tarojs/taro/html.css";
+
 .h5-a {
   display: inline-block;
   color: #0f50bd;
@@ -7,4 +8,9 @@
 
 .html {
   user-select: auto;
+
+  .h5-img {
+    padding: 10px;
+    border-radius: 10px;
+  }
 }
