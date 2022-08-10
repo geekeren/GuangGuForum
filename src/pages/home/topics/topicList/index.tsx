@@ -69,8 +69,8 @@ const rpxToPx = (rpx: number) => {
 }
 
 interface TopicListProps {
-  type: GetTopicsParam['type'];
   version?: number; // 用于刷新数据
+  getTopics: (page: number) => Promise<TopicSummary[]>
 }
 
 interface State {
@@ -89,10 +89,10 @@ export default class TopicList extends Component<TopicListProps, State> {
     }
   }
 
-  async getRecentTopics(params: GetTopicsParam) {
+  async getRecentTopics(page: number) {
    this.loading = true;
     Taro.showNavigationBarLoading();
-    return await getRecentTopics(params).finally(() => {
+    return await this.props.getTopics(page).finally(() => {
       this.loading = false;
       Taro.hideNavigationBarLoading();
     });
@@ -102,13 +102,12 @@ export default class TopicList extends Component<TopicListProps, State> {
   }
 
   refreshTopics() {
-    const { type } = this.props;
 
     this.setState({
       // loading: true,
       loadingPage: 1,
     })
-    this.getRecentTopics({ type, page: 1 }).then((topics) => {
+    this.getRecentTopics(1).then((topics) => {
       this.setState({
         topics,
       })
@@ -117,19 +116,15 @@ export default class TopicList extends Component<TopicListProps, State> {
 
   componentWillReceiveProps(nextProps: TopicListProps) {
     if (nextProps.version !== this.props.version) {
-      console.log('refreshTopics');
       this.refreshTopics();
     }
   }
 
   loading = false
-  itemSize = rpxToPx(300);
+  itemSize = rpxToPx(274);
 
   listReachBottom() {
-    this.getRecentTopics({
-      type: this.props.type,
-      page: this.state.loadingPage + 1
-    }).then(
+    this.getRecentTopics(this.state.loadingPage + 1).then(
       (newTopics) => {
         this.setState({
           topics: this.state.topics.concat(newTopics),

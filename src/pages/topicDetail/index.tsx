@@ -3,13 +3,14 @@ import Taro, { useRouter, useShareAppMessage, useShareTimeline } from "@tarojs/t
 import { useEffect, useState } from "react";
 import queryString from "query-string";
 import { AtActionSheet, AtActionSheetItem, AtBadge } from "taro-ui"
-import { createNewComment, getTopicDetail, TopicDetail } from "guanggu-forum-api";
+import { commentUpvote, createNewComment, getTopicDetail, TopicDetail, urlPathVaiable, URLS } from "guanggu-forum-api";
 import './index.scss';
 import Loading from '../../components/Loading'
 import { getFromLocalCache } from "../../utils/localAssets";
 import { rpxToPx } from "../../utils/dimension";
 import HtmlRender from "../../components/HtmlRender";
 import Tag from '../../components/Tag';
+import Icon from '../../components/Icon';
 import NodeIcon from '../../assets/topic_node.svg';
 import CommentIcon from '../../assets/comment.svg';
 import WechatIcon from '../../assets/wechat.svg';
@@ -34,17 +35,17 @@ const Index = () => {
     getTopicDetail(tid).then(setTopicDetail)
   }, [router.params]);
 
-  const url = `${router.path}?${queryString.stringify(router.params)}`;
+  const pageUrl = `${router.path}?${queryString.stringify(router.params)}`;
 
   useShareAppMessage(() => ({
     title: topicDetail?.title,
-    path: url,
+    path: pageUrl,
     imageUrl: topicDetail?.authorAvatarUrl
   }))
 
   useShareTimeline(() => ({
     title: topicDetail?.title,
-    path: url,
+    path: pageUrl,
     imageUrl: topicDetail?.authorAvatarUrl
   }))
 
@@ -60,7 +61,7 @@ const Index = () => {
   }) => {
     if (!hasLogin) {
       Taro.reLaunch({
-        url: `/pages/login/index?redirect=${encodeURIComponent(url)}`
+        url: `/pages/login/index?redirect=${encodeURIComponent(pageUrl)}`
       })
     } else {
       setIsCommenting(true);
@@ -86,7 +87,15 @@ const Index = () => {
         >
           <View className='main'>
             <View className='header'>
-              <View className='title'>{topicDetail.title}</View>
+              <View className='title'>
+                <Text onClick={() => {
+                  Taro.reLaunch({
+                    url: '/pages/home/index'
+                  })
+                }}>首页</Text>
+                <Icon size={20} name='arrow-right.svg'></Icon>
+                {topicDetail.title}
+              </View>
               <View className='meta'>
                 <View className='avatar'>
                   <Image lazyLoad src={getFromLocalCache(topicDetail.authorAvatarUrl)} />
@@ -107,7 +116,16 @@ const Index = () => {
             </View>
             <View className='extra'>
               <View className='left'>
-                <Tag>
+                <Tag onClick={() => {
+                  const link = topicDetail?.categoryLink;
+                  console.log(link);
+                  if(link) {
+                    const node = urlPathVaiable(URLS.NODE_HOME_PAGE)(link)?.params?.node;
+                    Taro.navigateTo({
+                      url: `/pages/node/topicList/index?node=${node}&nodeName=${topicDetail.category}`
+                    })
+                  }
+                }}>
                   <Image src={NodeIcon} svg className='tagIcon' />
                   <View style={{ display: 'inline-block' }}>{topicDetail.category}</View>
                 </Tag>
@@ -126,35 +144,56 @@ const Index = () => {
             }
             {
               hasComments && topicDetail.comments.map((comment) => (
-                  <View className='comment-item' onClick={() => {
-                    showActionSheet(true);
-                    setSelectedComment(comment);
-                  }}
-                  >
-                    <View className='comment-author-avatar'>
-                      <Image lazyLoad src={getFromLocalCache(comment.authorAvatarUrl)} />
+                <View className='comment-item'>
+                  <View className='comment-author-avatar'>
+                    <Image lazyLoad src={getFromLocalCache(comment.authorAvatarUrl)} />
+                  </View>
+                  <View className='comment-right'>
+                    <View className='line1'>
+                      <View className='comment-author'>
+                        {comment.author}
+                      </View>
+                      <View>
+                        {
+                          comment.floor
+                        }
+                      </View>
                     </View>
-                    <View className='comment-right'>
-                      <View className='line1'>
-                        <View className='comment-author'>
-                          {comment.author}
-                        </View>
-                        <View>
-                          {
-                            comment.floor
-                          }
-                        </View>
-                      </View>
 
-                      <View className='comment-content'>
-                        <HtmlRender html={comment.content} />
-                      </View>
+                    <View className='comment-content' onClick={() => {
+                      showActionSheet(true);
+                      setSelectedComment(comment);
+                    }}>
+                      <HtmlRender html={comment.content} />
+                    </View>
+                    <View className="comment-line3">
                       <View className='comment-meta'>
                         {comment.replyMetas.join('·').replace(/\\s/g, '')}
                       </View>
+                      <View className='commentUpvote' onClick={() => {
+                        const current_reply_id: string = queryString.parseUrl(comment.upVoteUrl).query.reply_id || '';
+                        commentUpvote({
+                          reply_id: current_reply_id,
+                        }).then((res) => {
+                          if (res.data.message === "already_voted") {
+                            Taro.showToast({
+                              title: '你已赞过',
+                            })
+                          } else {
+                            comment.upVoteCount = String(parseInt(comment.upVoteCount.replace('赞', '')) + 1);
+                            setTopicDetail({
+                              ...topicDetail
+                            })
+                          }
+                        });
+                      }}>
+                        <Icon name={'upvote.svg'} size={rpxToPx(34)} />
+                        {parseInt(comment.upVoteCount.replace('赞', ''))}
+                      </View>
                     </View>
                   </View>
-                )
+                </View>
+              )
               )
             }
             <AdCustom

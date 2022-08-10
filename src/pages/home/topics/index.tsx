@@ -1,6 +1,6 @@
 import { Component } from 'react'
 import { AtTabs, AtTabsPane } from "taro-ui";
-import { GetTopicsParam } from "guanggu-forum-api";
+import { getRecentTopics, GetTopicsParam } from "guanggu-forum-api";
 import './index.scss'
 
 import TopicList from "./topicList";
@@ -67,6 +67,12 @@ export default class Topics extends Component<TopicsProps, State> {
             >
               <TopicList
                 type={tab.type}
+                getTopics={(page: number) => {
+                  return getRecentTopics({
+                    type: tab.type,
+                    page
+                  })
+                }}
                 version={tab.version}
               />
             </AtTabsPane>

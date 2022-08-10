@@ -3,6 +3,7 @@ export default defineAppConfig({
     'pages/home/index',
     'pages/login/index',
     'pages/topicDetail/index',
+    'pages/node/topicList/index',
   ],
   window: {
     backgroundTextStyle: 'light',

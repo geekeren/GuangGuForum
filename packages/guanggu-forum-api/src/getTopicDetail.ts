@@ -11,6 +11,7 @@ export interface TopicDetail {
   lastReplyUser: string;
   title: string;
   category: string;
+  categoryLink: string;
   content: string;
   viewCount: string;
   upVoteCount: string;
@@ -21,11 +22,13 @@ export interface TopicDetail {
     content: string;
     floor: string;
     upVoteCount: string;
+    upVoteUrl: string;
     replyMetas: string[];
   }[],
   commentTotalCount: string;
   createCommentXSRF: string;
   relatingTopics: {
+    authorAvatarUrl: string;
     title: string;
     link: string;
   }[]
@@ -91,6 +94,11 @@ const domStructure: DataDom<TopicDetail> = {
     _attribute: '',
     _selector: '.meta .node',
   },
+  categoryLink: {
+    _type: 'string',
+    _attribute: 'href',
+    _selector: '.meta .node a',
+  },
   commentTotalCount: {
     _type: 'string',
     _attribute: '',
@@ -132,6 +140,11 @@ const domStructure: DataDom<TopicDetail> = {
       _attribute: '',
       _selector: '.meta .reply-to .J_replyVote',
     },
+    upVoteUrl: {
+      _type: 'string',
+      _attribute: 'href',
+      _selector: '.meta .reply-to .J_replyVote',
+    },
     content: {
       _type: 'html',
       _attribute: '',
@@ -147,6 +160,11 @@ const domStructure: DataDom<TopicDetail> = {
       _type: 'string',
       _attribute: '',
       _selector: '.hot_topic_title',
+    },
+    authorAvatarUrl: {
+      _type: 'string',
+      _attribute: 'src',
+      _selector: 'tr > td:nth-child(1) > a > img',
     },
     link: {
       _type: 'string',

@@ -12,7 +12,7 @@ export interface TopicSummary {
   commentCount: string;
 }
 
-const domStructure: DataDom<TopicSummary> = {
+export const domStructure: DataDom<TopicSummary> = {
   _attribute: '',
   _type: 'array',
   _item: 'object',

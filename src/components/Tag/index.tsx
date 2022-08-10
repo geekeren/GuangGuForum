@@ -3,11 +3,12 @@ import React from 'react';
 import styles from './index.module.scss';
 
 interface Props {
-  children: React.ReactNode
+  children: React.ReactNode;
+  onClick?: () => void;
 }
 
-const Tag = ({ children }: Props) => {
-  return <View className={styles.tag}>
+const Tag = ({ children, onClick }: Props) => {
+  return <View className={styles.tag} onClick={onClick}>
     {children}
   </View>;
 }

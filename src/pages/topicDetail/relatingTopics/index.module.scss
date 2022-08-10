@@ -1,22 +1,36 @@
 .content {
-    background: rgb(247, 248, 249);
-    padding: 20px;
-    line-height: 2;
-    .relatingTopicItem {
-      color: #1c86d1;
-      border-radius: 40px;
-      display: flex;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      width: 100%;
-      vertical-align: center;
-      align-items: center;
+  background: rgb(247, 248, 249);
+  padding: 20px;
+  line-height: 2;
 
-      .icon {
-        width: 30px;
-        height: 30px;
-        margin-right: 10px;
+  .relatingTopicItem {
+    color: #1c86d1;
+    display: flex;
+    width: 100%;
+    border-bottom: solid 1Px rgba(14, 21, 28, 0.1);
+    padding: 12px 0;
+
+    .left {
+      vertical-align: top;
+      justify-items: flex-start;
+      min-width: 80px;
+      width: 80px;
+      margin-right: 10px;
+      padding-top: 4px;
+
+
+      .avatar {
+        border-radius: 20px;
+        box-sizing: border-box;
+        width: 60px;
+        height: 60px;
       }
     }
+
+    .right {
+      flex: auto;
+      word-wrap: break-word;
+    }
+
   }
+}

@@ -33,9 +33,10 @@
     padding: 30px 30px 40px 30px;
 
     .commentActions {
-      display:flex;
+      display: flex;
       justify-content: space-between;
     }
+
     .commentTextArea {
       margin-top: 20px;
       background-color: #f6f7f8;
@@ -62,7 +63,7 @@
       align-items: center;
       height: 100%;
       padding: 0;
-      margin-left: 10px;
+      margin-left: 15px;
       width: 200px;
 
       .commentIcon {
@@ -73,6 +74,7 @@
 
       .comment {
         margin-right: 40px;
+
         .at-badge__num {
           top: -4rpx;
           right: -4PX;
@@ -82,12 +84,14 @@
           box-shadow: none;
         }
       }
+
       .share {
         .icon {
           width: 48px;
           height: 48px;
           margin-right: 8px;
         }
+
         font-size: 24px;
         display: inline-flex;
         background-color: #1cc4c6;
@@ -152,6 +156,7 @@
       overflow: hidden;
       padding: 10px;
       line-height: 1.6;
+      font-size: 32px;
 
       image,
       img {
@@ -220,6 +225,7 @@
           display: flex;
           justify-content: space-between;
         }
+
         .comment-author {
           font-size: 24px;
           text-transform: capitalize;
@@ -230,9 +236,26 @@
           user-select: auto;
         }
 
-        .comment-meta {
+        .comment-line3 {
           font-size: 24px;
           color: rgba(14, 21, 28, 0.4);
+          display: flex;
+          justify-content: space-between;
+
+          .comment-meta {}
+
+          .commentUpvote {
+            display: flex;
+            font-size: 30px;
+            color: rgba(14, 21, 28);
+            vertical-align: middle;
+
+            image {
+              margin-right: 5px;
+              width: 30px;
+              height: 30px;
+            }
+          }
         }
       }
     }
