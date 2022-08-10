@@ -147,9 +147,7 @@ const Index = () => {
                       </View>
 
                       <View className='comment-content'>
-                        <Text selectable>
-                          {comment.content.trim()}
-                        </Text>
+                        <HtmlRender html={comment.content} />
                       </View>
                       <View className='comment-meta'>
                         {comment.replyMetas.join('·').replace(/\\s/g, '')}

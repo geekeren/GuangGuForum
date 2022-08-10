@@ -12,7 +12,10 @@ Taro.options.html.transformElement = (taroEle: TaroElement, htmlEle: HTMLElement
   if (htmlEle.tagName === 'a') {
     taroEle.tagName = 'VIEW';
     taroEle.nodeName = 'view';
-    taroEle.addEventListener('tap', () => {
+    taroEle.addEventListener('tap', (e) => {
+      // if (e.target !== this) {
+      //   return;
+      // }
       if (taroEle.children.length === 0) {
         Taro.setClipboardData({
           data: taroEle.props.href,
@@ -27,12 +30,31 @@ Taro.options.html.transformElement = (taroEle: TaroElement, htmlEle: HTMLElement
       }
     }, {});
   } else if (htmlEle.tagName === 'img') {
-    taroEle.setAttribute('mode', 'widthFix');
-    taroEle.addEventListener('tap', () => {
-      Taro.previewImage({
-        urls: [taroEle.props.src]
-      }).then();
-    }, {});
+    // taroEle.setAttribute('mode', 'widthFix');
+    taroEle.setAttribute('lazyLoad', true);
+    taroEle.addEventListener('load', (e) => {
+      const { width, height } = e?.target;
+      if (width < 300) {
+        taroEle.setAttribute('style', `width: ${width}px; height: ${height}px`);
+      } else {
+        taroEle.setAttribute('style', `width: 300px; height: ${height / width * 300}px`);
+        taroEle.addEventListener('tap', (e) => {
+          e.preventDefault();
+          Taro.previewImage({
+            urls: [taroEle.props.src]
+          }).then();
+        }, {});
+      }
+    }, {})
+    taroEle.addEventListener('error', () => {
+      taroEle.setAttribute('style', `width: 20px; height: 20px`);
+    }, {})
+  } else if (htmlEle.tagName === 'span') {
+    console.log('taroEle', taroEle);
+    if (taroEle.children.length !== 0) {
+      taroEle.tagName = 'VIEW';
+      taroEle.nodeName = 'view';
+    }
   }
   return taroEle
 }

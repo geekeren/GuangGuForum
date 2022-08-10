@@ -133,7 +133,7 @@ const domStructure: DataDom<TopicDetail> = {
       _selector: '.meta .reply-to .J_replyVote',
     },
     content: {
-      _type: 'string',
+      _type: 'html',
       _attribute: '',
       _selector: '.content',
     },
