@@ -1,6 +1,4 @@
-@import "@tarojs/taro/html.css";
-@import "~taro-ui/dist/style/components/action-sheet.scss";
-@import "~taro-ui/dist/style/components/badge.scss";
+
 
 .topicDetail {
   background: #eee;
@@ -11,6 +9,7 @@
   .scrollViewContainer {
     flex: auto;
     overflow: hidden;
+    position: relative;
 
     .scrollContent {
       height: 100%;

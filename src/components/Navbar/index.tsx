@@ -32,7 +32,7 @@ const Navbar = (props: Props) => {
     >
       <View className='searchEntry' onClick={onClickSearch}>
         <AtIcon value='search' size='16' color='#333' />
-        <Text className='text'>猜你喜欢：过早客支持微信小程序，开发如火如荼中</Text>
+        <Text className='text'>搜索</Text>
       </View>
     </View>
   </View>);

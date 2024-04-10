@@ -18,6 +18,7 @@ import RelatingTopics from "./relatingTopics";
 
 const Index = () => {
   const [id, setId] = useState<string>();
+  const [refreshTime, setRefreshTime] = useState<number>(() => Date.now());
   const [topicDetail, setTopicDetail] = useState<TopicDetail>();
   const [isCommenting, setIsCommenting] = useState(false);
   const [isActionSheetShown, showActionSheet] = useState(false);
@@ -32,8 +33,9 @@ const Index = () => {
       return;
     }
     setId(tid);
+    console.log('refreshTime', refreshTime);
     getTopicDetail(tid).then(setTopicDetail)
-  }, [router.params]);
+  }, [router.params, refreshTime]);
 
   const pageUrl = `${router.path}?${queryString.stringify(router.params)}`;
 
@@ -74,7 +76,7 @@ const Index = () => {
     <View
       className='topicDetail'
     >
-      <View className={'scrollViewContainer'}>
+      <View className='scrollViewContainer'>
         <ScrollView
           scrollWithAnimation
           scrollY
@@ -92,7 +94,8 @@ const Index = () => {
                   Taro.reLaunch({
                     url: '/pages/home/index'
                   })
-                }}>首页</Text>
+                }}
+                >首页</Text>
                 <Icon size={20} name='arrow-right.svg'></Icon>
                 {topicDetail.title}
               </View>
@@ -125,7 +128,8 @@ const Index = () => {
                       url: `/pages/node/topicList/index?node=${node}&nodeName=${topicDetail.category}`
                     })
                   }
-                }}>
+                }}
+                >
                   <Image src={NodeIcon} svg className='tagIcon' />
                   <View style={{ display: 'inline-block' }}>{topicDetail.category}</View>
                 </Tag>
@@ -144,7 +148,7 @@ const Index = () => {
             }
             {
               hasComments && topicDetail.comments.map((comment) => (
-                <View className='comment-item'>
+                <View className='comment-item' key={comment.floor}>
                   <View className='comment-author-avatar'>
                     <Image lazyLoad src={getFromLocalCache(comment.authorAvatarUrl)} />
                   </View>
@@ -163,10 +167,11 @@ const Index = () => {
                     <View className='comment-content' onClick={() => {
                       showActionSheet(true);
                       setSelectedComment(comment);
-                    }}>
+                    }}
+                    >
                       <HtmlRender html={comment.content} />
                     </View>
-                    <View className="comment-line3">
+                    <View className='comment-line3'>
                       <View className='comment-meta'>
                         {comment.replyMetas.join('·').replace(/\\s/g, '')}
                       </View>
@@ -186,8 +191,9 @@ const Index = () => {
                             })
                           }
                         });
-                      }}>
-                        <Icon name={'upvote.svg'} size={rpxToPx(34)} />
+                      }}
+                      >
+                        <Icon name='upvote.svg' size={rpxToPx(34)} />
                         {parseInt(comment.upVoteCount.replace('赞', ''))}
                       </View>
                     </View>
@@ -210,18 +216,26 @@ const Index = () => {
             <RelatingTopics topicDetail={topicDetail} />
           </View>
         </ScrollView>
+         { isCommenting && <View onClick={() => setIsCommenting(false)} style={{ background: '#00000044', position: 'absolute', top: 0, bottom: 0, width: '100%'}}  /> }
       </View>
       <View className='actions' style={{ height: isCommenting ? rpxToPx(400) : rpxToPx(120) }}>
         {isCommenting ?
           <View style={{ display: 'block', width: '100%', height: '100%' }}>
             <View className='commentActions'>
-              <View>取消</View>
+              <View onClick={() => {
+                setIsCommenting(false);
+              }}
+              >取消</View>
               <View onClick={() => {
                 id && createNewComment({
                   tid: id,
                   _xsrf: topicDetail?.createCommentXSRF,
                   content: commentContent,
-                }).then()
+                }).then(() => {
+                  setIsCommenting(false);
+                  setCommentContent('');
+                  setRefreshTime(Date.now());
+                })
               }}
               >发送</View>
             </View>
@@ -237,7 +251,6 @@ const Index = () => {
               showConfirmBar={false}
               style={{ height: 100 }}
               placeholder='说点什么'
-              onBlur={() => setIsCommenting(false)}
               onClick={() => {
                 setIsCommenting(true)
               }}
@@ -246,7 +259,7 @@ const Index = () => {
           <>
             <View className='left' onClick={showCommentDialog}>
               {
-                hasLogin ? '说点什么' : '请登录后评论'
+                hasLogin ? '说点什么...' : '请登录后再评论'
               }
             </View>
             <View className='right'>

@@ -40,11 +40,11 @@ export function getDataFromHtml<T = any>(element: HTMLElement | null | undefined
   } else if (_type === 'array') {
     data = [];
     const itemDoms = element.querySelectorAll(_selector);
-    const {_item} = dataDom;
+    const {_item, ...r} = dataDom;
     itemDoms.forEach((dom) => {
       (data as any[]).push(
         getDataFromHtml(dom, {
-          ...dataDom,
+          ...r,
           _selector: '',
           _type: _item as any as DataDom['_type'],
         }))

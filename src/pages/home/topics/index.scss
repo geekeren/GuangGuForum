@@ -1,8 +1,11 @@
-@import "~taro-ui/dist/style/components/tabs.scss";
+@import "../../../vars.scss";
 .at-tabs {
   height: 100%;
   display: flex;
   flex-direction: column;
+  .at-tabs__header {
+    height: 90px;
+  }
   .at-tabs__body {
     flex: auto;
     display: block;
@@ -12,4 +15,7 @@
       overflow: hidden;
     }
   }
+}
+#list_container{
+  background: $bgColor;
 }

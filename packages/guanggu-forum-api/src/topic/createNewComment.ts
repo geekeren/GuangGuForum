@@ -10,6 +10,7 @@ export interface CreateNewConmmentPayload {
 }
 
 export async function createNewComment(payload: CreateNewConmmentPayload) {
+    console.log('createNewComment');
     const { tid } = payload;
     return request(
         getUrl(URLS.TOPIC_DETAIL, { tid}), {
@@ -26,6 +27,7 @@ export async function createNewComment(payload: CreateNewConmmentPayload) {
       if(response.includes('本站已开启回复审核模式')) {
         response = '回复审核中'
       }
+      console.log('response', response);
         Taro.showToast({
             title: response,
             icon: 'success',

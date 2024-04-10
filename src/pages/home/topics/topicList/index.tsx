@@ -2,11 +2,10 @@ import React, { Component } from 'react'
 import { Image, Text, View } from '@tarojs/components'
 import Taro from "@tarojs/taro";
 import VirtualList from '@tarojs/components/virtual-list'
-import { getRecentTopics, GetTopicsParam, TopicSummary, URLS } from "guanggu-forum-api";
+import { TopicSummary, URLS } from "guanggu-forum-api";
 import Loading from '../../../../components/Loading'
 import './index.scss'
 import { getFromLocalCache } from "../../../../utils/localAssets";
-import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from '../../../config';
 import Tag from '../../../../components/Tag';
 import NodeIcon from '../../../../assets/topic_node.svg';
 import CommentIcon from '../../../../assets/comment.svg';
@@ -69,6 +68,7 @@ const rpxToPx = (rpx: number) => {
 }
 
 interface TopicListProps {
+  height: number;
   version?: number; // 用于刷新数据
   getTopics: (page: number) => Promise<TopicSummary[]>
 }
@@ -78,6 +78,8 @@ interface State {
   topics: TopicSummary[];
   loadingPage: number;
 }
+
+const topicListId = 'topicList';
 
 export default class TopicList extends Component<TopicListProps, State> {
   constructor(props, state) {
@@ -102,7 +104,6 @@ export default class TopicList extends Component<TopicListProps, State> {
   }
 
   refreshTopics() {
-
     this.setState({
       // loading: true,
       loadingPage: 1,
@@ -135,11 +136,11 @@ export default class TopicList extends Component<TopicListProps, State> {
 
   render() {
     return (
-      <View style={{ position: 'relative'}}>
+      <View style={{ position: 'relative', height: '100%'}} id={topicListId}>
         <VirtualList
-          className='.topicList'
+          className='topicList'
           width='100%'
-          height={Taro.getSystemInfoSync().windowHeight - (HIDE_TAB ? 52 : 150) - (ENABLE_CUSTOM_NAVBAR ? 70 : 0)}
+          height={this.props.height}
           itemData={this.state.topics}
           itemCount={this.state?.topics.length}
           itemSize={this.itemSize}
@@ -148,7 +149,7 @@ export default class TopicList extends Component<TopicListProps, State> {
             if (
               !this.loading &&
               scrollDirection === 'forward' &&
-              scrollOffset > ((this.state.topics.length - 5) * this.itemSize)
+              scrollOffset > ((this.state.topics.length - 5 - 3) * this.itemSize + 100)
             ) {
               this.listReachBottom()
             }

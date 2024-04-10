@@ -39,10 +39,10 @@ Taro.options.html.transformElement = (taroEle: TaroElement, htmlEle: HTMLElement
       } else {
         taroEle.setAttribute('style', `width: 300px; height: ${height / width * 300}px`);
         taroEle.addEventListener('tap', (e) => {
-          e.preventDefault();
           Taro.previewImage({
             urls: [taroEle.props.src]
           }).then();
+          e.stopPropagation();
         }, {});
       }
     }, {})
@@ -50,7 +50,6 @@ Taro.options.html.transformElement = (taroEle: TaroElement, htmlEle: HTMLElement
       taroEle.setAttribute('style', `width: 20px; height: 20px`);
     }, {})
   } else if (htmlEle.tagName === 'span') {
-    console.log('taroEle', taroEle);
     if (taroEle.children.length !== 0) {
       taroEle.tagName = 'VIEW';
       taroEle.nodeName = 'view';

@@ -57,11 +57,12 @@ export default class Index extends Component<{}, State> {
             <Topics />
           </View>
           {
-            !HIDE_TAB && <AtTabBar
+            !HIDE_TAB &&
+            <AtTabBar
               className='bottomTab'
               tabList={[
                 { title: '首页', iconType: 'home' },
-                { title: '消息', iconType: 'bell', text: '100', max: 99 },
+                { title: '发帖', iconType: 'add'},
                 { title: '我的', iconType: 'user' }
               ]}
               onClick={this.handleClick.bind(this)}

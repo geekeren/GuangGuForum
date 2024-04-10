@@ -5,6 +5,7 @@ import { getNodeTopics } from 'guanggu-forum-api';
 import { useEffect } from 'react';
 import TopicList from '../../home/topics/topicList';
 import './index.scss'
+import { AutoHeight } from '../../../components/AutoHeight';
 
 interface NodeTopicsProps {
   node: string;
@@ -24,19 +25,26 @@ const NodeTopics = (props: NodeTopicsProps) => {
     return;
   }
   return (
-    <View>
+    <View style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
       <View style={{ height: 40, padding: 5 }}>
         板块：{nodeName || ''}
       </View>
-      <TopicList
-        getTopics={(page: number) => {
-          return getNodeTopics({
-            node,
-            page
-          })
-        }}
-        version={0}
-      />
+      <AutoHeight style={{flex: 1}}>
+        {
+          (height) => (
+            <TopicList
+              height={height}
+              getTopics={(page: number) => {
+                return getNodeTopics({
+                  node,
+                  page
+                })
+              }}
+              version={0}
+            />
+          )
+        }
+      </AutoHeight>
     </View>
   )
 }
