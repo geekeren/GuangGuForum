@@ -80,6 +80,6 @@ export function getRecentTopics(param: GetTopicsParam): Promise<TopicSummary[]> 
       tab: tabUrlValue[type]
     }
   }).then(({ body, rawRes }) => {
-    return getDataFromHtml(body, domStructure) as TopicSummary[];
+    return getDataFromHtml(body, domStructure as any) as unknown as TopicSummary[];
   });
 }
