@@ -8808,6 +8808,7 @@ __metadata:
     guanggu-forum-api: "workspace:^"
     node-html-parser: 5.2.0
     path-to-regexp: ^6.2.1
+    prettier: 3.3.2
     query-string: ^7.1.1
     react: ^17.0.0
     react-dom: ^17.0.0
@@ -13365,6 +13366,15 @@ __metadata:
   version: 2.0.0
   resolution: "prepend-http@npm:2.0.0"
   checksum: 7694a9525405447662c1ffd352fcb41b6410c705b739b6f4e3a3e21cf5fdede8377890088e8934436b8b17ba55365a615f153960f30877bf0d0392f9e93503ea
+  languageName: node
+  linkType: hard
+
+"prettier@npm:3.3.2":
+  version: 3.3.2
+  resolution: "prettier@npm:3.3.2"
+  bin:
+    prettier: bin/prettier.cjs
+  checksum: 5557d8caed0b182f68123c2e1e370ef105251d1dd75800fadaece3d061daf96b1389141634febf776050f9d732c7ae8fd444ff0b4a61b20535e7610552f32c69
   languageName: node
   linkType: hard
 

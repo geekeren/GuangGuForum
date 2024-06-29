@@ -9,7 +9,7 @@
     "enhance": false,
     "postcss": false,
     "preloadBackgroundData": false,
-    "minified": true,
+    "minified": false,
     "newFeature": false,
     "coverView": true,
     "nodeModules": false,
@@ -35,8 +35,9 @@
     "userConfirmedBundleSwitch": false,
     "packNpmManually": false,
     "packNpmRelationList": [],
-    "minifyWXSS": true,
-    "showES6CompileOption": false
+    "minifyWXSS": false,
+    "showES6CompileOption": false,
+    "minifyWXML": false
   },
   "compileType": "miniprogram",
   "libVersion": "2.25.2",

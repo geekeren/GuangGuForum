@@ -1,5 +1,5 @@
-import { request } from '../client';
-import { DataDom, getDataFromHtml } from '../utils/getDataFromHtml';
+import { request } from "../client";
+import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
 
 export interface HotNodes {
   title: string;
@@ -7,26 +7,24 @@ export interface HotNodes {
 }
 
 const domStructure: DataDom<HotNodes> = {
-  _attribute: '',
-  _type: 'array',
-  _item: 'object',
+  _attribute: "",
+  _type: "array",
+  _item: "object",
   _selector: ".hot-nodes .ui-content a",
   title: {
     _selector: "",
-    _attribute: '',
-    _type: 'string',
+    _attribute: "",
+    _type: "string",
   },
   link: {
     _selector: "",
     _attribute: "href",
-    _type: 'string',
-  }
-}
-
-
+    _type: "string",
+  },
+};
 
 export function getHotNodes(): Promise<HotNodes[]> {
-  return request('/').then(({ body }) => {
+  return request("/").then(({ body }) => {
     return getDataFromHtml(body, domStructure) as HotNodes[];
   });
 }

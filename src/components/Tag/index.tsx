@@ -1,6 +1,6 @@
 import { View } from "@tarojs/components";
-import React from 'react';
-import styles from './index.module.scss';
+import React from "react";
+import styles from "./index.module.scss";
 
 interface Props {
   children: React.ReactNode;
@@ -8,8 +8,10 @@ interface Props {
 }
 
 const Tag = ({ children, onClick }: Props) => {
-  return <View className={styles.tag} onClick={onClick}>
-    {children}
-  </View>;
-}
+  return (
+    <View className={styles.tag} onClick={onClick}>
+      {children}
+    </View>
+  );
+};
 export default Tag;

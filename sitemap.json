@@ -1,11 +1,14 @@
 {
-    "rules":[{
+  "rules": [
+    {
       "action": "allow",
       "page": "/pages/topicDetail/index",
       "params": ["tid"],
       "matching": "inclusive"
-    },{
+    },
+    {
       "action": "allow",
       "page": "*"
-    }]
-  }
+    }
+  ]
+}

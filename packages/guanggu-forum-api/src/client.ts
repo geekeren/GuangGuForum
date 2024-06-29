@@ -6,38 +6,43 @@ import { URLS } from "./urls";
 import { parseCookie, stringifyCookie } from "./utils/cookie";
 
 type TaroRequestConfig = Parameters<typeof Taro.request>[0];
-export interface RequestConfig extends Omit<TaroRequestConfig, 'url'>{
+export interface RequestConfig extends Omit<TaroRequestConfig, "url"> {
   useProxy?: boolean;
   useCookie?: boolean;
-  query?: Record<string, string | undefined>,
-  data?: Record<string, string | undefined>,
-  method?: 'POST' | 'GET'
+  query?: Record<string, string | undefined>;
+  data?: Record<string, string | undefined>;
+  method?: "POST" | "GET";
 }
 
 export function request(
-  relativeUrl: string = '',
-  config?: RequestConfig): Promise<{
-    body?: HTMLElement,
-    rawRes: any,
-    data?: Record<string, any>,
-  }> {
-
-  const { query = {}, method = 'GET', useProxy = false, useCookie = true, ...rest } = config || {};
+  relativeUrl: string = "",
+  config?: RequestConfig,
+): Promise<{
+  body?: HTMLElement;
+  rawRes: any;
+  data?: Record<string, any>;
+}> {
+  const {
+    query = {},
+    method = "GET",
+    useProxy = false,
+    useCookie = true,
+    ...rest
+  } = config || {};
   Object.entries(query).forEach(([k, v]) => {
     if (!v) {
-      delete query[k]
+      delete query[k];
     }
-  })
+  });
   const baseUrl = url.parse(
-    url.resolve(useProxy ? URLS.PROXY_ROOT_URL : URLS.ROOT_URL, relativeUrl)
-    );
+    url.resolve(useProxy ? URLS.PROXY_ROOT_URL : URLS.ROOT_URL, relativeUrl),
+  );
   const newUrl = url.format({
     ...baseUrl,
     query: {
-      ...query
+      ...query,
     },
-  })
-
+  });
 
   return Taro.request({
     url: newUrl,
@@ -45,17 +50,14 @@ export function request(
     ...rest,
     header: {
       ...rest.header,
-      cookie: useCookie ? stringifyCookie(Taro.getStorageSync('cookies')) : "",
-    }
+      cookie: useCookie ? stringifyCookie(Taro.getStorageSync("cookies")) : "",
+    },
   }).then((res: any) => {
-    if(res.cookies) {
-      Taro.setStorageSync(
-        "cookies",
-        {
-          ...Taro.getStorageSync('cookies'),
-          ...parseCookie(res.cookies)
-        }
-      )
+    if (res.cookies) {
+      Taro.setStorageSync("cookies", {
+        ...Taro.getStorageSync("cookies"),
+        ...parseCookie(res.cookies),
+      });
     }
     const resData = res.data;
     if (!useProxy) {
@@ -63,27 +65,29 @@ export function request(
       const result = REG_BODY.exec(resData);
       if (result && result.length === 2) {
         const bodyStr = result[0];
-        if(bodyStr.includes('请先登录社区再完成操作') && !relativeUrl.includes('/login')) {
+        if (
+          bodyStr.includes("请先登录社区再完成操作") &&
+          !relativeUrl.includes("/login")
+        ) {
           Taro.showToast({
-            icon: 'error',
+            icon: "error",
             duration: 2000,
-            title: '请先登录',
+            title: "请先登录",
           });
           Taro.reLaunch({
-            url: '/pages/login/index'
+            url: "/pages/login/index",
           });
         }
         const body = parse(bodyStr);
         return Promise.resolve({
           body,
-          rawRes: res
+          rawRes: res,
         });
       }
     }
     return {
       rawRes: res,
-      data: res.data
+      data: res.data,
     };
-  })
+  });
 }
-

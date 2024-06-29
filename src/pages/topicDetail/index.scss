@@ -1,5 +1,3 @@
-
-
 .topicDetail {
   background: #eee;
   height: 100vh;
@@ -17,7 +15,6 @@
       //height: 100vh;
     }
   }
-
 
   .actions {
     height: 120px;
@@ -76,10 +73,10 @@
 
         .at-badge__num {
           top: -4rpx;
-          right: -4PX;
+          right: -4px;
           font-size: 15px;
           background: unset;
-          color: #FF4949;
+          color: #ff4949;
           box-shadow: none;
         }
       }
@@ -104,7 +101,6 @@
       }
     }
   }
-
 
   .main {
     background: #fff;
@@ -196,7 +192,6 @@
   }
 
   .comments {
-
     font-size: 30px;
 
     .comment-item {
@@ -218,7 +213,7 @@
         display: block;
         padding: 0 10px 30px 20px;
         flex: auto;
-        border-bottom: solid 1Px rgba(14, 21, 28, 0.1);
+        border-bottom: solid 1px rgba(14, 21, 28, 0.1);
 
         .line1 {
           display: flex;
@@ -241,7 +236,8 @@
           display: flex;
           justify-content: space-between;
 
-          .comment-meta {}
+          .comment-meta {
+          }
 
           .commentUpvote {
             display: flex;
@@ -258,7 +254,6 @@
         }
       }
     }
-
 
     .h5-p {
       margin: 0;
