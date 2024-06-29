@@ -23,11 +23,11 @@
     "dev:swan": "npm run build:swan -- --watch",
     "dev:alipay": "npm run build:alipay -- --watch",
     "dev:tt": "npm run build:tt -- --watch",
-    "dev:h5": "npm run build:h5 -- --watch",
     "dev:rn": "npm run build:rn -- --watch",
     "dev:qq": "npm run build:qq -- --watch",
     "dev:jd": "npm run build:jd -- --watch",
-    "dev:quickapp": "npm run build:quickapp -- --watch"
+    "dev:quickapp": "npm run build:quickapp -- --watch",
+    "dev:h5": "cross-env NODE_OPTIONS='--openssl-legacy-provider' npm run build:h5 -- --watch"
   },
   "workspaces": {
     "packages": [
@@ -78,6 +78,7 @@
     "@typescript-eslint/eslint-plugin": "^5.20.0",
     "@typescript-eslint/parser": "^5.20.0",
     "babel-preset-taro": "3.5.0",
+    "cross-env": "^7.0.3",
     "eslint": "^8.12.0",
     "eslint-config-taro": "3.5.0",
     "eslint-plugin-import": "^2.12.0",
