@@ -3,13 +3,32 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: #f4f5fa;
 
   .bottomTab {
-    height: 120px;
+    height: 120rpx;
   }
 
   .tabContent {
-    flex: auto;
+    flex: 1;
     overflow: hidden;
+  }
+}
+
+.bottomTab {
+  .at-tab-bar__item:nth-child(2) .at-tab-bar__icon {
+    background: linear-gradient(135deg, #1f69ff, #1954cc);
+    border-radius: 28rpx;
+    width: 64rpx;
+    height: 64rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8rpx 20rpx rgba(31, 105, 255, 0.25);
+
+    .at-icon {
+      color: #fff !important;
+      font-size: 36rpx !important;
+    }
   }
 }

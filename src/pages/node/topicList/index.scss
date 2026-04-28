@@ -1,0 +1,63 @@
+@import "../../../vars.scss";
+
+.nodePage {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: $bgColor;
+}
+
+.nodeHeader {
+  background: $surface;
+  padding: 22rpx 32rpx 20rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  box-shadow: $shadow-sm;
+  position: relative;
+  z-index: 1;
+
+  .iconBlock {
+    width: 64rpx;
+    height: 64rpx;
+    border-radius: $radius-md;
+    background: linear-gradient(135deg, $color-brand, $color-brand-dark);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30rpx;
+    font-weight: 700;
+    box-shadow: $shadow-glow;
+    flex-shrink: 0;
+  }
+
+  .nodeMeta {
+    flex: 1;
+    min-width: 0;
+
+    .nodeName {
+      font-size: 32rpx;
+      font-weight: 700;
+      color: $text-primary;
+      letter-spacing: -0.3rpx;
+    }
+
+    .nodeSub {
+      font-size: 22rpx;
+      color: $text-faint;
+      margin-top: 4rpx;
+    }
+  }
+
+  .createTopicBtn {
+    flex-shrink: 0;
+    padding: 12rpx 28rpx;
+    border-radius: 28rpx;
+    background: linear-gradient(135deg, $color-brand, $color-brand-dark);
+    color: #fff;
+    font-size: 24rpx;
+    font-weight: 600;
+    box-shadow: $shadow-glow;
+  }
+}

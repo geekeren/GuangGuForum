@@ -1,0 +1,75 @@
+@import "../../vars.scss";
+
+.createTopic {
+  background: $bgColor;
+  min-height: 100vh;
+  padding: 24rpx;
+  box-sizing: border-box;
+
+  .section {
+    background: $surface;
+    border-radius: $radius-lg;
+    padding: 24rpx 28rpx;
+    margin-bottom: 20rpx;
+    box-shadow: $shadow-sm;
+  }
+
+  .label {
+    font-size: 26rpx;
+    font-weight: 700;
+    color: $text-primary;
+    margin-bottom: 18rpx;
+    display: block;
+  }
+
+  .pickerItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16rpx 20rpx;
+    background: $bgColor;
+    border-radius: $radius-md;
+    font-size: 28rpx;
+    color: $text-primary;
+
+    .arrow {
+      font-size: 20rpx;
+      color: $text-faint;
+    }
+  }
+
+  .inputWrap {
+    background: $bgColor;
+    border-radius: $radius-md;
+    padding: 16rpx 20rpx;
+  }
+
+  .titleInput {
+    width: 100%;
+    font-size: 28rpx;
+    min-height: 48rpx;
+  }
+
+  .contentInput {
+    width: 100%;
+    font-size: 28rpx;
+    min-height: 240rpx;
+  }
+
+  .submitBtn {
+    margin-top: 32rpx;
+    text-align: center;
+    padding: 24rpx 0;
+    border-radius: 44rpx;
+    background: linear-gradient(135deg, $color-brand, $color-brand-dark);
+    color: #fff;
+    font-size: 30rpx;
+    font-weight: 600;
+    box-shadow: $shadow-glow;
+
+    &--disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  }
+}

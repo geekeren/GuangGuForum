@@ -1,17 +1,32 @@
+@import "../../vars.scss";
+
+.navTitle {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: $text-primary;
+  flex-shrink: 0;
+  letter-spacing: -0.3rpx;
+}
+
 .searchEntry {
   display: flex;
   align-items: center;
-  padding-left: 20px;
-  background: #eeeeee;
-  border-radius: 40px;
+  padding: 0 24rpx;
+  background: $surface;
+  border-radius: 40rpx;
   height: 100%;
-  margin-right: 20px;
-  font-size: 28px;
-  color: #333333;
+  flex: 1;
+  margin-left: 16rpx;
+  font-size: 26rpx;
+  color: $text-muted;
+  box-shadow: $shadow-sm;
+  border: 1rpx solid $border-color;
+
   .text {
-    margin-left: 10px;
+    margin-left: 12rpx;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+    color: $text-faint;
   }
 }

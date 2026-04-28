@@ -41,6 +41,7 @@ const Index = () => {
   const [refreshTime, setRefreshTime] = useState<number>(() => Date.now());
   const [topicDetail, setTopicDetail] = useState<TopicDetail>();
   const [isCommenting, setIsCommenting] = useState(false);
+  const [sending, setSending] = useState(false);
   const [isActionSheetShown, showActionSheet] = useState(false);
   const [commentContent, setCommentContent] = useState("");
   const [selectedComment, setSelectedComment] =
@@ -113,7 +114,8 @@ const Index = () => {
             <View className="main">
               <View className="header">
                 <View className="title">
-                  <Text
+                  <View
+                    className="breadcrumb"
                     onClick={() => {
                       Taro.reLaunch({
                         url: "/pages/home/index",
@@ -121,9 +123,9 @@ const Index = () => {
                     }}
                   >
                     首页
-                  </Text>
-                  <Icon size={20} name="arrow-right.svg"></Icon>
-                  {topicDetail.title}
+                    <Icon size={12} name="arrow-right.svg"></Icon>
+                  </View>
+                  <Text className="titleText">{topicDetail.title}</Text>
                 </View>
                 <View
                   className="meta"
@@ -256,10 +258,9 @@ const Index = () => {
                   </View>
                 ))}
               <AdCustom
-                unitId="adunit-98a34ea29ac31826"
-                adIntervals={60}
+                unitId="adunit-528fc7c01c3edadb"
                 onLoad={() => console.log("ad onLoad")}
-                onError={() => console.log("ad onError")}
+                onError={(e) => console.log("ad onError", e)}
               />
             </View>
             <View className="relatingTopics section">
@@ -295,7 +296,11 @@ const Index = () => {
                   取消
                 </View>
                 <View
+                  className={`sendBtn ${sending ? 'sendBtn--disabled' : ''}`}
                   onClick={() => {
+                    if (sending) return;
+                    setSending(true);
+                    Taro.showLoading({ title: "发送中...", mask: true });
                     id &&
                       createNewComment({
                         tid: id,
@@ -305,10 +310,13 @@ const Index = () => {
                         setIsCommenting(false);
                         setCommentContent("");
                         setRefreshTime(Date.now());
+                      }).finally(() => {
+                        setSending(false);
+                        Taro.hideLoading();
                       });
                   }}
                 >
-                  发送
+                  {sending ? "发送中..." : "发送"}
                 </View>
               </View>
               <Textarea

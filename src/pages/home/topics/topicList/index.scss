@@ -1,62 +1,120 @@
 @import "../../../../vars.scss";
 
+// VirtualList 用 absolute 定位每个 item，
+// 所以外层 padding / item 之间的 margin 都不生效。
+// 必须把"卡片间距"做在 item 自身内部 —— 用边距 + 大圆角伪卡片实现。
+
 .topicList {
-  font-size: 28px;
+  font-size: 28rpx;
   box-sizing: border-box;
   height: 100%;
+  background: $bgColor;
 
+  // 每个 item 的外壳：撑满 VirtualList 给的高度，留出底部间距给视觉缝隙
   .topicItem {
-    background: white;
     box-sizing: border-box;
-    border-bottom: 1px #eee solid;
-
-    margin: 10px;
-    padding: 22px;
+    padding: 0 16rpx 16rpx;
+    background: transparent;
     overflow: hidden;
+    position: relative;
 
-    &:active {
-      background: $bgColor;
-    }
-    .title {
+    // 真正的卡片：白底 + 圆角 + 阴影
+    background-clip: content-box;
+    background-color: transparent;
+
+    // 用伪元素铺出"卡片"的视觉
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 16rpx;
+      right: 16rpx;
+      bottom: 16rpx;
+      background: $surface;
+      border-radius: $radius-lg;
+      box-shadow: $shadow-sm;
+      z-index: 0;
     }
 
+    &:active::before {
+      background: #f8f9fc;
+    }
+
+    // 卡片内容浮在伪元素之上
+    .line1,
+    .title,
+    .meta {
+      position: relative;
+      z-index: 1;
+      padding-left: 32rpx;
+      padding-right: 32rpx;
+    }
+
+    // 顶部：作者 + 时间
     .line1 {
       display: flex;
       flex-direction: row;
       align-items: center;
-      height: 55px;
       justify-content: space-between;
+      padding-top: 28rpx;
+      padding-bottom: 0;
+      height: 56rpx;
+      box-sizing: content-box;
 
       .user {
         display: flex;
         flex-direction: row;
         align-items: center;
+        flex: 1;
+        min-width: 0;
 
-        .avatar image {
-          border-radius: 25px;
-          height: 50px;
-          width: 50px;
-          display: block;
+        .avatar {
+          width: 56rpx;
+          height: 56rpx;
+          border-radius: 28rpx;
+          overflow: hidden;
+          background: $color-brand-soft;
+          flex-shrink: 0;
+
+          image {
+            border-radius: 28rpx;
+            height: 56rpx;
+            width: 56rpx;
+            display: block;
+          }
         }
 
         .userName {
-          margin-left: 20px;
-          font-size: 28px;
-          font-weight: bold;
+          margin-left: 18rpx;
+          font-size: 28rpx;
+          font-weight: 600;
+          color: $text-primary;
           text-transform: capitalize;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          letter-spacing: 0.2rpx;
         }
       }
 
       .lastUpdateTime {
-        font-size: 20px;
-        color: #0e151c99;
+        font-size: 22rpx;
+        color: $text-faint;
+        flex-shrink: 0;
+        margin-left: 12rpx;
       }
     }
 
+    // 标题
     .title {
-      font-size: 32px;
-      padding: 15px 0 10px 0;
-      height: 88px;
+      font-size: 32rpx;
+      font-weight: 600;
+      line-height: 1.45;
+      color: $text-primary;
+      letter-spacing: -0.3rpx;
+      padding-top: 14rpx;
+      padding-bottom: 0;
+      height: 93rpx;
       overflow: hidden;
       text-overflow: ellipsis;
       display: -webkit-box;
@@ -64,25 +122,34 @@
       -webkit-box-orient: vertical;
     }
 
+    // 底部：tag + 评论
     .meta {
-      height: 54px;
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      padding-top: 20rpx;
+      padding-bottom: 28rpx;
+      height: 50rpx;
 
       .tagIcon {
-        width: 28px;
-        height: 28px;
-        margin-right: 4px;
+        width: 22rpx;
+        height: 22rpx;
+        margin-right: 6rpx;
         display: inline-block;
       }
+
       .right {
         display: inline-flex;
-        vertical-align: center;
+        align-items: center;
+        color: $text-muted;
+        font-size: 24rpx;
+        gap: 8rpx;
       }
+
       .commentIcon {
-        width: 32px;
-        height: 32px;
-        margin-right: 8px;
+        width: 30rpx;
+        height: 30rpx;
+        margin-right: 8rpx;
         display: inline-block;
       }
     }

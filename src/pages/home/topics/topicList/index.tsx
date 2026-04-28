@@ -11,6 +11,7 @@ import NodeIcon from "../../../../assets/topic_node.svg";
 import CommentIcon from "../../../../assets/comment.svg";
 import { urlPathVaiable } from "../../../../utils/urls";
 import { withCache } from "../../../../utils/cacheRequest";
+import { rpxToPx } from "../../../../utils/dimension";
 
 interface ListRow {
   id: string;
@@ -71,14 +72,11 @@ const TopicItem = React.memo(({ id, index, style, data }: ListRow) => {
     </View>
   );
 });
-const rpxToPx = (rpx: number) => {
-  const pixelRatio = 750 / Taro.getSystemInfoSync().windowWidth;
-  return rpx / pixelRatio;
-};
 
 interface TopicListProps {
   height: number;
   cacheKey?: string;
+  style?: React.CSSProperties;
   getTopics: (page: number) => Promise<TopicSummary[]>;
 }
 
@@ -120,10 +118,15 @@ export default class TopicList extends Component<TopicListProps, State> {
   }
 
   componentDidMount() {
+    console.log('[TopicList] componentDidMount, props:', this.props.cacheKey, 'height:', this.props.height);
     this.refreshTopics();
   }
 
-  componentDidUpdate() {}
+  componentDidUpdate(prevProps: TopicListProps) {
+    if (prevProps.cacheKey !== this.props.cacheKey) {
+      this.refreshTopics();
+    }
+  }
 
   refreshTopics() {
     this.loading = true;
@@ -131,12 +134,18 @@ export default class TopicList extends Component<TopicListProps, State> {
     this.getRecentTopics(1).then((topics) => {
       this.loading = false;
       Taro.hideNavigationBarLoading();
-      this.setState({ topics, loadingPage: 1 });
+      console.log('[TopicList] refreshTopics got topics:', topics?.length, topics?.[0]);
+      this.setState({ topics, loadingPage: 1 }, () => {
+        console.log('[TopicList] state after refresh:', this.state.topics.length, 'height:', this.props.height);
+      });
     });
   }
 
   loading = false;
-  itemSize = rpxToPx(274);
+  // 卡片高度（rpx）:
+  // 28(顶 padding) + 56(头像行) + 20 + 93(标题2行) + 20 + 50(meta) + 28(底 padding) = 295
+  // + 16 卡片间距 ≈ 311rpx
+  itemSize = rpxToPx(305);
 
   listReachBottom() {
     const page = this.state.loadingPage + 1;
@@ -151,30 +160,37 @@ export default class TopicList extends Component<TopicListProps, State> {
   }
 
   render() {
+    const { topics } = this.state;
     return (
-      <View style={{ position: "relative", height: "100%" }} id={topicListId}>
-        <VirtualList
-          className="topicList"
-          width="100%"
-          height={this.props.height}
-          itemData={this.state.topics}
-          itemCount={this.state?.topics.length}
-          itemSize={this.itemSize}
-          overscanCount={5}
-          onScroll={({ scrollDirection, scrollOffset }) => {
-            if (
-              !this.loading &&
-              scrollDirection === "forward" &&
-              scrollOffset >
-                (this.state.topics.length - 5 - 3) * this.itemSize + 100
-            ) {
-              this.listReachBottom();
-            }
-          }}
-        >
-          {TopicItem}
-        </VirtualList>
-        {this.loading && <Loading size={40} />}
+      <View style={{ position: "relative", flex: 1, overflow: "hidden", ...this.props.style }} id={topicListId}>
+        {topics.length > 0 ? (
+          <VirtualList
+            className="topicList"
+            width="100%"
+            height={this.props.height}
+            itemData={topics}
+            itemCount={topics.length}
+            itemSize={this.itemSize}
+            overscanCount={5}
+            onScroll={({ scrollDirection, scrollOffset }) => {
+              if (
+                !this.loading &&
+                scrollDirection === "forward" &&
+                scrollOffset >
+                  (topics.length - 5 - 3) * this.itemSize + 100
+              ) {
+                this.listReachBottom();
+              }
+            }}
+          >
+            {TopicItem}
+          </VirtualList>
+        ) : (
+          <View style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "300rpx", color: "#999", fontSize: "28rpx" }}>
+            {this.loading ? "加载中..." : "暂无数据"}
+          </View>
+        )}
+        {this.loading && topics.length > 0 && <Loading size={40} />}
       </View>
     );
   }

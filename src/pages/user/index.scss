@@ -1,0 +1,8 @@
+@import "../../vars.scss";
+
+.userPage {
+  background: $bgColor;
+  min-height: 100vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}

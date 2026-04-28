@@ -1,4 +1,39 @@
-$bgColor: #f6f6f6;
-$color-brand: #1f69ff;
+// 设计 tokens — 对齐 UI 设计稿
+//
+// 配色：以蓝为主品牌色（保留原 brand 1f69ff），加蓝软色用于 chip 背景；
+// 灰阶细分用于不同层级的文字和分隔线。
+
+$bgColor: #f4f5fa;            // 全局背景（灰白）
+$surface: #ffffff;            // 卡片表面
+$surfaceAlt: #f0f3f8;         // 次级表面（搜索框、灰色填充按钮）
+
+$color-brand: #1f69ff;        // 主品牌色
 $color-brand-light: #578fff;
 $color-brand-dark: #1954cc;
+$color-brand-soft: #e8efff;   // 蓝色软色（chip / 头像描边）
+$color-brand-glow: rgba(31, 105, 255, 0.18);
+
+$color-accent: #ff8a3d;       // 等级徽章橙色
+$color-accent-deep: #ff6a13;
+$color-accent-soft: #fff1e6;
+
+// 文字
+$text-primary: #0f1626;
+$text-sub: #2c3548;
+$text-muted: #6b7488;
+$text-faint: #a0a8b8;
+
+// 边框 / 分隔
+$border-color: #e8ebf2;
+$border-strong: #d6dbe5;
+
+// 阴影
+$shadow-sm: 0 4px 12rpx rgba(15, 22, 38, 0.04);
+$shadow-md: 0 12rpx 32rpx rgba(15, 22, 38, 0.06);
+$shadow-glow: 0 12rpx 28rpx rgba(31, 105, 255, 0.18);
+
+// 圆角
+$radius-sm: 12rpx;
+$radius-md: 20rpx;
+$radius-lg: 28rpx;
+$radius-xl: 36rpx;

@@ -1,5 +1,7 @@
+@import "../../vars.scss";
+
 .topicDetail {
-  background: #eee;
+  background: $bgColor;
   height: 100vh;
   flex-direction: column;
   display: flex;
@@ -11,247 +13,214 @@
 
     .scrollContent {
       height: 100%;
-      //overflow: hidden;
-      //height: 100vh;
     }
   }
 
-  .actions {
-    height: 120px;
-    box-shadow: 0 0.13636rem 0.81818rem rgb(0 0 0 / 10%);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: white;
-    font-size: 34px;
-    box-sizing: border-box;
-    position: relative;
-    padding: 30px 30px 40px 30px;
-
-    .commentActions {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .commentTextArea {
-      margin-top: 20px;
-      background-color: #f6f7f8;
-      border-radius: 15px;
-      padding: 15px;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    .left {
-      flex: 1 1;
-      background: #f7f8f9;
-      border-radius: 40px;
-      display: flex;
-      align-items: center;
-      position: relative;
-      box-sizing: border-box;
-      padding: 15px 30px;
-    }
-
-    .right {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      height: 100%;
-      padding: 0;
-      margin-left: 15px;
-      width: 200px;
-
-      .commentIcon {
-        width: 38px;
-        height: 38px;
-        display: inline-block;
-      }
-
-      .comment {
-        margin-right: 40px;
-
-        .at-badge__num {
-          top: -4rpx;
-          right: -4px;
-          font-size: 15px;
-          background: unset;
-          color: #ff4949;
-          box-shadow: none;
-        }
-      }
-
-      .share {
-        .icon {
-          width: 48px;
-          height: 48px;
-          margin-right: 8px;
-        }
-
-        font-size: 24px;
-        display: inline-flex;
-        background-color: #1cc4c6;
-        border-radius: 24px;
-        color: white;
-        align-items: center;
-        padding: 0 12px 0 0 !important;
-        line-height: unset;
-        border: none;
-        outline: none;
-      }
-    }
-  }
-
+  // ────────────────────────────────────────────────────────────
+  // 主帖内容
+  // ────────────────────────────────────────────────────────────
   .main {
-    background: #fff;
-    padding: 16px;
-
-    .title {
-      font-size: 34px;
-      font-weight: bold;
-      margin-bottom: 20px;
-    }
+    background: $surface;
+    padding: 28rpx 32rpx 24rpx;
 
     .header {
-      font-size: 24px;
+      .title {
+        font-size: 36rpx;
+        font-weight: 700;
+        line-height: 1.4;
+        color: $text-primary;
+        letter-spacing: -0.4rpx;
+        margin-bottom: 24rpx;
+        display: flex;
+        align-items: center;
+
+        .breadcrumb {
+          font-size: 36rpx;
+          font-weight: 700;
+          color: $color-brand;
+          display: flex;
+          align-items: center;
+          gap: 4rpx;
+          flex-shrink: 0;
+        }
+
+        .titleText {
+          margin-left: 8rpx;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
 
       .meta {
-        background: rgb(247, 248, 249);
-        padding: 20px 12px;
+        background: $bgColor;
+        padding: 18rpx 20rpx;
         box-sizing: border-box;
-        border-radius: 8px;
+        border-radius: $radius-md;
         display: flex;
+        align-items: center;
+        gap: 18rpx;
 
         .avatar {
-          margin-right: 20px;
+          flex-shrink: 0;
 
           image {
-            width: 80px;
-            height: 80px;
-            border-radius: 40px;
+            width: 72rpx;
+            height: 72rpx;
+            border-radius: 36rpx;
           }
         }
 
         .author {
-          font-size: 30px;
-          font-weight: bold;
+          font-size: 28rpx;
+          font-weight: 600;
+          color: $text-primary;
+          text-transform: capitalize;
         }
 
         .moreInfo {
           display: flex;
+          font-size: 22rpx;
+          color: $text-faint;
+          margin-top: 4rpx;
+          gap: 16rpx;
         }
 
         .createTime {
-          margin-right: 20px;
+          margin-right: 0;
         }
       }
     }
 
     .content {
       overflow: hidden;
-      padding: 10px;
-      line-height: 1.6;
-      font-size: 32px;
+      padding: 24rpx 4rpx 8rpx;
+      line-height: 1.7;
+      font-size: 30rpx;
+      color: $text-sub;
 
       image,
       img {
         max-width: 100%;
+        border-radius: $radius-sm;
         overflow: hidden;
+        margin: 12rpx 0;
       }
     }
 
     .extra {
       display: flex;
       justify-content: space-between;
-      font-size: 24px;
-      color: rgba(14, 21, 28, 0.4);
+      align-items: center;
+      font-size: 22rpx;
+      color: $text-faint;
+      padding-top: 12rpx;
 
       .right {
         display: flex;
+        gap: 18rpx;
       }
 
       .tagIcon {
-        width: 28px;
-        height: 28px;
-        margin-right: 4px;
+        width: 22rpx;
+        height: 22rpx;
+        margin-right: 6rpx;
         display: inline-block;
       }
     }
   }
 
+  // ────────────────────────────────────────────────────────────
+  // 节区（评论 / 相关）
+  // ────────────────────────────────────────────────────────────
   .section {
-    background: white;
-    padding: 16px;
-    margin: 20px 0;
+    background: $surface;
+    padding: 24rpx 32rpx;
+    margin: 16rpx 0 0;
 
     .header {
-      font-weight: bold;
-      font-size: 30px;
-      margin-bottom: 32px;
+      font-weight: 700;
+      font-size: 30rpx;
+      color: $text-primary;
+      margin-bottom: 20rpx;
+      letter-spacing: -0.2rpx;
     }
   }
 
+  // ────────────────────────────────────────────────────────────
+  // 评论列表
+  // ────────────────────────────────────────────────────────────
   .comments {
-    font-size: 30px;
+    font-size: 28rpx;
 
     .comment-item {
       display: flex;
       flex-direction: row;
-      padding: 10px 8px;
+      padding: 18rpx 0;
 
       .comment-author-avatar {
-        margin-right: 16px;
+        margin-right: 18rpx;
+        flex-shrink: 0;
 
         image {
-          width: 60px;
-          height: 60px;
-          border-radius: 10px;
+          width: 64rpx;
+          height: 64rpx;
+          border-radius: 32rpx;
         }
       }
 
       .comment-right {
         display: block;
-        padding: 0 10px 30px 20px;
+        padding: 0 0 22rpx 0;
         flex: auto;
-        border-bottom: solid 1px rgba(14, 21, 28, 0.1);
+        border-bottom: 1rpx solid $border-color;
 
         .line1 {
           display: flex;
           justify-content: space-between;
+          align-items: baseline;
         }
 
         .comment-author {
-          font-size: 24px;
+          font-size: 26rpx;
+          font-weight: 600;
+          color: $text-primary;
           text-transform: capitalize;
         }
 
         .comment-content {
-          margin: 10px 0 20px 0;
+          margin: 8rpx 0 14rpx 0;
           user-select: auto;
+          color: $text-sub;
+          font-size: 28rpx;
+          line-height: 1.6;
         }
 
         .comment-line3 {
-          font-size: 24px;
-          color: rgba(14, 21, 28, 0.4);
+          font-size: 22rpx;
+          color: $text-faint;
           display: flex;
           justify-content: space-between;
-
-          .comment-meta {
-          }
+          align-items: center;
 
           .commentUpvote {
             display: flex;
-            font-size: 30px;
-            color: rgba(14, 21, 28);
-            vertical-align: middle;
+            align-items: center;
+            font-size: 24rpx;
+            color: $text-muted;
+            gap: 4rpx;
 
             image {
-              margin-right: 5px;
-              width: 30px;
-              height: 30px;
+              margin-right: 4rpx;
+              width: 28rpx;
+              height: 28rpx;
             }
           }
         }
+      }
+
+      &:last-child .comment-right {
+        border-bottom: none;
       }
     }
 
@@ -260,10 +229,120 @@
     }
   }
 
+  // ────────────────────────────────────────────────────────────
+  // 相关主题
+  // ────────────────────────────────────────────────────────────
   .relatingTopics {
-    margin: 20px 0 20px;
-    background: white;
-    line-height: 1.8;
-    font-size: 30px;
+    line-height: 1.6;
+    font-size: 28rpx;
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // 底部操作栏
+  // ────────────────────────────────────────────────────────────
+  .actions {
+    height: 120rpx;
+    box-shadow: 0 -4rpx 16rpx rgba(15, 22, 38, 0.06);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: $surface;
+    font-size: 28rpx;
+    box-sizing: border-box;
+    position: relative;
+    padding: 18rpx 24rpx 30rpx;
+
+    .commentActions {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 8rpx;
+      font-size: 30rpx;
+      color: $text-sub;
+
+      view:last-child {
+        color: $color-brand;
+        font-weight: 600;
+      }
+
+      .sendBtn--disabled {
+        color: $text-faint !important;
+      }
+    }
+
+    .commentTextArea {
+      margin-top: 18rpx;
+      background-color: $bgColor;
+      border-radius: $radius-md;
+      padding: 18rpx;
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 28rpx;
+    }
+
+    .left {
+      flex: 1 1;
+      background: $bgColor;
+      border-radius: 40rpx;
+      display: flex;
+      align-items: center;
+      box-sizing: border-box;
+      padding: 14rpx 28rpx;
+      font-size: 26rpx;
+      color: $text-faint;
+      height: 64rpx;
+    }
+
+    .right {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      height: 100%;
+      padding: 0;
+      margin-left: 16rpx;
+
+      .commentIcon {
+        width: 40rpx;
+        height: 40rpx;
+        display: inline-block;
+      }
+
+      .comment {
+        margin-right: 28rpx;
+
+        .at-badge__num {
+          top: -8rpx;
+          right: -10rpx;
+          font-size: 18rpx;
+          background: $color-brand;
+          color: #fff;
+          box-shadow: none;
+        }
+      }
+
+      .share {
+        background: linear-gradient(135deg, $color-brand, $color-brand-dark);
+        border-radius: 32rpx;
+        color: #fff;
+        font-size: 24rpx;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        padding: 10rpx 22rpx 10rpx 16rpx !important;
+        line-height: 1;
+        border: none;
+        outline: none;
+        box-shadow: $shadow-glow;
+
+        &::after {
+          border: none;
+        }
+
+        .icon {
+          width: 32rpx;
+          height: 32rpx;
+          margin-right: 8rpx;
+        }
+      }
+    }
   }
 }

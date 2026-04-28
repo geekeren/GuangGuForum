@@ -1,19 +1,56 @@
 @import "@tarojs/taro/html.css";
+@import "../../vars.scss";
 
 .h5-a {
   display: inline-block;
-  color: #0f50bd;
+  color: $color-brand;
+  word-break: break-all;
 }
 
 .html {
   user-select: auto;
+  color: $text-sub;
+  font-size: 30rpx;
+  line-height: 1.7;
 
   .h5-img {
-    //padding: 10px;
-    //border-radius: 10px;
-    width: 100px;
-    height: 100px;
-    display: inline-block;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    border-radius: $radius-md;
+    display: block;
+    margin: 16rpx 0;
     transition: all 0.2s;
+  }
+
+  .h5-p {
+    margin: 12rpx 0;
+  }
+
+  .h5-blockquote {
+    border-left: 4rpx solid $color-brand;
+    background: $bgColor;
+    padding: 16rpx 24rpx;
+    margin: 16rpx 0;
+    border-radius: $radius-sm;
+    color: $text-muted;
+  }
+
+  .h5-code,
+  code {
+    background: $bgColor;
+    padding: 4rpx 8rpx;
+    border-radius: 6rpx;
+    font-size: 26rpx;
+    color: $color-brand-dark;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  .h5-pre {
+    background: $bgColor;
+    border-radius: $radius-sm;
+    padding: 16rpx;
+    overflow-x: auto;
+    font-size: 26rpx;
   }
 }

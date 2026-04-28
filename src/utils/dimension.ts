@@ -46,6 +46,7 @@ export const getNavInfo = () => {
 };
 
 export const rpxToPx = (rpx: number) => {
-  const pixelRatio = 750 / Taro.getSystemInfoSync().windowWidth;
+  const { windowWidth } = Taro.getWindowInfo();
+  const pixelRatio = 750 / windowWidth;
   return rpx / pixelRatio;
 };

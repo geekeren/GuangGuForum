@@ -1,0 +1,110 @@
+@import "../../vars.scss";
+
+.loginPage {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #b8dcfa 0%, #d6e8f8 30%, $bgColor 60%);
+  padding: 80rpx 48rpx 0;
+  box-sizing: border-box;
+}
+
+.loginHeader {
+  text-align: left;
+  margin-bottom: 60rpx;
+
+  .logoBadge {
+    width: 96rpx;
+    height: 96rpx;
+    border-radius: $radius-md;
+    background: linear-gradient(135deg, $color-brand, $color-brand-dark);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40rpx;
+    font-weight: 700;
+    letter-spacing: -1rpx;
+    box-shadow: $shadow-glow;
+    margin-bottom: 32rpx;
+  }
+
+  .loginTitle {
+    font-size: 48rpx;
+    font-weight: 700;
+    color: $text-primary;
+    letter-spacing: -0.6rpx;
+  }
+
+  .loginSubtitle {
+    font-size: 26rpx;
+    color: $text-muted;
+    margin-top: 12rpx;
+  }
+}
+
+.loginCard {
+  background: $surface;
+  border-radius: $radius-lg;
+  padding: 16rpx 12rpx;
+  box-shadow: $shadow-md;
+
+  .at-input {
+    background: $surface;
+    padding: 16rpx 24rpx;
+
+    &::after {
+      border: none !important;
+    }
+
+    .at-input__title {
+      font-size: 26rpx;
+      color: $text-muted;
+      font-weight: 500;
+      width: 110rpx;
+    }
+
+    .at-input__input {
+      font-size: 28rpx;
+      color: $text-primary;
+      height: 56rpx;
+    }
+  }
+}
+
+.loginActions {
+  margin-top: 48rpx;
+
+  .at-button--primary {
+    background: linear-gradient(135deg, $color-brand, $color-brand-dark);
+    border: none;
+    border-radius: 44rpx;
+    color: #fff;
+    font-size: 30rpx;
+    font-weight: 600;
+    letter-spacing: 1rpx;
+    box-shadow: $shadow-glow;
+    height: 88rpx;
+    line-height: 88rpx;
+
+    &::after {
+      border: none;
+    }
+  }
+}
+
+.loginFooter {
+  margin-top: 36rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: $text-faint;
+
+  .webTip {
+    margin-top: 20rpx;
+    font-size: 22rpx;
+    color: $text-faint;
+    line-height: 1.6;
+  }
+
+  .webLink {
+    color: $color-brand;
+  }
+}

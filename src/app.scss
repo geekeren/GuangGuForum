@@ -7,6 +7,29 @@ image {
 
 page {
   line-height: 1.4;
-  color: #333;
-  letter-spacing: 1px;
+  color: $text-primary;
+  letter-spacing: 0;
+  background: $bgColor;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+// AtTabBar 底部导航 — 用品牌色
+.bottomTab {
+  border-top: 1rpx solid $border-color;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  .at-tab-bar__item--active {
+    color: $color-brand !important;
+
+    .at-icon {
+      color: $color-brand !important;
+    }
+  }
+
+  .at-tab-bar__title {
+    font-size: 22rpx;
+    margin-top: 2rpx;
+  }
 }

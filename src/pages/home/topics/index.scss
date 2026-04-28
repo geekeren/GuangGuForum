@@ -1,21 +1,52 @@
 @import "../../../vars.scss";
-.at-tabs {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  .at-tabs__header {
-    height: 90px;
-  }
-  .at-tabs__body {
-    flex: auto;
-    display: block;
 
-    .at-tabs-pane {
-      height: 100%;
-      overflow: hidden;
-    }
-  }
-}
 #list_container {
   background: $bgColor;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tab-header {
+  flex-shrink: 0;
+  background: $surface;
+  border-bottom: 1rpx solid $border-color;
+  box-shadow: 0 1rpx 0 rgba(15, 22, 38, 0.02);
+}
+
+.tab-scroll {
+  height: 96rpx;
+  white-space: nowrap;
+}
+
+.tab-item {
+  display: inline-block;
+  color: $text-muted;
+  font-size: 30rpx;
+  font-weight: 500;
+  padding: 0 26rpx;
+  height: 96rpx;
+  line-height: 96rpx;
+  position: relative;
+  transition: color 0.18s ease;
+  box-sizing: border-box;
+
+  &--active {
+    color: $text-primary;
+    font-weight: 700;
+    font-size: 32rpx;
+    letter-spacing: -0.3rpx;
+
+    &::after {
+      content: "";
+      position: absolute;
+      bottom: 8rpx;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40rpx;
+      height: 6rpx;
+      border-radius: 3rpx;
+      background-color: $color-brand;
+    }
+  }
 }

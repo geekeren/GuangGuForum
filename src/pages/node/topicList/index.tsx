@@ -1,4 +1,4 @@
-import { View } from "@tarojs/components";
+import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useRouter } from "@tarojs/taro";
 import { getNodeTopics } from "guanggu-forum-api";
@@ -25,8 +25,20 @@ const NodeTopics = (props: NodeTopicsProps) => {
     return;
   }
   return (
-    <View style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <View style={{ height: 40, padding: 5 }}>板块：{nodeName || ""}</View>
+    <View className="nodePage">
+      <View className="nodeHeader">
+        <View className="iconBlock"># </View>
+        <View className="nodeMeta">
+          <Text className="nodeName">{nodeName || node}</Text>
+          <View className="nodeSub">板块 · 来自过早客</View>
+        </View>
+        <View
+          className="createTopicBtn"
+          onClick={() => Taro.navigateTo({ url: `/pages/createTopic/index?node=${node}` })}
+        >
+          发帖
+        </View>
+      </View>
       <AutoHeight style={{ flex: 1 }}>
         {(height) => (
           <TopicList

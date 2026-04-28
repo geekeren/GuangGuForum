@@ -1,12 +1,14 @@
+// Tag 组件 — 蓝色软色 chip 风格（对齐设计稿）
 .tag {
-  border: 1px solid rgba(14, 21, 28, 0.1);
-  color: rgb(14, 21, 28);
+  background: #e8efff;
+  color: #1f69ff;
   display: inline-flex;
-  border-radius: 46px;
+  border-radius: 20rpx;
   box-sizing: border-box;
-  padding: 8px 18px;
-  font-weight: 400;
-  font-size: 22px;
+  padding: 6rpx 16rpx;
+  font-weight: 500;
+  font-size: 22rpx;
   align-content: center;
   align-items: center;
+  line-height: 1.4;
 }

@@ -1,14 +1,16 @@
 import { View, Text } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import { getNavInfo } from "../../utils/dimension";
 import "./index.scss";
 import { AtIcon } from "taro-ui";
 import { useEffect } from "react";
 
 interface Props {
-  onClickSearch: () => void;
+  onClickSearch?: () => void;
+  title?: string;
 }
 const Navbar = (props: Props) => {
-  const { onClickSearch } = props;
+  const { onClickSearch, title } = props;
   const { capsulePaddingTop, capsuleHeight, capsuleLeft, screenWidth } =
     getNavInfo();
   useEffect(() => {
@@ -19,23 +21,39 @@ const Navbar = (props: Props) => {
     };
   }, []);
 
+  const barStyle = {
+    paddingTop: `${capsulePaddingTop}px`,
+    paddingBottom: '12px',
+    paddingRight: `${screenWidth - capsuleLeft}px`,
+    paddingLeft: '14px',
+    height: capsuleHeight,
+  };
+
   return (
     <View
       style={{
         paddingTop: getNavInfo().statusBarHeight + "px",
       }}
     >
-      <View
-        style={{
-          padding: `${capsulePaddingTop}px ${screenWidth - capsuleLeft}px ${capsulePaddingTop}px 14px`,
-          height: capsuleHeight,
-        }}
-      >
-        <View className="searchEntry" onClick={onClickSearch}>
-          <AtIcon value="search" size="16" color="#333" />
-          <Text className="text">搜索</Text>
+      {title ? (
+        <View
+          style={{
+            ...barStyle,
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontSize: "34rpx", fontWeight: "bold" }}>{title}</Text>
         </View>
-      </View>
+      ) : (
+        <View style={{ ...barStyle, display: "flex", alignItems: "center", gap: "16rpx" }}>
+          <Text className="navTitle">过早客</Text>
+          <View className="searchEntry" onClick={() => Taro.showToast({ title: "开发中，敬请期待", icon: "none" })}>
+            <AtIcon value="search" size="16" color="#333" />
+            <Text className="text">搜索</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
