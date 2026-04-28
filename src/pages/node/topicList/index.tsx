@@ -31,6 +31,7 @@ const NodeTopics = (props: NodeTopicsProps) => {
         {(height) => (
           <TopicList
             height={height}
+            cacheKey={`node_topics_${node}`}
             getTopics={(page: number) => {
               return getNodeTopics({
                 node,

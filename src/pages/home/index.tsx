@@ -1,8 +1,10 @@
 import React, { Component } from "react";
 import { View } from "@tarojs/components";
 import { AtTabBar, AtToast } from "taro-ui";
+import Taro from "@tarojs/taro";
 import "./index.scss";
 import Topics from "./topics";
+import Me from "../me/index";
 import Navbar from "../../components/Navbar/index";
 import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from "../config";
 
@@ -20,19 +22,11 @@ export default class Index extends Component<{}, State> {
     };
   }
 
-  componentDidMount() {}
-
-  componentWillUnmount() {}
-
   private handleClick(value: number): void {
-    if (value > 0) {
-      this.setState({
-        showToast: true,
-      });
+    if (value === 1) {
+      this.setState({ showToast: true });
     } else {
-      this.setState({
-        selectedTabIndex: value,
-      });
+      this.setState({ selectedTabIndex: value });
     }
   }
 
@@ -40,7 +34,7 @@ export default class Index extends Component<{}, State> {
     return (
       <>
         <View className="root">
-          {ENABLE_CUSTOM_NAVBAR && (
+          {ENABLE_CUSTOM_NAVBAR && this.state.selectedTabIndex === 0 && (
             <Navbar
               onClickSearch={() => {
                 this.setState({
@@ -50,7 +44,12 @@ export default class Index extends Component<{}, State> {
             />
           )}
           <View className="tabContent">
-            <Topics />
+            <View style={{ display: this.state.selectedTabIndex === 0 ? 'block' : 'none', height: '100%' }}>
+              <Topics />
+            </View>
+            <View style={{ display: this.state.selectedTabIndex === 2 ? 'block' : 'none', height: '100%' }}>
+              <Me />
+            </View>
           </View>
           {!HIDE_TAB && (
             <AtTabBar

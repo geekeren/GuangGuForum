@@ -10,6 +10,7 @@ import Tag from "../../../../components/Tag";
 import NodeIcon from "../../../../assets/topic_node.svg";
 import CommentIcon from "../../../../assets/comment.svg";
 import { urlPathVaiable } from "../../../../utils/urls";
+import { withCache } from "../../../../utils/cacheRequest";
 
 interface ListRow {
   id: string;
@@ -77,7 +78,7 @@ const rpxToPx = (rpx: number) => {
 
 interface TopicListProps {
   height: number;
-  version?: number; // 用于刷新数据
+  cacheKey?: string;
   getTopics: (page: number) => Promise<TopicSummary[]>;
 }
 
@@ -99,45 +100,53 @@ export default class TopicList extends Component<TopicListProps, State> {
     };
   }
 
-  async getRecentTopics(page: number) {
-    this.loading = true;
-    Taro.showNavigationBarLoading();
-    return await this.props.getTopics(page).finally(() => {
-      this.loading = false;
-      Taro.hideNavigationBarLoading();
-    });
+  getRecentTopics(page: number): Promise<TopicSummary[]> {
+    const cacheKey = this.props.cacheKey
+      ? `${this.props.cacheKey}_${page}`
+      : null;
+    const fetcher = () => this.props.getTopics(page);
+    if (cacheKey) {
+      const { cached, refresh } = withCache<TopicSummary[]>(cacheKey, fetcher);
+      if (cached) {
+        // 先用缓存立即渲染
+        this.setState((prev) => ({
+          topics: page === 1 ? cached : prev.topics.concat(cached),
+          loadingPage: page === 1 ? 1 : page,
+        }));
+      }
+      return refresh;
+    }
+    return fetcher();
   }
+
   componentDidMount() {
     this.refreshTopics();
   }
 
-  refreshTopics() {
-    this.setState({
-      // loading: true,
-      loadingPage: 1,
-    });
-    this.getRecentTopics(1).then((topics) => {
-      this.setState({
-        topics,
-      });
-    });
-  }
+  componentDidUpdate() {}
 
-  componentWillReceiveProps(nextProps: TopicListProps) {
-    if (nextProps.version !== this.props.version) {
-      this.refreshTopics();
-    }
+  refreshTopics() {
+    this.loading = true;
+    Taro.showNavigationBarLoading();
+    this.getRecentTopics(1).then((topics) => {
+      this.loading = false;
+      Taro.hideNavigationBarLoading();
+      this.setState({ topics, loadingPage: 1 });
+    });
   }
 
   loading = false;
   itemSize = rpxToPx(274);
 
   listReachBottom() {
-    this.getRecentTopics(this.state.loadingPage + 1).then((newTopics) => {
-      this.setState({
-        topics: this.state.topics.concat(newTopics),
-        loadingPage: this.state.loadingPage + 1,
-      });
+    const page = this.state.loadingPage + 1;
+    this.loading = true;
+    this.getRecentTopics(page).then((newTopics) => {
+      this.loading = false;
+      this.setState((prev) => ({
+        topics: prev.topics.concat(newTopics),
+        loadingPage: page,
+      }));
     });
   }
 

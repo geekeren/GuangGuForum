@@ -5,5 +5,6 @@ export * from "./topic/createNewComment";
 export * from "./topic/commentUpvote";
 export * from "./node/getTopics";
 export * from "./node/getHotNodes";
+export * from "./user/getUserProfile";
 export * from "./utils/urls";
 export * from "./urls";

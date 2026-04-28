@@ -6,4 +6,5 @@ export const URLS = {
   TOPIC_DETAIL: "/t/:tid",
   NODE_HOME_PAGE: "/node/:node",
   REPLY_VOTE: "/replyVote",
+  USER_PROFILE: "/u/:username",
 };

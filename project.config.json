@@ -5,8 +5,8 @@
   "appid": "wx003de66ad3941973",
   "setting": {
     "urlCheck": true,
-    "es6": false,
-    "enhance": false,
+    "es6": true,
+    "enhance": true,
     "postcss": false,
     "preloadBackgroundData": false,
     "minified": false,
@@ -37,7 +37,14 @@
     "packNpmRelationList": [],
     "minifyWXSS": false,
     "showES6CompileOption": false,
-    "minifyWXML": false
+    "minifyWXML": false,
+    "compileWorklet": false,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true
   },
   "compileType": "miniprogram",
   "libVersion": "2.25.2",
@@ -50,5 +57,6 @@
     "tabIndent": "insertSpaces",
     "tabSize": 2
   },
-  "condition": {}
+  "condition": {},
+  "simulatorPluginLibVersion": {}
 }

@@ -1,0 +1,235 @@
+@import "../../vars.scss";
+
+.meProfile {
+  background: $bgColor;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  .profileCard {
+    background: #fff;
+    padding: 40px 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .avatar {
+      image {
+        width: 140px;
+        height: 140px;
+        border-radius: 70px;
+      }
+    }
+
+    .username {
+      font-size: 36px;
+      font-weight: bold;
+      margin-top: 20px;
+    }
+
+    .memberInfo {
+      font-size: 22px;
+      color: #999;
+      margin-top: 10px;
+    }
+
+    .stats {
+      display: flex;
+      margin-top: 30px;
+      width: 100%;
+      justify-content: space-around;
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        .stat-value {
+          font-size: 36px;
+          font-weight: bold;
+          color: $color-brand;
+        }
+
+        .stat-label {
+          font-size: 22px;
+          color: #999;
+          margin-top: 6px;
+        }
+      }
+    }
+  }
+
+  .detailCard {
+    background: #fff;
+    margin-top: 20px;
+    padding: 24px 30px;
+
+    .detailRow {
+      display: flex;
+      padding: 16px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 28px;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .detailLabel {
+        color: #999;
+        width: 120px;
+        flex-shrink: 0;
+      }
+
+      .detailValue {
+        flex: 1;
+        word-break: break-all;
+      }
+    }
+  }
+
+  .section {
+    background: #fff;
+    margin-top: 20px;
+    padding: 24px 30px;
+
+    .sectionHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+
+      .sectionTitle {
+        font-size: 30px;
+        font-weight: bold;
+      }
+
+      .sectionMore {
+        font-size: 24px;
+        color: #999;
+      }
+    }
+  }
+
+  .topicItem {
+    padding: 16px 0;
+    border-bottom: 1px solid #f0f0f0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:active {
+      background: $bgColor;
+    }
+
+    .topicTitle {
+      font-size: 28px;
+      line-height: 1.5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .topicMeta {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+      font-size: 22px;
+      color: #999;
+
+      .tagIcon {
+        width: 28px;
+        height: 28px;
+        margin-right: 4px;
+        display: inline-block;
+      }
+
+      .topicCategory {
+        color: $color-brand;
+        margin-right: 12px;
+      }
+
+      .topicTime {
+        margin-right: 12px;
+      }
+
+      .topicCommentCount {
+        display: inline-flex;
+        align-items: center;
+
+        image {
+          width: 28px;
+          height: 28px;
+          margin-right: 4px;
+        }
+      }
+    }
+  }
+
+  .replyItem {
+    padding: 16px 0;
+    border-bottom: 1px solid #f0f0f0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:active {
+      background: $bgColor;
+    }
+
+    .replyTitle {
+      font-size: 24px;
+      color: #999;
+      margin-bottom: 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      text {
+        color: #333;
+      }
+    }
+
+    .replyContent {
+      font-size: 28px;
+      line-height: 1.5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+  }
+
+  .emptyTip {
+    text-align: center;
+    padding: 30px;
+    font-size: 26px;
+    color: #999;
+  }
+
+  .notLoggedIn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 200px 0;
+
+    .loginTip {
+      font-size: 30px;
+      color: #999;
+      margin-bottom: 40px;
+    }
+
+    .loginBtn {
+      background: $color-brand;
+      color: #fff;
+      font-size: 30px;
+      padding: 16px 80px;
+      border-radius: 44px;
+    }
+  }
+}

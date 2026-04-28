@@ -27,6 +27,7 @@ import "./index.scss";
 import Loading from "../../components/Loading";
 import { getFromLocalCache } from "../../utils/localAssets";
 import { rpxToPx } from "../../utils/dimension";
+import { withCache } from "../../utils/cacheRequest";
 import HtmlRender from "../../components/HtmlRender";
 import Tag from "../../components/Tag";
 import Icon from "../../components/Icon";
@@ -54,7 +55,12 @@ const Index = () => {
     }
     setId(tid);
     console.log("refreshTime", refreshTime);
-    getTopicDetail(tid).then(setTopicDetail);
+    const { cached, refresh } = withCache<TopicDetail>(
+      `topic_detail_${tid}`,
+      () => getTopicDetail(tid),
+    );
+    if (cached) setTopicDetail(cached);
+    refresh.then(setTopicDetail);
   }, [router.params, refreshTime]);
 
   const pageUrl = `${router.path}?${queryString.stringify(router.params)}`;
@@ -119,7 +125,14 @@ const Index = () => {
                   <Icon size={20} name="arrow-right.svg"></Icon>
                   {topicDetail.title}
                 </View>
-                <View className="meta">
+                <View
+                  className="meta"
+                  onClick={() => {
+                    Taro.navigateTo({
+                      url: `/pages/user/index?username=${topicDetail.author}`,
+                    });
+                  }}
+                >
                   <View className="avatar">
                     <Image
                       lazyLoad
@@ -176,7 +189,15 @@ const Index = () => {
               {hasComments &&
                 topicDetail.comments.map((comment) => (
                   <View className="comment-item" key={comment.floor}>
-                    <View className="comment-author-avatar">
+                    <View
+                      className="comment-author-avatar"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        Taro.navigateTo({
+                          url: `/pages/user/index?username=${comment.author}`,
+                        });
+                      }}
+                    >
                       <Image
                         lazyLoad
                         src={getFromLocalCache(comment.authorAvatarUrl)}

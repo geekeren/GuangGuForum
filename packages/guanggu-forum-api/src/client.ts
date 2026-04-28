@@ -79,6 +79,12 @@ export function request(
           });
         }
         const body = parse(bodyStr);
+        const userLink = body.querySelector("#navbar5 .navbar-right a.avatar");
+        const href = userLink?.getAttribute("href") || "";
+        const match = href.match(/\/u\/(.+)$/);
+        if (match?.[1]) {
+          Taro.setStorageSync("current_username", match[1]);
+        }
         return Promise.resolve({
           body,
           rawRes: res,
