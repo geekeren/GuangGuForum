@@ -44,34 +44,45 @@
 .loginCard {
   background: $surface;
   border-radius: $radius-lg;
-  padding: 16rpx 12rpx;
+  padding: 32rpx;
   box-shadow: $shadow-md;
 
-  .at-input {
-    background: $surface;
-    padding: 16rpx 24rpx;
+  .inputField {
+    margin-bottom: 24rpx;
 
-    &::after {
-      border: none !important;
+    &:last-child {
+      margin-bottom: 0;
     }
+  }
 
-    .at-input__title {
-      font-size: 26rpx;
-      color: $text-muted;
-      font-weight: 500;
-      width: 110rpx;
-    }
+  .inputLabel {
+    font-size: 26rpx;
+    font-weight: 600;
+    color: $text-sub;
+    margin-bottom: 12rpx;
+    display: block;
+  }
 
-    .at-input__input {
-      font-size: 28rpx;
-      color: $text-primary;
-      height: 56rpx;
-    }
+  .inputControl {
+    width: 100%;
+    height: 88rpx;
+    background: $bgColor;
+    border-radius: $radius-md;
+    padding: 0 28rpx;
+    font-size: 32rpx;
+    color: $text-primary;
+    box-sizing: border-box;
+    line-height: 88rpx;
+  }
+
+  .inputPlaceholder {
+    color: $text-faint;
+    font-size: 28rpx;
   }
 }
 
 .loginActions {
-  margin-top: 48rpx;
+  margin-top: 36rpx;
 
   .at-button--primary {
     background: linear-gradient(135deg, $color-brand, $color-brand-dark);
@@ -88,6 +99,49 @@
     &::after {
       border: none;
     }
+
+    &.at-button--disabled {
+      background: #8faed6;
+      color: #fff;
+      box-shadow: none;
+    }
+  }
+}
+
+.agreementRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  margin-top: 32rpx;
+
+  .checkbox {
+    flex-shrink: 0;
+    width: 36rpx;
+    height: 36rpx;
+    border-radius: 8rpx;
+    border: 2rpx solid $border-strong;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4rpx;
+    transition: all 0.2s;
+
+    &--checked {
+      background: $color-brand;
+      border-color: $color-brand;
+    }
+
+    .checkmark {
+      color: #fff;
+      font-size: 24rpx;
+      line-height: 1;
+    }
+  }
+
+  .agreementText {
+    font-size: 22rpx;
+    color: $text-muted;
+    line-height: 1.7;
   }
 }
 

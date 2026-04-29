@@ -23,7 +23,7 @@ const Navbar = (props: Props) => {
 
   const barStyle = {
     paddingTop: `${capsulePaddingTop}px`,
-    paddingBottom: '12px',
+    paddingBottom: '4px',
     paddingRight: `${screenWidth - capsuleLeft}px`,
     paddingLeft: '14px',
     height: capsuleHeight,

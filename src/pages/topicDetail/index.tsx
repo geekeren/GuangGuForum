@@ -12,7 +12,7 @@ import Taro, {
   useShareAppMessage,
   useShareTimeline,
 } from "@tarojs/taro";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import queryString from "query-string";
 import { AtActionSheet, AtActionSheetItem, AtBadge } from "taro-ui";
 import {
@@ -26,7 +26,7 @@ import {
 import "./index.scss";
 import Loading from "../../components/Loading";
 import { getFromLocalCache } from "../../utils/localAssets";
-import { rpxToPx } from "../../utils/dimension";
+import { getNavInfo, rpxToPx } from "../../utils/dimension";
 import { withCache } from "../../utils/cacheRequest";
 import HtmlRender from "../../components/HtmlRender";
 import Tag from "../../components/Tag";
@@ -34,7 +34,10 @@ import Icon from "../../components/Icon";
 import NodeIcon from "../../assets/topic_node.svg";
 import CommentIcon from "../../assets/comment.svg";
 import WechatIcon from "../../assets/wechat.svg";
+import HomeIcon from "../../assets/home.svg";
+import ChevronLeftIcon from "../../assets/chevron-left.svg";
 import RelatingTopics from "./relatingTopics";
+import PullDownRefresh, { PullDownRefreshRef } from "../../components/PullDownRefresh";
 
 const Index = () => {
   const [id, setId] = useState<string>();
@@ -46,8 +49,8 @@ const Index = () => {
   const [commentContent, setCommentContent] = useState("");
   const [selectedComment, setSelectedComment] =
     useState<TopicDetail["comments"][0]>();
+  const pullDownRef = useRef<PullDownRefreshRef>(null);
   const router = useRouter();
-
   useEffect(() => {
     const { tid } = router.params;
     if (!tid) {
@@ -97,34 +100,40 @@ const Index = () => {
       }
     }
   };
+
   return (
     <>
       <View className="topicDetail">
-        <View className="scrollViewContainer">
+        <View className="customNavbar" style={{ paddingTop: getNavInfo().statusBarHeight + "px" }}>
+          <View className="navBar" style={{ paddingTop: getNavInfo().capsulePaddingTop + "px", paddingRight: (getNavInfo().screenWidth - getNavInfo().capsuleLeft) + "px" }}>
+            <View className="navCapsule" style={{ width: getNavInfo().capsuleWidth + "px", height: getNavInfo().capsuleHeight + "px", borderRadius: (getNavInfo().capsuleHeight / 2) + "px" }}>
+              <View className="navCapsuleBtn navCapsuleBack" style={{ width: ((getNavInfo().capsuleWidth - 0.5) / 2) + "px" }} onClick={() => Taro.navigateBack()} />
+              <View className="navCapsuleDivider" />
+              <View className="navCapsuleBtn navCapsuleHome" style={{ width: ((getNavInfo().capsuleWidth - 0.5) / 2) + "px" }} onClick={() => Taro.reLaunch({ url: "/pages/home/index" })} />
+            </View>
+          </View>
+        </View>
+        <PullDownRefresh
+          ref={pullDownRef}
+          className="scrollViewContainer"
+          onRefresh={() => setRefreshTime(Date.now())}
+        >
           <ScrollView
             scrollWithAnimation
             scrollY
             bounces
             enhanced
-            bindscrolltoupper="upper"
-            bindscrolltolower="lower"
-            bindscroll="scroll"
             className="scrollContent"
+            onTouchStart={(e: any) => pullDownRef.current?.onTouchStart(e)}
+            onTouchMove={(e: any) => pullDownRef.current?.onTouchMove(e)}
+            onTouchEnd={(e: any) => pullDownRef.current?.onTouchEnd(e)}
+            onScroll={(e: any) => {
+              pullDownRef.current?.onScroll(e.detail.scrollTop);
+            }}
           >
             <View className="main">
               <View className="header">
                 <View className="title">
-                  <View
-                    className="breadcrumb"
-                    onClick={() => {
-                      Taro.reLaunch({
-                        url: "/pages/home/index",
-                      });
-                    }}
-                  >
-                    首页
-                    <Icon size={12} name="arrow-right.svg"></Icon>
-                  </View>
                   <Text className="titleText">{topicDetail.title}</Text>
                 </View>
                 <View
@@ -186,7 +195,14 @@ const Index = () => {
               {hasComments ? (
                 <View className="header">{topicDetail.commentTotalCount}</View>
               ) : (
-                "没有评论，这事儿你怎么看？"
+                <View className="emptyComments">
+                  <View className="emptyIcon">💬</View>
+                  <View className="emptyTitle">暂无评论</View>
+                  <View className="emptyDesc">快来发表第一条评论吧</View>
+                  <View className="emptyBtn" onClick={() => showCommentDialog()}>
+                    说点什么
+                  </View>
+                </View>
               )}
               {hasComments &&
                 topicDetail.comments.map((comment) => (
@@ -268,19 +284,19 @@ const Index = () => {
               <RelatingTopics topicDetail={topicDetail} />
             </View>
           </ScrollView>
-          {isCommenting && (
-            <View
-              onClick={() => setIsCommenting(false)}
-              style={{
-                background: "#00000044",
-                position: "absolute",
-                top: 0,
-                bottom: 0,
-                width: "100%",
-              }}
-            />
-          )}
-        </View>
+        </PullDownRefresh>
+        {isCommenting && (
+          <View
+            onClick={() => setIsCommenting(false)}
+            style={{
+              background: "#00000044",
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              width: "100%",
+            }}
+          />
+        )}
         <View
           className="actions"
           style={{ height: isCommenting ? rpxToPx(400) : rpxToPx(120) }}

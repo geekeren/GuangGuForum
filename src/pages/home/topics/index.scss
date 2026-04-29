@@ -1,7 +1,6 @@
 @import "../../../vars.scss";
 
 #list_container {
-  background: $bgColor;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -9,44 +8,41 @@
 
 .tab-header {
   flex-shrink: 0;
-  background: $surface;
-  border-bottom: 1rpx solid $border-color;
-  box-shadow: 0 1rpx 0 rgba(15, 22, 38, 0.02);
 }
 
 .tab-scroll {
-  height: 96rpx;
+  height: 88rpx;
   white-space: nowrap;
 }
 
 .tab-item {
   display: inline-block;
   color: $text-muted;
-  font-size: 30rpx;
-  font-weight: 500;
-  padding: 0 26rpx;
-  height: 96rpx;
-  line-height: 96rpx;
+  font-size: 28rpx;
+  font-weight: 400;
+  padding: 0 24rpx;
+  height: 88rpx;
+  line-height: 88rpx;
   position: relative;
-  transition: color 0.18s ease;
+  transition: all 0.2s ease;
   box-sizing: border-box;
 
   &--active {
-    color: $text-primary;
+    color: $color-brand;
     font-weight: 700;
-    font-size: 32rpx;
-    letter-spacing: -0.3rpx;
+    font-size: 30rpx;
+    letter-spacing: -0.2rpx;
 
     &::after {
       content: "";
       position: absolute;
-      bottom: 8rpx;
+      bottom: 4rpx;
       left: 50%;
       transform: translateX(-50%);
-      width: 40rpx;
-      height: 6rpx;
-      border-radius: 3rpx;
-      background-color: $color-brand;
+      width: 48rpx;
+      height: 8rpx;
+      border-radius: 4rpx;
+      background: linear-gradient(135deg, $color-brand, $color-brand-light);
     }
   }
 }

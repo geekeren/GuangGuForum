@@ -13,12 +13,20 @@ page {
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 }
 
-// AtTabBar 底部导航 — 用品牌色
+// AtTabBar 底部导航
 .bottomTab {
-  border-top: 1rpx solid $border-color;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  border-top: none;
+  background: $surface;
+  box-shadow: 0 -2rpx 16rpx rgba(15, 22, 38, 0.05);
+  position: relative;
+
+  .at-tab-bar__item {
+    padding: 12rpx 0 20rpx;
+
+    .at-icon {
+      font-size: 44rpx !important;
+    }
+  }
 
   .at-tab-bar__item--active {
     color: $color-brand !important;
@@ -29,7 +37,8 @@ page {
   }
 
   .at-tab-bar__title {
-    font-size: 22rpx;
-    margin-top: 2rpx;
+    font-size: 20rpx;
+    margin-top: 4rpx;
+    font-weight: 500;
   }
 }

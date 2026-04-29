@@ -1,12 +1,14 @@
+@import "../../vars.scss";
+
 .root {
   height: 100vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f4f5fa;
+  background: $bgColor;
 
   .bottomTab {
-    height: 120rpx;
+    height: 110rpx;
   }
 
   .tabContent {
@@ -18,17 +20,18 @@
 .bottomTab {
   .at-tab-bar__item:nth-child(2) .at-tab-bar__icon {
     background: linear-gradient(135deg, #1f69ff, #1954cc);
-    border-radius: 28rpx;
-    width: 64rpx;
-    height: 64rpx;
+    border-radius: 24rpx;
+    width: 56rpx;
+    height: 56rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8rpx 20rpx rgba(31, 105, 255, 0.25);
+    box-shadow: 0 6rpx 16rpx rgba(31, 105, 255, 0.3);
+    margin: 0 auto;
 
     .at-icon {
       color: #fff !important;
-      font-size: 36rpx !important;
+      font-size: 32rpx !important;
     }
   }
 }

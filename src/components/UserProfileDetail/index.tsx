@@ -179,10 +179,9 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                   onClick={() => navigateToTopic(reply.topicLink)}
                 >
                   <View className="replyTitle">
-                    回复了{" "}
                     <Text>
                       {reply.replyTitle.replace(/^回复了\s+\S+\s+创建的主题\s*/, "")}
-                    </Text>
+                    </Text>setStorageItem
                   </View>
                   <View className="replyContent">
                     {reply.content.replace(/<[^>]*>/g, "").trim()}

@@ -1,6 +1,6 @@
 import { View, Text, Textarea, Picker } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createTopic, NodeGroup } from "guanggu-forum-api";
 import {
   getCachedNodeNavigation,
@@ -13,28 +13,30 @@ const LAST_NODE_KEY = "last_selected_node";
 export default function CreateTopic() {
   const [nodeGroups, setNodeGroups] = useState<NodeGroup[]>([]);
   const [pickerValue, setPickerValue] = useState<[number, number]>([0, 0]);
+  const [tempPickerValue, setTempPickerValue] = useState<[number, number]>([0, 0]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const contentRef = useRef<any>(null);
 
   const restorePicker = (groups: NodeGroup[], preferNodeSlug?: string) => {
-    // 优先选中 URL 传入的节点
     if (preferNodeSlug) {
       for (let gi = 0; gi < groups.length; gi++) {
         const ni = groups[gi].nodes.findIndex((n) => n.slug === preferNodeSlug);
         if (ni >= 0) {
           setPickerValue([gi, ni]);
+          setTempPickerValue([gi, ni]);
           return;
         }
       }
     }
-    // 否则恢复上次选择
     try {
       const saved = Taro.getStorageSync(LAST_NODE_KEY);
       if (saved) {
         const { groupIndex, nodeIndex } = JSON.parse(saved);
         if (groupIndex < groups.length && nodeIndex < (groups[groupIndex]?.nodes?.length || 0)) {
           setPickerValue([groupIndex, nodeIndex]);
+          setTempPickerValue([groupIndex, nodeIndex]);
         }
       }
     } catch {}
@@ -55,12 +57,31 @@ export default function CreateTopic() {
     });
   }, []);
 
-  const currentGroup = nodeGroups[pickerValue[0]];
-  const currentNode = currentGroup?.nodes?.[pickerValue[1]];
+  const currentGroup = nodeGroups[tempPickerValue[0]];
+  const confirmedGroup = nodeGroups[pickerValue[0]];
+  const confirmedNode = confirmedGroup?.nodes?.[pickerValue[1]];
+
+  // 标题输入：第一行作为标题，换行时自动跳到内容
+  const handleTitleInput = (e: any) => {
+    const val = e.detail.value;
+    if (val.includes("\n")) {
+      const parts = val.split("\n");
+      const newTitle = parts[0];
+      const restContent = parts.slice(1).join("\n");
+      setTitle(newTitle);
+      setContent((prev) => restContent + (prev ? "\n" + prev : ""));
+      // 聚焦到内容输入框
+      setTimeout(() => {
+        contentRef.current?.focus?.();
+      }, 50);
+    } else {
+      setTitle(val);
+    }
+  };
 
   const handleSubmit = async () => {
-    if (!currentNode) {
-      Taro.showToast({ title: "请选择节点", icon: "none" });
+    if (!confirmedNode) {
+      Taro.showToast({ title: "请选择板块", icon: "none" });
       return;
     }
     if (!title.trim()) {
@@ -75,7 +96,7 @@ export default function CreateTopic() {
     Taro.showLoading({ title: "发布中...", mask: true });
     try {
       await createTopic({
-        node: currentNode.slug,
+        node: confirmedNode.slug,
         title: title.trim(),
         content: content.trim(),
       });
@@ -92,29 +113,15 @@ export default function CreateTopic() {
 
   return (
     <View className="createTopic">
-      <View className="section">
-        <Text className="label">标题</Text>
-        <View className="inputWrap">
-          <Textarea
-            className="titleInput"
-            placeholder="请输入标题"
-            maxlength={120}
-            value={title}
-            onInput={(e) => setTitle(e.detail.value)}
-            autoHeight
-          />
-        </View>
-      </View>
-
-      <View className="section">
-        <Text className="label">节点</Text>
+      <View className="section nodeSection">
         <Picker
           mode="multiSelector"
           range={[nodeGroups.map((g) => g.category), currentGroup?.nodes?.map((n) => n.name) || []]}
-          value={pickerValue}
+          value={tempPickerValue}
           onChange={(e) => {
             const val = e.detail.value as [number, number];
             setPickerValue(val);
+            setTempPickerValue(val);
             try {
               Taro.setStorageSync(LAST_NODE_KEY, JSON.stringify({ groupIndex: val[0], nodeIndex: val[1] }));
             } catch {}
@@ -122,31 +129,45 @@ export default function CreateTopic() {
           onColumnChange={(e) => {
             const { column, value } = e.detail;
             if (column === 0) {
-              setPickerValue([value, 0]);
+              setTempPickerValue([value, 0]);
             } else {
-              setPickerValue([pickerValue[0], value]);
+              setTempPickerValue([tempPickerValue[0], value]);
             }
           }}
         >
           <View className="pickerItem">
-            <Text>{currentNode ? `${currentGroup.category} - ${currentNode.name}` : "选择节点"}</Text>
+            <Text className="pickerLabel">发布到</Text>
+            <Text className="pickerValue">{confirmedNode ? `${confirmedGroup.category} · ${confirmedNode.name}` : "选择板块"}</Text>
             <Text className="arrow">▼</Text>
           </View>
         </Picker>
       </View>
 
-      <View className="section">
-        <Text className="label">内容</Text>
-        <View className="inputWrap">
-          <Textarea
-            className="contentInput"
-            placeholder="请输入内容"
-            value={content}
-            onInput={(e) => setContent(e.detail.value)}
-            cursorSpacing={100}
-            adjustPosition
-          />
-        </View>
+      <View className="editorSection">
+        <Textarea
+          className="titleInput"
+          placeholder="标题"
+          placeholderClass="titlePlaceholder"
+          maxlength={120}
+          value={title}
+          onInput={handleTitleInput}
+          autoHeight
+          confirmType="next"
+          onConfirm={() => {
+            contentRef.current?.focus?.();
+          }}
+        />
+        <Textarea
+          ref={contentRef}
+          className="contentInput"
+          placeholder="正文内容..."
+          placeholderClass="contentPlaceholder"
+          value={content}
+          onInput={(e) => setContent(e.detail.value)}
+          autoHeight
+          cursorSpacing={100}
+          adjustPosition
+        />
       </View>
 
       <View

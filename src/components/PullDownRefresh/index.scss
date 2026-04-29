@@ -1,0 +1,12 @@
+@import "../../vars.scss";
+
+.pullDownTip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .pullDownText {
+    font-size: 24rpx;
+    color: $text-muted;
+  }
+}

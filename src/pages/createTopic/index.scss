@@ -6,58 +6,80 @@
   padding: 24rpx;
   box-sizing: border-box;
 
-  .section {
+  .nodeSection {
     background: $surface;
     border-radius: $radius-lg;
-    padding: 24rpx 28rpx;
-    margin-bottom: 20rpx;
+    padding: 0;
+    margin-bottom: 16rpx;
     box-shadow: $shadow-sm;
-  }
-
-  .label {
-    font-size: 26rpx;
-    font-weight: 700;
-    color: $text-primary;
-    margin-bottom: 18rpx;
-    display: block;
+    overflow: hidden;
   }
 
   .pickerItem {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 16rpx 20rpx;
-    background: $bgColor;
-    border-radius: $radius-md;
-    font-size: 28rpx;
-    color: $text-primary;
+    padding: 24rpx 28rpx;
+    gap: 12rpx;
+
+    .pickerLabel {
+      font-size: 26rpx;
+      color: $text-muted;
+      flex-shrink: 0;
+    }
+
+    .pickerValue {
+      flex: 1;
+      font-size: 28rpx;
+      font-weight: 600;
+      color: $color-brand;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     .arrow {
       font-size: 20rpx;
       color: $text-faint;
+      flex-shrink: 0;
     }
   }
 
-  .inputWrap {
-    background: $bgColor;
-    border-radius: $radius-md;
-    padding: 16rpx 20rpx;
+  .editorSection {
+    background: $surface;
+    border-radius: $radius-lg;
+    padding: 32rpx 28rpx;
+    box-shadow: $shadow-sm;
+    margin-bottom: 24rpx;
   }
 
   .titleInput {
     width: 100%;
-    font-size: 28rpx;
-    min-height: 48rpx;
+    font-size: 36rpx;
+    font-weight: 700;
+    color: $text-primary;
+    line-height: 1.5;
+    min-height: 54rpx;
+    margin-bottom: 12rpx;
+  }
+
+  .titlePlaceholder {
+    color: $text-faint;
+    font-weight: 400;
   }
 
   .contentInput {
     width: 100%;
-    font-size: 28rpx;
-    min-height: 240rpx;
+    font-size: 30rpx;
+    color: $text-sub;
+    line-height: 1.7;
+    min-height: 300rpx;
+  }
+
+  .contentPlaceholder {
+    color: $text-faint;
   }
 
   .submitBtn {
-    margin-top: 32rpx;
     text-align: center;
     padding: 24rpx 0;
     border-radius: 44rpx;

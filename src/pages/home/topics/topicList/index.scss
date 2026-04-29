@@ -13,25 +13,24 @@
   // 每个 item 的外壳：撑满 VirtualList 给的高度，留出底部间距给视觉缝隙
   .topicItem {
     box-sizing: border-box;
-    padding: 0 16rpx 16rpx;
+    padding: 8rpx 16rpx 4rpx;
+    margin-top: 8rpx;
     background: transparent;
     overflow: hidden;
     position: relative;
 
-    // 真正的卡片：白底 + 圆角 + 阴影
     background-clip: content-box;
     background-color: transparent;
 
-    // 用伪元素铺出"卡片"的视觉
     &::before {
       content: "";
       position: absolute;
       top: 0;
       left: 16rpx;
       right: 16rpx;
-      bottom: 16rpx;
+      bottom: 8rpx;
       background: $surface;
-      border-radius: $radius-lg;
+      border-radius: $radius-md;
       box-shadow: $shadow-sm;
       z-index: 0;
     }
@@ -40,9 +39,7 @@
       background: #f8f9fc;
     }
 
-    // 卡片内容浮在伪元素之上
-    .line1,
-    .title,
+    .titleRow,
     .meta {
       position: relative;
       z-index: 1;
@@ -50,92 +47,99 @@
       padding-right: 32rpx;
     }
 
-    // 顶部：作者 + 时间
-    .line1 {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: space-between;
-      padding-top: 28rpx;
-      padding-bottom: 0;
-      height: 56rpx;
+    // 标题行：固定两行高度，节点标签作为行内元素与标题一起排版
+    .titleRow {
+      padding-top: 16rpx;
+      height: 86rpx;
       box-sizing: content-box;
+      overflow: hidden;
+
+      .title {
+        font-size: 32rpx;
+        font-weight: 500;
+        line-height: 1.45;
+        color: $text-primary;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+
+      .categoryTag {
+        display: inline-flex;
+        align-items: center;
+        font-size: 22rpx;
+        font-weight: 500;
+        color: $text-sub;
+        background: $color-brand-soft;
+        padding: 0 10rpx;
+        border-radius: 6rpx;
+        margin-right: 8rpx;
+        vertical-align: baseline;
+        line-height: 1.4;
+        height: 32rpx;
+
+        .categoryIcon {
+          width: 20rpx;
+          height: 20rpx;
+          margin-right: 4rpx;
+          display: inline-block;
+          vertical-align: middle;
+        }
+      }
+    }
+
+    // 底部：用户 + 评论
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 16rpx;
+      padding-bottom: 20rpx;
+      height: 36rpx;
+
+      .left {
+        display: flex;
+        align-items: center;
+        gap: 16rpx;
+      }
 
       .user {
         display: flex;
-        flex-direction: row;
         align-items: center;
-        flex: 1;
-        min-width: 0;
 
         .avatar {
-          width: 56rpx;
-          height: 56rpx;
-          border-radius: 28rpx;
+          width: 32rpx;
+          height: 32rpx;
+          border-radius: 16rpx;
           overflow: hidden;
           background: $color-brand-soft;
           flex-shrink: 0;
 
           image {
-            border-radius: 28rpx;
-            height: 56rpx;
-            width: 56rpx;
+            border-radius: 16rpx;
+            height: 32rpx;
+            width: 32rpx;
             display: block;
           }
         }
 
         .userName {
-          margin-left: 18rpx;
-          font-size: 28rpx;
-          font-weight: 600;
-          color: $text-primary;
+          margin-left: 6rpx;
+          font-size: 22rpx;
+          font-weight: 500;
+          color: $text-muted;
           text-transform: capitalize;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-          letter-spacing: 0.2rpx;
         }
       }
 
       .lastUpdateTime {
         font-size: 22rpx;
         color: $text-faint;
-        flex-shrink: 0;
-        margin-left: 12rpx;
-      }
-    }
-
-    // 标题
-    .title {
-      font-size: 32rpx;
-      font-weight: 600;
-      line-height: 1.45;
-      color: $text-primary;
-      letter-spacing: -0.3rpx;
-      padding-top: 14rpx;
-      padding-bottom: 0;
-      height: 93rpx;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-    }
-
-    // 底部：tag + 评论
-    .meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 20rpx;
-      padding-bottom: 28rpx;
-      height: 50rpx;
-
-      .tagIcon {
-        width: 22rpx;
-        height: 22rpx;
-        margin-right: 6rpx;
-        display: inline-block;
       }
 
       .right {
@@ -147,9 +151,9 @@
       }
 
       .commentIcon {
-        width: 30rpx;
-        height: 30rpx;
-        margin-right: 8rpx;
+        width: 28rpx;
+        height: 28rpx;
+        margin-right: 6rpx;
         display: inline-block;
       }
     }

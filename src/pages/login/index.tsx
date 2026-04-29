@@ -1,7 +1,5 @@
-import { View, Text } from "@tarojs/components";
-import { AtButton, AtInput } from "taro-ui";
-import "taro-ui/dist/style/components/form.scss";
-import "taro-ui/dist/style/components/input.scss";
+import { Input, View, Text } from "@tarojs/components";
+import { AtButton } from "taro-ui";
 import "taro-ui/dist/style/components/button.scss";
 import "./index.scss";
 import { useState } from "react";
@@ -16,6 +14,7 @@ interface LoginParams {
 export default function Login() {
   const [input, setInput] = useState<LoginParams>({});
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const router = useRouter();
   const { redirect } = router.params;
   const validate = (input: LoginParams) => {
@@ -23,6 +22,13 @@ export default function Login() {
   };
 
   const handleSubmit = () => {
+    if (!agreed) {
+      Taro.showToast({
+        icon: "none",
+        title: "请先同意社区公约",
+      });
+      return;
+    }
     if (!validate(input)) {
       Taro.showToast({
         icon: "error",
@@ -68,36 +74,44 @@ export default function Login() {
       </View>
 
       <View className="loginCard">
-        <AtInput
-          name="value"
-          title="用户"
-          type="text"
-          placeholder="支持通过 E-mail，手机号登录"
-          value={input.user || ""}
-          onChange={(value) => {
-            handleChange("user", value);
-          }}
-        />
-        <AtInput
-          name="password"
-          title="密码"
-          type="password"
-          placeholder="请输入密码（不少于 6 个字符）"
-          value={input.password || ""}
-          onChange={(value) => {
-            handleChange("password", value);
-          }}
-        />
+        <View className="inputField">
+          <Text className="inputLabel">用户</Text>
+          <Input
+            className="inputControl"
+            type="text"
+            placeholder="支持通过 E-mail，手机号登录"
+            placeholderClass="inputPlaceholder"
+            value={input.user || ""}
+            onInput={(e) => handleChange("user", e.detail.value)}
+          />
+        </View>
+        <View className="inputField">
+          <Text className="inputLabel">密码</Text>
+          <Input
+            className="inputControl"
+            type="password"
+            placeholder="请输入密码（不少于 6 个字符）"
+            placeholderClass="inputPlaceholder"
+            value={input.password || ""}
+            onInput={(e) => handleChange("password", e.detail.value)}
+          />
+        </View>
+      </View>
+
+      <View className="agreementRow" onClick={() => setAgreed(!agreed)}>
+        <View className={`checkbox ${agreed ? "checkbox--checked" : ""}`}>
+          {agreed && <Text className="checkmark">✓</Text>}
+        </View>
+        <Text className="agreementText">我承诺遵守法律法规，文明发言，尊重他人。讨论政治话题时保持理性，不传播不实信息或煽动对立。我不进行人身攻击、刷屏或发布广告，注意保护隐私，共同维护良好交流环境</Text>
       </View>
 
       <View className="loginActions">
-        <AtButton type={"primary"} onClick={handleSubmit} disabled={loading}>
+        <AtButton type={"primary"} onClick={handleSubmit} disabled={loading || !agreed}>
           {loading ? "登录中..." : "登录"}
         </AtButton>
       </View>
 
       <View className="loginFooter">
-        <View>登录即表示同意《用户协议》和《隐私政策》</View>
         <View className="webTip">更多操作如注册，请前往网页端 <Text className="webLink" onClick={() => Taro.setClipboardData({ data: "https://www.guozaoke.com/" })}>https://www.guozaoke.com/</Text> 进行</View>
       </View>
     </View>

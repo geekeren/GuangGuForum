@@ -33,7 +33,9 @@ export default function Topics() {
   const [tabs, setTabs] = useState<TabConfig[] | null>(null);
   const [loadedTabs, setLoadedTabs] = useState<Record<number, boolean>>({ 0: true });
   const [refreshKey, setRefreshKey] = useState(0);
-  const scrollIntoViewId = useRef("tab_0");
+  const [scrollIntoView, setScrollIntoView] = useState("tab_0");
+  const listRefs = useRef<Record<number, any>>({});
+  const lastTapTime = useRef(0);
 
   useEffect(() => {
     const { cached, refresh } = withCache("hot_nodes", getHotNodes);
@@ -49,7 +51,6 @@ export default function Topics() {
     } else {
       refresh.then((nodes) => setTabs(toTabs(nodes)));
     }
-    // 缓存节点导航
     if (!getCachedNodeNavigation().length) {
       fetchAndCacheNodeNavigation();
     }
@@ -77,25 +78,58 @@ export default function Topics() {
   });
 
   const handleClick = (value: number) => {
-    if (currentTabIndex !== value) {
-      scrollIntoViewId.current = `tab_${value}`;
-      setCurrentTabIndex(value);
-      if (!loadedTabs[value]) {
-        setLoadedTabs({ ...loadedTabs, [value]: true });
-      }
+    const now = Date.now();
+    if (value === currentTabIndex && now - lastTapTime.current < 300) {
+      listRefs.current[value]?.scrollToTop?.();
+      setRefreshKey((k) => k + 1);
+      lastTapTime.current = 0;
+      return;
+    }
+    lastTapTime.current = now;
+
+    Taro.nextTick(() => {
+      Taro.createSelectorQuery()
+        .select(`#tab_${value}`)
+        .boundingClientRect();
+      Taro.createSelectorQuery()
+        .select(".tab-scroll")
+        .boundingClientRect((scrollRect: any) => {
+          Taro.createSelectorQuery()
+            .select(`#tab_${value}`)
+            .boundingClientRect((tabRect: any) => {
+              if (scrollRect && tabRect) {
+                const visible = tabRect.left >= scrollRect.left - 4 && tabRect.right <= scrollRect.right + 4;
+                if (!visible) {
+                  setScrollIntoView(`tab_${value}`);
+                }
+              }
+            })
+            .exec();
+        })
+        .exec();
+    });
+    setCurrentTabIndex(value);
+    if (!loadedTabs[value]) {
+      setLoadedTabs({ ...loadedTabs, [value]: true });
+    }
+    if (value !== currentTabIndex) {
+      setRefreshKey((k) => k + 1);
     }
   };
 
   const activeTabs = tabs ?? defaultTabs;
 
   return (
-    <View id="list_container" style={{ height: "100%" }}>
+    <View
+      id="list_container"
+      style={{ height: "100%" }}
+    >
       <View className="tab-header">
         <ScrollView
           scrollX
           className="tab-scroll"
           scrollWithAnimation
-          scrollIntoView={scrollIntoViewId.current}
+          scrollIntoView={scrollIntoView}
         >
           {activeTabs.map((tab, index) => (
             <View
@@ -109,25 +143,31 @@ export default function Topics() {
           ))}
         </ScrollView>
       </View>
-      {loadedTabs[currentTabIndex] && (
-        <TopicList
-          key={`${activeTabs[currentTabIndex]?.node || activeTabs[currentTabIndex]?.type}_${refreshKey}`}
-          style={{ marginTop: '12px' }}
-          height={tabPaneHeight}
-          cacheKey={
-            activeTabs[currentTabIndex].node
-              ? `node_topics_${activeTabs[currentTabIndex].node}`
-              : `recent_topics_${activeTabs[currentTabIndex].type}`
-          }
-          getTopics={(page: number) => {
-            const tab = activeTabs[currentTabIndex];
-            if (tab.node) {
-              return getNodeTopics({ node: tab.node, page });
-            }
-            return getRecentTopics({ type: tab.type, page });
-          }}
-        />
-      )}
+      {activeTabs.map((tab, index) => (
+        <View
+          key={`${tab.type}_${tab.node || ''}_${index}`}
+          style={{ display: index === currentTabIndex ? 'block' : 'none', height: '100%' }}
+        >
+          {loadedTabs[index] && (
+            <TopicList
+              key={`${tab.type}_${tab.node || ''}_${index}_${refreshKey}`}
+              ref={(el) => { if (el) listRefs.current[index] = el; }}
+              cacheKey={
+                tab.node
+                  ? `node_topics_${tab.node}`
+                  : `recent_topics_${tab.type}`
+              }
+              height={tabPaneHeight}
+              getTopics={(page: number) => {
+                if (tab.node) {
+                  return getNodeTopics({ node: tab.node, page });
+                }
+                return getRecentTopics({ type: tab.type, page });
+              }}
+            />
+          )}
+        </View>
+      ))}
     </View>
   );
 }

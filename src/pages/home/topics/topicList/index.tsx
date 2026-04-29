@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { Component, createRef } from "react";
 import { Image, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import VirtualList from "@tarojs/components/virtual-list";
@@ -12,6 +12,7 @@ import CommentIcon from "../../../../assets/comment.svg";
 import { urlPathVaiable } from "../../../../utils/urls";
 import { withCache } from "../../../../utils/cacheRequest";
 import { rpxToPx } from "../../../../utils/dimension";
+import PullDownRefresh, { PullDownRefreshRef } from "../../../../components/PullDownRefresh";
 
 interface ListRow {
   id: string;
@@ -45,25 +46,24 @@ const TopicItem = React.memo(({ id, index, style, data }: ListRow) => {
         });
       }}
     >
-      <View className="line1">
-        <View className="user">
-          <View className="avatar">
-            <Image src={getFromLocalCache(userAvatarUrl)} />
-          </View>
-          <View className="userName">{username}</View>
-        </View>
-        <View className="lastUpdateTime">
-          {lastUpdated.replace(" ", "")}更新
+      <View className="titleRow">
+        <View className="title" userSelect selectable>
+          <View className="categoryTag"><Image src={NodeIcon} svg className="categoryIcon" /><Text>{category}</Text></View>
+          <Text>{title}</Text>
         </View>
       </View>
-      <Text className="title" userSelect selectable>
-        {title}
-      </Text>
       <View className="meta">
-        <Tag>
-          <Image src={NodeIcon} svg className="tagIcon" />
-          <View style={{ display: "inline-block" }}>{category}</View>
-        </Tag>
+        <View className="left">
+          <View className="user">
+            <View className="avatar">
+              <Image src={getFromLocalCache(userAvatarUrl)} />
+            </View>
+            <View className="userName">{username}</View>
+          </View>
+          <View className="lastUpdateTime">
+            {lastUpdated.replace(" ", "")}更新
+          </View>
+        </View>
         <View className="right">
           <Image src={CommentIcon} svg className="commentIcon" />
           {commentCount === "" ? 0 : commentCount}
@@ -78,10 +78,10 @@ interface TopicListProps {
   cacheKey?: string;
   style?: React.CSSProperties;
   getTopics: (page: number) => Promise<TopicSummary[]>;
+  onPullDownRefresh?: () => void;
 }
 
 interface State {
-  // loading: boolean;
   topics: TopicSummary[];
   loadingPage: number;
 }
@@ -89,12 +89,15 @@ interface State {
 const topicListId = "topicList";
 
 export default class TopicList extends Component<TopicListProps, State> {
+  listRef = createRef<any>();
+  pullDownRef = createRef<PullDownRefreshRef>();
+  lastScrollTop = 0;
+
   constructor(props, state) {
     super(props, state);
     this.state = {
       topics: [],
       loadingPage: 1,
-      // loading: true,
     };
   }
 
@@ -106,7 +109,6 @@ export default class TopicList extends Component<TopicListProps, State> {
     if (cacheKey) {
       const { cached, refresh } = withCache<TopicSummary[]>(cacheKey, fetcher);
       if (cached) {
-        // 先用缓存立即渲染
         this.setState((prev) => ({
           topics: page === 1 ? cached : prev.topics.concat(cached),
           loadingPage: page === 1 ? 1 : page,
@@ -118,7 +120,6 @@ export default class TopicList extends Component<TopicListProps, State> {
   }
 
   componentDidMount() {
-    console.log('[TopicList] componentDidMount, props:', this.props.cacheKey, 'height:', this.props.height);
     this.refreshTopics();
   }
 
@@ -134,23 +135,29 @@ export default class TopicList extends Component<TopicListProps, State> {
     this.getRecentTopics(1).then((topics) => {
       this.loading = false;
       Taro.hideNavigationBarLoading();
-      console.log('[TopicList] refreshTopics got topics:', topics?.length, topics?.[0]);
-      this.setState({ topics, loadingPage: 1 }, () => {
-        console.log('[TopicList] state after refresh:', this.state.topics.length, 'height:', this.props.height);
-      });
+      this.setState({ topics, loadingPage: 1 });
     });
   }
 
+  scrollToTop() {
+    this.listRef.current?.scrollTo?.(0);
+    this.refreshTopics();
+  }
+
   loading = false;
-  // 卡片高度（rpx）:
-  // 28(顶 padding) + 56(头像行) + 20 + 93(标题2行) + 20 + 50(meta) + 28(底 padding) = 295
-  // + 16 卡片间距 ≈ 311rpx
-  itemSize = rpxToPx(305);
+  itemSize = rpxToPx(185);
 
   listReachBottom() {
     const page = this.state.loadingPage + 1;
     this.loading = true;
-    this.getRecentTopics(page).then((newTopics) => {
+    const fetcher = () => this.props.getTopics(page);
+    const cacheKey = this.props.cacheKey
+      ? `${this.props.cacheKey}_${page}`
+      : null;
+    const doFetch = cacheKey
+      ? withCache<TopicSummary[]>(cacheKey, fetcher).refresh
+      : fetcher();
+    doFetch.then((newTopics) => {
       this.loading = false;
       this.setState((prev) => ({
         topics: prev.topics.concat(newTopics),
@@ -162,9 +169,14 @@ export default class TopicList extends Component<TopicListProps, State> {
   render() {
     const { topics } = this.state;
     return (
-      <View style={{ position: "relative", flex: 1, overflow: "hidden", ...this.props.style }} id={topicListId}>
+      <PullDownRefresh
+        ref={this.pullDownRef}
+        onRefresh={() => this.refreshTopics()}
+        style={this.props.style}
+      >
         {topics.length > 0 ? (
           <VirtualList
+            ref={this.listRef}
             className="topicList"
             width="100%"
             height={this.props.height}
@@ -173,6 +185,8 @@ export default class TopicList extends Component<TopicListProps, State> {
             itemSize={this.itemSize}
             overscanCount={5}
             onScroll={({ scrollDirection, scrollOffset }) => {
+              this.lastScrollTop = scrollOffset;
+              this.pullDownRef.current?.onScroll(scrollOffset);
               if (
                 !this.loading &&
                 scrollDirection === "forward" &&
@@ -191,7 +205,7 @@ export default class TopicList extends Component<TopicListProps, State> {
           </View>
         )}
         {this.loading && topics.length > 0 && <Loading size={40} />}
-      </View>
+      </PullDownRefresh>
     );
   }
 }
