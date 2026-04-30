@@ -90,42 +90,43 @@
         }
       }
 
-      .meta {
-        background: $bgColor;
-        padding: 16rpx 20rpx;
-        box-sizing: border-box;
-        border-radius: $radius-md;
+      .metaRow {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         gap: 16rpx;
 
-        .avatar {
-          flex-shrink: 0;
-
-          image {
-            width: 64rpx;
-            height: 64rpx;
-            border-radius: 32rpx;
-          }
-        }
-
-        .author {
-          font-size: 28rpx;
-          font-weight: 600;
-          color: $text-primary;
-          text-transform: capitalize;
-        }
-
-        .moreInfo {
+        .authorInfo {
           display: flex;
-          font-size: 22rpx;
-          color: $text-faint;
-          margin-top: 4rpx;
+          align-items: center;
           gap: 16rpx;
-        }
+          flex: 1;
+          min-width: 0;
 
-        .createTime {
-          margin-right: 0;
+          .avatar {
+            flex-shrink: 0;
+
+            image {
+              width: 64rpx;
+              height: 64rpx;
+              border-radius: 32rpx;
+            }
+          }
+
+          .author {
+            font-size: 28rpx;
+            font-weight: 600;
+            color: $text-primary;
+            text-transform: capitalize;
+          }
+
+          .moreInfo {
+            display: flex;
+            font-size: 22rpx;
+            color: $text-faint;
+            margin-top: 4rpx;
+            gap: 16rpx;
+          }
         }
       }
     }
@@ -148,7 +149,7 @@
 
     .extra {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       font-size: 22rpx;
       color: $text-faint;
@@ -158,13 +159,13 @@
         display: flex;
         gap: 18rpx;
       }
+    }
 
-      .tagIcon {
-        width: 22rpx;
-        height: 22rpx;
-        margin-right: 6rpx;
-        display: inline-block;
-      }
+    .tagIcon {
+      width: 16rpx;
+      height: 16rpx;
+      margin-right: 4rpx;
+      display: inline-block;
     }
   }
 
@@ -192,6 +193,26 @@
         border-radius: 3rpx;
         background: $color-brand;
         margin-right: 12rpx;
+      }
+
+      .sortBtn {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 52rpx;
+        height: 52rpx;
+        border-radius: 26rpx;
+        background: $bgColor;
+
+        &--active {
+          background: $color-brand-soft;
+        }
+
+        .sortIcon {
+          width: 28rpx;
+          height: 28rpx;
+        }
       }
     }
   }

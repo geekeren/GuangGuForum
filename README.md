@@ -1,40 +1,139 @@
-# 武汉过早客应用
+# 光谷过早客论坛小程序
 
-基于过早客网站 https://www.guozaoke.com/ 提供一个更好产品运营、用户体验的论坛小程序。
+[过早客](https://www.guozaoke.com/) 是武汉光谷地区的本地社区论坛，本项目为其提供微信小程序客户端，带来更流畅的移动端浏览体验。
 
-![过早客微信小程序](https://user-images.githubusercontent.com/13082375/183296328-ed27f320-2346-4627-b351-7c0839632a2d.jpg)
+## 功能
 
-借助微信入口，帮助“过早客”用户粘度更强、访问更频繁、用户体验更佳，成为武汉地区具备广泛知名度的应用。
+- 帖子浏览（最近更新 / 最近发布 / 精华 / 关注 / 节点分类）
+- 帖子详情、评论、点赞
+- 用户登录、发帖、回复
+- 用户个人主页
+- 节点（板块）主页
+- 分享到微信好友 / 朋友圈
+- 下拉刷新、滚动加载更多
 
-## 阶段目标
+## 技术架构
 
-1. 实现网站所有功能的小程序版，包括
+### 整体设计
 
-- 帖子浏览
-- 用户登录、回复、发帖
-- 用户分享、点赞、收藏
-- 用户个人页
-- 板块主页
-- 消息中心
-- 用户注册
-  > 涉及验证码考虑嵌入 过早客网站网页来进行注册，但由于个人账号无法内嵌 webview，可能只能指引到浏览器中进行）
+无需自建后端——小程序端直接请求过早客网站页面，通过 `guanggu-forum-api` 解析 HTML 转 JSON，渲染小程序界面。唯一例外是登录接口（网站 302 跳转导致小程序无法存储 cookie），使用轻量 serverless 代理完成。
 
-2. 优化 UI 布局，为每个板块提供更贴合板块产品特性而非众生一面的用户交互体验
+### 技术栈
 
-## 开发过程
+| 层面 | 技术 |
+|------|------|
+| 框架 | [Taro 3](https://docs.taro.zone/) + React |
+| 语言 | TypeScript |
+| 样式 | SCSS + CSS Variables |
+| UI 库 | [taro-ui](https://taro-ui.jd.com/) |
+| 包管理 | Yarn 3 Workspaces (monorepo) |
+| HTML 解析 | [node-html-parser](https://github.com/taoqf/node-html-parser) |
+| 登录代理 | 阿里云 Serverless |
 
-- 本项目基于 Taro 框架开发，开发过程参考
+### Monorepo 结构
 
-https://docs.taro.zone/docs/GETTING-STARTED
+```
+├── packages/
+│   ├── guanggu-forum-api/   # HTML 解析层：抓取网站页面 → 解析为结构化 JSON
+│   └── login-proxy-service/ # 登录代理：解决 302 跳转 cookie 问题
+├── src/
+│   ├── components/          # 通用组件
+│   │   ├── PullDownRefresh/ # 下拉刷新
+│   │   ├── HtmlRender/      # HTML 富文本渲染
+│   │   ├── Navbar/          # 自定义导航栏
+│   │   ├── Icon/            # SVG 图标
+│   │   ├── Loading/         # 加载态
+│   │   ├── Tag/             # 标签
+│   │   └── ...
+│   ├── pages/
+│   │   ├── home/            # 首页（话题列表 + Tab 切换）
+│   │   ├── topicDetail/     # 帖子详情 + 评论
+│   │   ├── login/           # 登录
+│   │   ├── createTopic/     # 发帖
+│   │   ├── user/            # 用户主页
+│   │   ├── node/            # 节点话题列表
+│   │   └── me/              # 个人中心
+│   ├── utils/               # 工具函数（缓存、URL 解析、尺寸计算等）
+│   ├── assets/              # SVG 图标资源
+│   └── app.config.ts        # 全局配置
+└── project.config.json      # 微信小程序项目配置
+```
 
-技术上支持 Android/IOS 多端，但考虑到过早客是一个相对轻量级的网站，小程序已经足够满足需求而且用户无需安装应用。
+## 快速开始
 
-- 技术原理
+### 环境要求
 
-  - 技术设计初衷：尽量在无任何后端代理完成所有功能，降低后期维护复杂度和运营成本，直接在小程序端拉取并解析网站的HTML，转成json数据，渲染小程序界面
-  - 工程采用 monorepo 管理，html 转 json api 代码 在 packages/guanggu-forum-api 单独维护
-  - packages/guanggu-forum-api 使用 node-html-parser 解析 HTML
+- Node.js 16+
+- Yarn 3+
+- 微信开发者工具
 
-> 例外: 由于登录接口过早客网站通过 302 进行跳转，微信小程序对于 302 返回会自动 follow-redirect，直接给上层返回跳转后的页面，所以小程序无法存储登录后的 cookie。
-> 所以登录接口使用了本项目唯一的后端代理，部署在了阿里云的serverless 服务上。
-> 相关代码位于packages/login-proxy-service
+### 安装
+
+```bash
+git clone https://github.com/geekeren/GuangGuForum.git
+cd GuangGuForum
+yarn install
+```
+
+### 开发
+
+```bash
+# 启动微信小程序开发模式（watch）
+yarn dev:weapp
+```
+
+然后用微信开发者工具打开项目根目录即可预览。
+
+### 构建
+
+```bash
+yarn build:weapp
+```
+
+## 项目约定
+
+### 新增页面
+
+1. 在 `src/pages/` 下创建目录，包含 `index.tsx`、`index.scss`、`index.config.ts`
+2. 在 `src/app.config.ts` 的 `pages` 数组中注册页面路径
+
+### 新增组件
+
+1. 在 `src/components/` 下创建目录，包含 `index.tsx` 和 `index.scss`
+2. 组件使用函数式组件 + hooks，样式使用 BEM 或简单嵌套
+
+### API 层
+
+所有数据获取逻辑在 `packages/guanggu-forum-api` 中维护。新增接口：
+
+1. 在 `guanggu-forum-api/src/` 中添加抓取 + 解析函数
+2. 导出类型定义和调用方法
+3. 小程序端通过 `withCache` 包装调用以支持缓存
+
+### 样式
+
+- 全局设计变量定义在 `src/vars.scss`（颜色、圆角、阴影等）
+- 尺寸使用 `rpx`，导航栏等需匹配系统胶囊的场景使用 `px`
+- 使用 `rpxToPx()` 工具函数做单位转换
+
+## 贡献
+
+欢迎贡献代码！流程：
+
+1. Fork 本仓库
+2. 创建功能分支 (`git checkout -b feature/your-feature`)
+3. 提交改动 (`git commit -m 'feat: add your feature'`)
+4. 推送分支 (`git push origin feature/your-feature`)
+5. 提交 Pull Request
+
+### 贡献方向
+
+- 修复 Bug
+- UI / 交互优化
+- 新功能（消息通知、用户注册、深色模式等）
+- `guanggu-forum-api` 接口覆盖完善
+- 多端适配（H5、支付宝小程序等）
+
+## 许可证
+
+MIT
