@@ -17,7 +17,6 @@ import Taro, {
 } from "@tarojs/taro";
 import { useEffect, useRef, useState } from "react";
 import queryString from "query-string";
-import { AtActionSheet, AtActionSheetItem, AtBadge } from "taro-ui";
 import {
   commentUpvote,
   createNewComment,
@@ -385,13 +384,14 @@ const Index = () => {
                 {hasLogin ? "说点什么..." : "请登录后再评论"}
               </View>
               <View className="right">
-                <AtBadge
-                  value={topicDetail?.comments.length}
-                  maxValue={99}
-                  className="comment"
-                >
+                <View className="badgeWrap">
+                  {topicDetail?.comments.length > 0 && (
+                    <View className="badgeValue">
+                      {Math.min(topicDetail.comments.length, 99)}
+                    </View>
+                  )}
                   <Image src={CommentIcon} svg className="commentIcon" />
-                </AtBadge>
+                </View>
                 <Button openType="share" className="share">
                   <Image src={WechatIcon} svg className="icon" />
                   分享
@@ -400,43 +400,34 @@ const Index = () => {
             </>
           )}
         </View>
-        <AtActionSheet
-          isOpened={isActionSheetShown}
-          cancelText="取消"
-          onClose={() => showActionSheet(false)}
-          title=""
-        >
-          <AtActionSheetItem
-            onClick={() => {
-              showActionSheet(false);
-              showCommentDialog({
-                content: `@${selectedComment?.author} `,
-              });
-            }}
-          >
-            回复
-          </AtActionSheetItem>
-          <AtActionSheetItem
-            onClick={() => {
-              showActionSheet(false);
-              Taro.setClipboardData({
-                data: selectedComment?.content.trim() || "",
-                success: function () {
-                  Taro.showToast({
-                    title: "评论已复制",
-                    icon: "success",
-                    duration: 2000,
-                  }).then();
-                },
-                fail: console.error,
-              })
-                .catch(console.error)
-                .then();
-            }}
-          >
-            复制
-          </AtActionSheetItem>
-        </AtActionSheet>
+        {isActionSheetShown && (
+          <View className="actionSheet">
+            <View className="actionSheetMask" onClick={() => showActionSheet(false)} />
+            <View className="actionSheetBody">
+              <View className="actionSheetItem" onClick={() => {
+                showActionSheet(false);
+                showCommentDialog({ content: `@${selectedComment?.author} ` });
+              }}>
+                <Text>回复</Text>
+              </View>
+              <View className="actionSheetItem" onClick={() => {
+                showActionSheet(false);
+                Taro.setClipboardData({
+                  data: selectedComment?.content.trim() || "",
+                  success: function () {
+                    Taro.showToast({ title: "评论已复制", icon: "success", duration: 2000 }).then();
+                  },
+                  fail: console.error,
+                }).catch(console.error).then();
+              }}>
+                <Text>复制</Text>
+              </View>
+              <View className="actionSheetItem actionSheetItem--cancel" onClick={() => showActionSheet(false)}>
+                <Text>取消</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
     </>
   );

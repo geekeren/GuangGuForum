@@ -104,7 +104,7 @@
 .loginActions {
   margin-top: 36rpx;
 
-  .at-button--primary {
+  .loginBtn {
     background: linear-gradient(135deg, $color-brand, $color-brand-dark);
     border: none;
     border-radius: 44rpx;
@@ -115,12 +115,9 @@
     box-shadow: $shadow-glow;
     height: 88rpx;
     line-height: 88rpx;
+    text-align: center;
 
-    &::after {
-      border: none;
-    }
-
-    &.at-button--disabled {
+    &--disabled {
       background: #8faed6;
       color: #fff;
       box-shadow: none;

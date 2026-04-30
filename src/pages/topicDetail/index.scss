@@ -343,16 +343,24 @@
         display: inline-block;
       }
 
-      .comment {
+      .badgeWrap {
+        position: relative;
         margin-right: 28rpx;
 
-        .at-badge__num {
-          top: -8rpx;
-          right: -10rpx;
-          font-size: 18rpx;
+        .badgeValue {
+          position: absolute;
+          top: -12rpx;
+          right: -14rpx;
+          min-width: 28rpx;
+          height: 28rpx;
+          border-radius: 14rpx;
           background: $color-brand;
           color: #fff;
-          box-shadow: none;
+          font-size: 18rpx;
+          line-height: 28rpx;
+          text-align: center;
+          padding: 0 6rpx;
+          z-index: 1;
         }
       }
 
@@ -416,6 +424,53 @@
       padding: 16rpx 64rpx;
       border-radius: 40rpx;
       box-shadow: $shadow-glow;
+    }
+  }
+
+  .actionSheet {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+
+    .actionSheetMask {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .actionSheetBody {
+      position: relative;
+      background: $surface;
+      border-radius: 24rpx 24rpx 0 0;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .actionSheetItem {
+      padding: 32rpx 0;
+      text-align: center;
+      font-size: 32rpx;
+      color: $text-primary;
+      border-bottom: 1rpx solid $border-color;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &--cancel {
+        color: $text-muted;
+        margin-top: 12rpx;
+        border-top: 8rpx solid $bgColor;
+        border-bottom: none;
+      }
     }
   }
 }

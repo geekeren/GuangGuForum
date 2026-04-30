@@ -1,0 +1,30 @@
+@import "../../vars.scss";
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx 0;
+}
+
+.spinner {
+  width: var(--spinner-size, 60px);
+  height: var(--spinner-size, 60px);
+  border: 3px solid rgba(28, 134, 209, 0.15);
+  border-top-color: $color-brand;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.tip {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: $text-muted;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

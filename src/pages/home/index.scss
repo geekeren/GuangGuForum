@@ -35,10 +35,6 @@
     }
   }
 
-  .bottomTab {
-    height: 110rpx;
-  }
-
   .tabContent {
     flex: 1;
     overflow: hidden;
@@ -46,21 +42,55 @@
 }
 
 .bottomTab {
-  .at-tab-bar__item:nth-child(2) .at-tab-bar__icon {
-    background: linear-gradient(135deg, #1f69ff, #1954cc);
-    border-radius: 24rpx;
-    width: 56rpx;
-    height: 56rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  height: 110rpx;
+  background: $surface;
+  box-shadow: 0 -2rpx 16rpx rgba(15, 22, 38, 0.05);
+  padding-bottom: env(safe-area-inset-bottom);
+  flex-shrink: 0;
+
+  .tabItem {
+    flex: 1;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 6rpx 16rpx rgba(31, 105, 255, 0.3);
-    margin: 0 auto;
+    padding: 8rpx 0;
 
-    .at-icon {
-      color: #fff !important;
-      font-size: 32rpx !important;
+    .tabIcon {
+      width: 44rpx;
+      height: 44rpx;
+    }
+
+    .tabTitle {
+      font-size: 20rpx;
+      color: $text-muted;
+      margin-top: 4rpx;
+      font-weight: 500;
+    }
+
+    &--active {
+      .tabTitle {
+        color: $color-brand;
+      }
+    }
+
+    &--add {
+      .addIcon {
+        width: 56rpx;
+        height: 56rpx;
+        border-radius: 28rpx;
+        background: linear-gradient(135deg, #1f69ff, #1954cc);
+        color: #fff;
+        font-size: 40rpx;
+        font-weight: 300;
+        line-height: 56rpx;
+        text-align: center;
+        box-shadow: 0 6rpx 16rpx rgba(31, 105, 255, 0.3);
+      }
     }
   }
 }

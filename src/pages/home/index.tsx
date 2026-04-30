@@ -1,6 +1,5 @@
 import React, { Component } from "react";
-import { View, Text } from "@tarojs/components";
-import { AtTabBar } from "taro-ui";
+import { View, Text, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import "./index.scss";
 import Topics from "./topics";
@@ -8,10 +7,18 @@ import Me from "../me/index";
 import Navbar from "../../components/Navbar/index";
 import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from "../config";
 import { getNavInfo } from "../../utils/dimension";
+import HomeIcon from "../../assets/home.svg";
+import UserIcon from "../../assets/user.svg";
 
 interface State {
   selectedTabIndex: number;
 }
+
+const TAB_LIST = [
+  { title: "首页", icon: HomeIcon },
+  { title: "", icon: null },
+  { title: "我的", icon: UserIcon },
+];
 
 export default class Index extends Component<{}, State> {
   constructor(props, state) {
@@ -50,16 +57,24 @@ export default class Index extends Component<{}, State> {
             </View>
           </View>
           {!HIDE_TAB && (
-            <AtTabBar
-              className="bottomTab"
-              tabList={[
-                { title: "首页", iconType: "home" },
-                { title: "", iconType: "add" },
-                { title: "我的", iconType: "user" },
-              ]}
-              onClick={this.handleClick.bind(this)}
-              current={this.state.selectedTabIndex}
-            />
+            <View className="bottomTab">
+              {TAB_LIST.map((tab, index) => {
+                const active = this.state.selectedTabIndex === index;
+                if (index === 1) {
+                  return (
+                    <View key={index} className="tabItem tabItem--add" onClick={() => this.handleClick(index)}>
+                      <View className="addIcon">+</View>
+                    </View>
+                  );
+                }
+                return (
+                  <View key={index} className={`tabItem ${active ? "tabItem--active" : ""}`} onClick={() => this.handleClick(index)}>
+                    <Image src={tab.icon!} svg className="tabIcon" />
+                    <Text className="tabTitle">{tab.title}</Text>
+                  </View>
+                );
+              })}
+            </View>
           )}
         </View>
       </>

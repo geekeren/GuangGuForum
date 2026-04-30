@@ -1,6 +1,4 @@
 import { Input, View, Text } from "@tarojs/components";
-import { AtButton } from "taro-ui";
-import "taro-ui/dist/style/components/button.scss";
 import "./index.scss";
 import { useState } from "react";
 import { login } from "guanggu-forum-api";
@@ -108,9 +106,9 @@ export default function Login() {
       </View>
 
       <View className="loginActions">
-        <AtButton type={"primary"} onClick={handleSubmit} disabled={loading || !agreed}>
-          {loading ? "登录中..." : "登录"}
-        </AtButton>
+        <View className={`loginBtn ${loading || !agreed ? "loginBtn--disabled" : ""}`} onClick={handleSubmit}>
+          <Text>{loading ? "登录中..." : "登录"}</Text>
+        </View>
       </View>
 
       <View className="loginFooter">
