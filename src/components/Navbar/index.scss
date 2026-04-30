@@ -3,6 +3,8 @@
 .customNavbar {
   background: transparent;
   flex-shrink: 0;
+  will-change: backdrop-filter, background-color;
+  transition: backdrop-filter 0.1s linear, background-color 0.1s linear;
 
   .navBar {
     display: flex;
@@ -71,5 +73,7 @@
     white-space: nowrap;
     max-width: 100%;
     padding: 0 8rpx;
+    will-change: opacity, transform;
+    transition: opacity 0.1s linear, transform 0.1s linear;
   }
 }

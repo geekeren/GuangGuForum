@@ -8,17 +8,24 @@ interface Props {
   title?: string;
   back?: boolean;
   home?: boolean;
+  scrollProgress?: number;
   children?: React.ReactNode;
 }
 
 const Navbar = (props: Props) => {
-  const { title, back = false, home = false, children } = props;
+  const { title, back = false, home = false, scrollProgress = 0, children } = props;
   const { capsulePaddingTop, capsuleHeight, capsuleWidth, capsuleLeft, screenWidth, statusBarHeight, marginSides } = getNavInfo();
   const paddingRight = screenWidth - capsuleLeft;
   const singleBtnWidth = (capsuleWidth - 0.5) / 2;
 
+  const p = Math.min(Math.max(scrollProgress, 0), 1);
+
   return (
-    <View className="customNavbar" style={{ paddingTop: statusBarHeight + "px" }}>
+    <View className="customNavbar" style={{
+      paddingTop: statusBarHeight + "px",
+      backdropFilter: `blur(${p * 20}px)`,
+      backgroundColor: `rgba(255, 255, 255, ${p * 0.85})`,
+    }}>
       <View className="navBar" style={{ paddingTop: capsulePaddingTop + "px", paddingLeft: (back || home ? 0 : marginSides) + "px", paddingRight: paddingRight + "px" }}>
         {(back || home) && (
           <View className="navLeft" style={{ width: (capsuleWidth + marginSides) + "px", paddingLeft: marginSides + "px" }}>
@@ -45,7 +52,12 @@ const Navbar = (props: Props) => {
           </View>
         )}
         <View className="navContent" style={{ height: capsuleHeight + "px" }}>
-          {title && !children && <Text className="navTitle">{title}</Text>}
+          {title && !children && (
+            <Text className="navTitle" style={{
+              opacity: p,
+              transform: `translateY(${(1 - p) * 8}px)`,
+            }}>{title}</Text>
+          )}
           {children}
         </View>
       </View>

@@ -3,6 +3,7 @@ import {
   Button,
   Image,
   ScrollView,
+  ShareElement,
   Text,
   Textarea,
   View,
@@ -53,7 +54,7 @@ const Index = () => {
   const [selectedComment, setSelectedComment] =
     useState<TopicDetail["comments"][0]>();
   const [commentAsc, setCommentAsc] = useState(() => getStorageSync("commentSortAsc") || false);
-  const [showNavTitle, setShowNavTitle] = useState(false);
+  const [navScrollProgress, setNavScrollProgress] = useState(0);
   const pullDownRef = useRef<PullDownRefreshRef>(null);
   const router = useRouter();
   useEffect(() => {
@@ -111,7 +112,7 @@ const Index = () => {
   return (
     <>
       <View className="topicDetail">
-        <Navbar back home title={showNavTitle ? topicDetail?.title : undefined} />
+        <Navbar back home title={topicDetail?.title} scrollProgress={navScrollProgress} />
         <PullDownRefresh
           ref={pullDownRef}
           className="scrollViewContainer"
@@ -128,7 +129,7 @@ const Index = () => {
             onTouchEnd={(e: any) => pullDownRef.current?.onTouchEnd(e)}
             onScroll={(e: any) => {
               pullDownRef.current?.onScroll(e.detail.scrollTop);
-              setShowNavTitle(e.detail.scrollTop > 100);
+              setNavScrollProgress(Math.min(e.detail.scrollTop / 100, 1));
             }}
           >
             <View className="main">
@@ -145,12 +146,14 @@ const Index = () => {
                       });
                     }}
                   >
-                    <View className="avatar">
-                      <Image
-                        lazyLoad
-                        src={getFromLocalCache(topicDetail.authorAvatarUrl)}
-                      />
-                    </View>
+                    <ShareElement mapkey={`topic_avatar_${id}`} transitionOnGesture>
+                      <View className="avatar">
+                        <Image
+                          lazyLoad
+                          src={getFromLocalCache(topicDetail.authorAvatarUrl)}
+                        />
+                      </View>
+                    </ShareElement>
                     <View>
                       <View className="author">{topicDetail.author}</View>
                       <View className="moreInfo">

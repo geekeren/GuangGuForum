@@ -4,4 +4,5 @@ export default definePageConfig({
   componentFramework: "glass-easel",
   enableShareAppMessage: true,
   enableShareTimeline: true,
+  backgroundColorContent: "#00000000",
 });

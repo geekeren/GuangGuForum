@@ -1,5 +1,5 @@
 import React, { Component, createRef } from "react";
-import { Image, ScrollView, Text, View } from "@tarojs/components";
+import { Image, ScrollView, ShareElement, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { TopicSummary, URLS } from "guanggu-forum-api";
 import Loading from "../../../../components/Loading";
@@ -42,9 +42,11 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
       <View className="meta">
         <View className="left">
           <View className="user">
-            <View className="avatar">
-              <Image src={getFromLocalCache(userAvatarUrl)} />
-            </View>
+            <ShareElement mapkey={`topic_avatar_${tid}`} transitionOnGesture>
+              <View className="avatar">
+                <Image src={getFromLocalCache(userAvatarUrl)} />
+              </View>
+            </ShareElement>
             <View className="userName">{username}</View>
           </View>
           <View className="lastUpdateTime">
