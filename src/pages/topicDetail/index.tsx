@@ -89,7 +89,7 @@ const Index = () => {
   }));
 
   if (!topicDetail) {
-    return <Loading />;
+    return <Loading fullscreen />;
   }
 
   const hasComments = topicDetail.commentTotalCount.trim() !== "";

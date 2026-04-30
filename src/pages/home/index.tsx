@@ -8,16 +8,18 @@ import Navbar from "../../components/Navbar/index";
 import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from "../config";
 import { getNavInfo } from "../../utils/dimension";
 import HomeIcon from "../../assets/home.svg";
+import HomeActiveIcon from "../../assets/home-active.svg";
 import UserIcon from "../../assets/user.svg";
+import UserActiveIcon from "../../assets/user-active.svg";
 
 interface State {
   selectedTabIndex: number;
 }
 
-const TAB_LIST = [
-  { title: "首页", icon: HomeIcon },
-  { title: "", icon: null },
-  { title: "我的", icon: UserIcon },
+const TAB_CONFIG = [
+  { title: "首页", icon: HomeIcon, activeIcon: HomeActiveIcon },
+  { title: "", icon: null, activeIcon: null },
+  { title: "我的", icon: UserIcon, activeIcon: UserActiveIcon },
 ];
 
 export default class Index extends Component<{}, State> {
@@ -58,7 +60,7 @@ export default class Index extends Component<{}, State> {
           </View>
           {!HIDE_TAB && (
             <View className="bottomTab">
-              {TAB_LIST.map((tab, index) => {
+              {TAB_CONFIG.map((tab, index) => {
                 const active = this.state.selectedTabIndex === index;
                 if (index === 1) {
                   return (
@@ -69,7 +71,7 @@ export default class Index extends Component<{}, State> {
                 }
                 return (
                   <View key={index} className={`tabItem ${active ? "tabItem--active" : ""}`} onClick={() => this.handleClick(index)}>
-                    <Image src={tab.icon!} svg className="tabIcon" />
+                    <Image src={active ? tab.activeIcon! : tab.icon!} svg className="tabIcon" />
                     <Text className="tabTitle">{tab.title}</Text>
                   </View>
                 );

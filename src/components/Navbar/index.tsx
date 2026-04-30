@@ -45,7 +45,7 @@ const Navbar = (props: Props) => {
               {back && home && <View className="navCapsuleDivider" />}
               {home && (
                 <View className="navCapsuleBtn" style={{ width: singleBtnWidth + "px" }} onClick={() => Taro.reLaunch({ url: "/pages/home/index" })}>
-                  <Image src={require("../../assets/home.svg")} svg className="navCapsuleIcon" />
+                  <Image src={require("../../assets/nav-home.svg")} svg className="navCapsuleIcon" />
                 </View>
               )}
             </View>
