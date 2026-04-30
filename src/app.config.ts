@@ -14,5 +14,10 @@ export default defineAppConfig({
     navigationBarTextStyle: "black",
   },
   lazyCodeLoading: "requiredComponents",
-  // renderer: 'skyline'
+  rendererOptions: {
+    skyline: {
+      defaultDisplayBlock: true,
+      defaultContentBox: true,
+    },
+  },
 });

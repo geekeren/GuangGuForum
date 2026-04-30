@@ -6,6 +6,7 @@ import {
   getCachedNodeNavigation,
   fetchAndCacheNodeNavigation,
 } from "../../utils/nodeNavigation";
+import Navbar from "../../components/Navbar";
 import "./index.scss";
 
 const LAST_NODE_KEY = "last_selected_node";
@@ -113,6 +114,7 @@ export default function CreateTopic() {
 
   return (
     <View className="createTopic">
+      <Navbar title="发帖" back home />
       <View className="section nodeSection">
         <Picker
           mode="multiSelector"

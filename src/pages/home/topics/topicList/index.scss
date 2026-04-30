@@ -1,19 +1,14 @@
 @import "../../../../vars.scss";
 
-// VirtualList 用 absolute 定位每个 item，
-// 所以外层 padding / item 之间的 margin 都不生效。
-// 必须把"卡片间距"做在 item 自身内部 —— 用边距 + 大圆角伪卡片实现。
-
 .topicList {
   font-size: 28rpx;
   box-sizing: border-box;
   height: 100%;
   background: $bgColor;
 
-  // 每个 item 的外壳：撑满 VirtualList 给的高度，留出底部间距给视觉缝隙
   .topicItem {
     box-sizing: border-box;
-    padding: 8rpx 16rpx 4rpx;
+    padding: 8rpx 16rpx;
     margin-top: 8rpx;
     background: transparent;
     overflow: hidden;
@@ -47,12 +42,8 @@
       padding-right: 32rpx;
     }
 
-    // 标题行：固定两行高度，节点标签作为行内元素与标题一起排版
     .titleRow {
       padding-top: 16rpx;
-      height: 86rpx;
-      box-sizing: content-box;
-      overflow: hidden;
 
       .title {
         font-size: 32rpx;
@@ -68,6 +59,7 @@
 
       .categoryTag {
         display: inline-flex;
+        flex-direction: row;
         align-items: center;
         font-size: 22rpx;
         font-weight: 500;
@@ -76,37 +68,36 @@
         padding: 0 10rpx;
         border-radius: 6rpx;
         margin-right: 8rpx;
-        vertical-align: baseline;
         line-height: 1.4;
         height: 32rpx;
+        vertical-align: middle;
 
         .categoryIcon {
           width: 20rpx;
           height: 20rpx;
           margin-right: 4rpx;
-          display: inline-block;
-          vertical-align: middle;
         }
       }
     }
 
-    // 底部：用户 + 评论
     .meta {
       display: flex;
+      flex-direction: row;
       justify-content: space-between;
       align-items: center;
       padding-top: 16rpx;
       padding-bottom: 20rpx;
-      height: 36rpx;
 
       .left {
         display: flex;
+        flex-direction: row;
         align-items: center;
         gap: 16rpx;
       }
 
       .user {
         display: flex;
+        flex-direction: row;
         align-items: center;
 
         .avatar {
@@ -143,7 +134,8 @@
       }
 
       .right {
-        display: inline-flex;
+        display: flex;
+        flex-direction: row;
         align-items: center;
         color: $text-muted;
         font-size: 24rpx;
@@ -154,7 +146,6 @@
         width: 28rpx;
         height: 28rpx;
         margin-right: 6rpx;
-        display: inline-block;
       }
     }
   }

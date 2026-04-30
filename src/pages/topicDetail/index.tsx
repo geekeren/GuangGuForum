@@ -27,8 +27,9 @@ import {
 } from "guanggu-forum-api";
 import "./index.scss";
 import Loading from "../../components/Loading";
+import Navbar from "../../components/Navbar";
 import { getFromLocalCache } from "../../utils/localAssets";
-import { getNavInfo, rpxToPx } from "../../utils/dimension";
+import { rpxToPx } from "../../utils/dimension";
 import { withCache } from "../../utils/cacheRequest";
 import HtmlRender from "../../components/HtmlRender";
 import Tag from "../../components/Tag";
@@ -36,8 +37,6 @@ import Icon from "../../components/Icon";
 import NodeIcon from "../../assets/topic_node.svg";
 import CommentIcon from "../../assets/comment.svg";
 import WechatIcon from "../../assets/wechat.svg";
-import HomeIcon from "../../assets/home.svg";
-import ChevronLeftIcon from "../../assets/chevron-left.svg";
 import SortAscIcon from "../../assets/sort-asc.svg";
 import SortDescIcon from "../../assets/sort-desc.svg";
 import RelatingTopics from "./relatingTopics";
@@ -111,15 +110,7 @@ const Index = () => {
   return (
     <>
       <View className="topicDetail">
-        <View className="customNavbar" style={{ paddingTop: getNavInfo().statusBarHeight + "px" }}>
-          <View className="navBar" style={{ paddingTop: getNavInfo().capsulePaddingTop + "px", paddingRight: (getNavInfo().screenWidth - getNavInfo().capsuleLeft) + "px" }}>
-            <View className="navCapsule" style={{ width: getNavInfo().capsuleWidth + "px", height: getNavInfo().capsuleHeight + "px", borderRadius: (getNavInfo().capsuleHeight / 2) + "px" }}>
-              <View className="navCapsuleBtn navCapsuleBack" style={{ width: ((getNavInfo().capsuleWidth - 0.5) / 2) + "px" }} onClick={() => Taro.navigateBack()} />
-              <View className="navCapsuleDivider" />
-              <View className="navCapsuleBtn navCapsuleHome" style={{ width: ((getNavInfo().capsuleWidth - 0.5) / 2) + "px" }} onClick={() => Taro.reLaunch({ url: "/pages/home/index" })} />
-            </View>
-          </View>
-        </View>
+        <Navbar back home />
         <PullDownRefresh
           ref={pullDownRef}
           className="scrollViewContainer"

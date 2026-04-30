@@ -9,6 +9,7 @@
   .relatingTopicItem {
     color: $color-brand;
     display: flex;
+    flex-direction: row;
     width: 100%;
     border-bottom: 1rpx solid $border-color;
     padding: 16rpx 0;

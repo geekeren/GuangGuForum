@@ -4,6 +4,7 @@ import { useRouter } from "@tarojs/taro";
 import { getNodeTopics } from "guanggu-forum-api";
 import { useEffect } from "react";
 import TopicList from "../../home/topics/topicList";
+import Navbar from "../../../components/Navbar";
 import "./index.scss";
 import { AutoHeight } from "../../../components/AutoHeight";
 
@@ -26,6 +27,7 @@ const NodeTopics = (props: NodeTopicsProps) => {
   }
   return (
     <View className="nodePage">
+      <Navbar title={nodeName || node} back home />
       <View className="nodeHeader">
         <View className="iconBlock"># </View>
         <View className="nodeMeta">

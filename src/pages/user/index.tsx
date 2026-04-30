@@ -5,6 +5,7 @@ import { getUserProfile, UserProfile } from "guanggu-forum-api";
 import Loading from "../../components/Loading";
 import { withCache } from "../../utils/cacheRequest";
 import UserProfileDetail from "../../components/UserProfileDetail";
+import Navbar from "../../components/Navbar";
 import "./index.scss";
 
 const UserProfilePage = () => {
@@ -49,6 +50,7 @@ const UserProfilePage = () => {
 
   return (
     <View className="userPage">
+      <Navbar title="个人主页" back home />
       <UserProfileDetail profile={profile} />
     </View>
   );

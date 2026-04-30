@@ -3,6 +3,6 @@
 .userPage {
   background: $bgColor;
   min-height: 100vh;
-  overflow-y: auto;
+  overflow: hidden;
   -webkit-overflow-scrolling: touch;
 }

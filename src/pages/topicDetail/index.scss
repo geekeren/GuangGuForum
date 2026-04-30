@@ -16,57 +16,6 @@
   }
 
   // ────────────────────────────────────────────────────────────
-  // 自定义导航栏
-  // ────────────────────────────────────────────────────────────
-  .customNavbar {
-    background: $surface;
-    flex-shrink: 0;
-
-    .navBar {
-      display: flex;
-      align-items: flex-start;
-      padding-left: 14px;
-    }
-
-    .navCapsule {
-      display: flex;
-      align-items: center;
-      border: 0.5px solid rgba(0, 0, 0, 0.12);
-      background: rgba(255, 255, 255, 0.6);
-      overflow: hidden;
-    }
-
-    .navCapsuleBtn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      background-repeat: no-repeat;
-      background-position: center;
-
-      &:active {
-        opacity: 0.5;
-      }
-    }
-
-    .navCapsuleBack {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='15 18 9 12 15 6'/%3E%3C/svg%3E");
-      background-size: 40rpx 40rpx;
-    }
-
-    .navCapsuleHome {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3Cpolyline points='9 22 9 12 15 12 15 22'/%3E%3C/svg%3E");
-      background-size: 38rpx 38rpx;
-    }
-
-    .navCapsuleDivider {
-      width: 0.5px;
-      height: 18px;
-      background: rgba(0, 0, 0, 0.15);
-    }
-  }
-
-  // ────────────────────────────────────────────────────────────
   // 主帖内容
   // ────────────────────────────────────────────────────────────
   .main {
@@ -92,12 +41,14 @@
 
       .metaRow {
         display: flex;
+        flex-direction: row;
         align-items: center;
         justify-content: space-between;
         gap: 16rpx;
 
         .authorInfo {
           display: flex;
+          flex-direction: row;
           align-items: center;
           gap: 16rpx;
           flex: 1;
@@ -122,6 +73,7 @@
 
           .moreInfo {
             display: flex;
+            flex-direction: row;
             font-size: 22rpx;
             color: $text-faint;
             margin-top: 4rpx;
@@ -149,6 +101,7 @@
 
     .extra {
       display: flex;
+      flex-direction: row;
       justify-content: flex-end;
       align-items: center;
       font-size: 22rpx;
@@ -157,6 +110,7 @@
 
       .right {
         display: flex;
+        flex-direction: row;
         gap: 18rpx;
       }
     }
@@ -184,6 +138,7 @@
       margin-bottom: 16rpx;
       letter-spacing: -0.2rpx;
       display: flex;
+      flex-direction: row;
       align-items: center;
 
       &::before {
@@ -198,6 +153,7 @@
       .sortBtn {
         margin-left: auto;
         display: flex;
+        flex-direction: row;
         align-items: center;
         justify-content: center;
         width: 52rpx;
@@ -247,6 +203,7 @@
 
         .line1 {
           display: flex;
+          flex-direction: row;
           justify-content: space-between;
           align-items: baseline;
         }
@@ -270,11 +227,13 @@
           font-size: 22rpx;
           color: $text-faint;
           display: flex;
+          flex-direction: row;
           justify-content: space-between;
           align-items: center;
 
           .commentUpvote {
             display: flex;
+            flex-direction: row;
             align-items: center;
             font-size: 24rpx;
             color: $text-muted;
@@ -318,6 +277,7 @@
     height: 120rpx;
     box-shadow: 0 -4rpx 16rpx rgba(15, 22, 38, 0.06);
     display: flex;
+    flex-direction: row;
     justify-content: center;
     align-items: center;
     background: $surface;
@@ -328,6 +288,7 @@
 
     .commentActions {
       display: flex;
+      flex-direction: row;
       justify-content: space-between;
       padding: 0 8rpx;
       font-size: 30rpx;
@@ -358,6 +319,7 @@
       background: $bgColor;
       border-radius: 40rpx;
       display: flex;
+      flex-direction: row;
       align-items: center;
       box-sizing: border-box;
       padding: 14rpx 28rpx;
@@ -368,6 +330,7 @@
 
     .right {
       display: flex;
+      flex-direction: row;
       justify-content: flex-end;
       align-items: center;
       height: 100%;
@@ -400,6 +363,7 @@
         font-size: 24rpx;
         font-weight: 600;
         display: inline-flex;
+        flex-direction: row;
         align-items: center;
         padding: 10rpx 22rpx 10rpx 16rpx !important;
         line-height: 1;

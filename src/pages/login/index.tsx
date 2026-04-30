@@ -5,6 +5,7 @@ import "./index.scss";
 import { useState } from "react";
 import { login } from "guanggu-forum-api";
 import Taro, { useRouter } from "@tarojs/taro";
+import Navbar from "../../components/Navbar";
 
 interface LoginParams {
   user?: string;
@@ -67,6 +68,7 @@ export default function Login() {
 
   return (
     <View className="loginPage">
+      <Navbar title="登录" back />
       <View className="loginHeader">
         <View className="logoBadge">早</View>
         <Text className="loginTitle">登录过早客</Text>

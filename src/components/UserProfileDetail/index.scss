@@ -70,6 +70,7 @@
 
       .nameRow {
         display: flex;
+        flex-direction: row;
         align-items: center;
         gap: 12rpx;
       }
@@ -134,6 +135,7 @@
 
     .stats {
       display: flex;
+      flex-direction: row;
       margin-top: 36rpx;
       padding: 0 8rpx;
       width: 100%;
@@ -178,6 +180,7 @@
 
     .detailRow {
       display: flex;
+      flex-direction: row;
       padding: 12rpx 0;
       border-bottom: 1rpx solid $border-color;
       font-size: 26rpx;
@@ -213,6 +216,7 @@
 
   .tabBar {
     display: flex;
+    flex-direction: row;
     border-bottom: 1rpx solid $border-color;
 
     .tabItem {
@@ -276,6 +280,7 @@
 
     .topicMeta {
       display: flex;
+      flex-direction: row;
       align-items: center;
       margin-top: 12rpx;
       font-size: 22rpx;
@@ -295,6 +300,7 @@
 
       .topicCommentCount {
         display: inline-flex;
+        flex-direction: row;
         align-items: center;
         color: $text-muted;
         gap: 6rpx;

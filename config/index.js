@@ -16,8 +16,38 @@ const config = {
     options: {},
   },
   framework: "react",
-  compiler: "webpack4",
+  compiler: "webpack5",
   mini: {
+    webpackChain(chain) {
+      chain.merge({
+        module: {
+          rule: {
+            myscript: {
+              test: /\.[jt]sx?$/,
+              include: [/packages\//],
+              use: {
+                babelLoader: {
+                  loader: require.resolve("babel-loader"),
+                  options: {
+                    presets: [
+                      [
+                        "taro",
+                        {
+                          framework: "react",
+                          ts: true,
+                        },
+                      ],
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      // 忽略 CSS 顺序冲突警告
+      chain.set("ignoreWarnings", [/Conflicting order/]);
+    },
     postcss: {
       pxtransform: {
         enable: true,

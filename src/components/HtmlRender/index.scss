@@ -50,7 +50,7 @@
     background: $bgColor;
     border-radius: $radius-sm;
     padding: 16rpx;
-    overflow-x: auto;
+    overflow: hidden;
     font-size: 26rpx;
   }
 }

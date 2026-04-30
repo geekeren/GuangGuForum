@@ -1,28 +1,17 @@
 import React, { Component, createRef } from "react";
-import { Image, Text, View } from "@tarojs/components";
+import { Image, ScrollView, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import VirtualList from "@tarojs/components/virtual-list";
 import { TopicSummary, URLS } from "guanggu-forum-api";
 import Loading from "../../../../components/Loading";
 import "./index.scss";
 import { getFromLocalCache } from "../../../../utils/localAssets";
-import Tag from "../../../../components/Tag";
 import NodeIcon from "../../../../assets/topic_node.svg";
 import CommentIcon from "../../../../assets/comment.svg";
 import { urlPathVaiable } from "../../../../utils/urls";
 import { withCache } from "../../../../utils/cacheRequest";
-import { rpxToPx } from "../../../../utils/dimension";
 import PullDownRefresh, { PullDownRefreshRef } from "../../../../components/PullDownRefresh";
 
-interface ListRow {
-  id: string;
-  index: number;
-  style: React.CSSProperties;
-  data: TopicSummary[];
-}
-
-const TopicItem = React.memo(({ id, index, style, data }: ListRow) => {
-  const topic = data[index];
+const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
   const {
     userAvatarUrl,
     username,
@@ -36,10 +25,8 @@ const TopicItem = React.memo(({ id, index, style, data }: ListRow) => {
 
   return (
     <View
-      id={id}
       key={tid}
       className="topicItem"
-      style={style}
       onClick={async () => {
         await Taro.navigateTo({
           url: `/pages/topicDetail/index?tid=${tid}`,
@@ -86,12 +73,8 @@ interface State {
   loadingPage: number;
 }
 
-const topicListId = "topicList";
-
 export default class TopicList extends Component<TopicListProps, State> {
-  listRef = createRef<any>();
   pullDownRef = createRef<PullDownRefreshRef>();
-  lastScrollTop = 0;
 
   constructor(props, state) {
     super(props, state);
@@ -140,12 +123,10 @@ export default class TopicList extends Component<TopicListProps, State> {
   }
 
   scrollToTop() {
-    this.listRef.current?.scrollTo?.(0);
     this.refreshTopics();
   }
 
   loading = false;
-  itemSize = rpxToPx(185);
 
   listReachBottom() {
     const page = this.state.loadingPage + 1;
@@ -175,30 +156,27 @@ export default class TopicList extends Component<TopicListProps, State> {
         style={this.props.style}
       >
         {topics.length > 0 ? (
-          <VirtualList
-            ref={this.listRef}
+          <ScrollView
             className="topicList"
-            width="100%"
-            height={this.props.height}
-            itemData={topics}
-            itemCount={topics.length}
-            itemSize={this.itemSize}
-            overscanCount={5}
-            onScroll={({ scrollDirection, scrollOffset }) => {
-              this.lastScrollTop = scrollOffset;
-              this.pullDownRef.current?.onScroll(scrollOffset);
-              if (
-                !this.loading &&
-                scrollDirection === "forward" &&
-                scrollOffset >
-                  (topics.length - 5 - 3) * this.itemSize + 100
-              ) {
-                this.listReachBottom();
-              }
+            scrollY
+            enhanced
+            showScrollbar
+            scrollbarFadingEnabled={false}
+            bounces
+            style={{ height: this.props.height + "px" }}
+            onScrollToLower={() => this.listReachBottom()}
+            lowerThreshold={300}
+            onScroll={(e: any) => {
+              this.pullDownRef.current?.onScroll(e.detail.scrollTop);
             }}
+            onTouchStart={(e: any) => this.pullDownRef.current?.onTouchStart(e)}
+            onTouchMove={(e: any) => this.pullDownRef.current?.onTouchMove(e)}
+            onTouchEnd={() => this.pullDownRef.current?.onTouchEnd()}
           >
-            {TopicItem}
-          </VirtualList>
+            {topics.map((topic) => (
+              <TopicItem key={urlPathVaiable(URLS.TOPIC_DETAIL)(topic.link)?.params?.tid} topic={topic} />
+            ))}
+          </ScrollView>
         ) : (
           <View style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "300rpx", color: "#999", fontSize: "28rpx" }}>
             {this.loading ? "加载中..." : "暂无数据"}

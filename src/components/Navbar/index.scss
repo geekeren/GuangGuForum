@@ -1,32 +1,83 @@
 @import "../../vars.scss";
 
-.navTitle {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: $text-primary;
+.customNavbar {
+  background: transparent;
   flex-shrink: 0;
-  letter-spacing: -0.3rpx;
-}
+  position: relative;
 
-.searchEntry {
-  display: flex;
-  align-items: center;
-  padding: 0 24rpx;
-  background: $surface;
-  border-radius: 40rpx;
-  height: 100%;
-  flex: 1;
-  margin-left: 16rpx;
-  font-size: 26rpx;
-  color: $text-muted;
-  box-shadow: $shadow-sm;
-  border: 1rpx solid $border-color;
+  .navBar {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+  }
 
-  .text {
-    margin-left: 12rpx;
+  .navCapsule {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    border: 0.5px solid rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.6);
     overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    color: $text-faint;
+    flex-shrink: 0;
+  }
+
+  .navCapsuleBtn {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+
+    &:active {
+      opacity: 0.5;
+    }
+  }
+
+  .navCapsuleIcon {
+    width: 40rpx;
+    height: 40rpx;
+  }
+
+  .navCapsuleDivider {
+    width: 0.5px;
+    height: 18px;
+    background: rgba(0, 0, 0, 0.15);
+  }
+
+  .navTitleContainer {
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .navTitle {
+    font-size: 34rpx;
+    font-weight: 700;
+    color: $text-primary;
+    letter-spacing: -0.3rpx;
+  }
+
+  .searchEntry {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 24rpx;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 40rpx;
+    margin-left: 16rpx;
+    flex: 1;
+    font-size: 26rpx;
+    color: $text-muted;
+    border: 1rpx solid $border-color;
+
+    .searchText {
+      margin-left: 12rpx;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      color: $text-faint;
+    }
   }
 }
