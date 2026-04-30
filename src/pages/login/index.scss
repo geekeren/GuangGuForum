@@ -3,8 +3,27 @@
 .loginPage {
   min-height: 100vh;
   background: linear-gradient(180deg, #b8dcfa 0%, #d6e8f8 30%, $bgColor 60%);
-  padding: 80rpx 48rpx 0;
   box-sizing: border-box;
+
+  .loginHeader {
+    padding: 0 48rpx;
+  }
+
+  .loginCard {
+    margin: 0 48rpx;
+  }
+
+  .agreementRow {
+    padding: 0 48rpx;
+  }
+
+  .loginActions {
+    padding: 0 48rpx;
+  }
+
+  .loginFooter {
+    padding: 0 48rpx;
+  }
 }
 
 .loginHeader {

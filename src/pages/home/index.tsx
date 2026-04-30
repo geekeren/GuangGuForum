@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { View } from "@tarojs/components";
+import { View, Text } from "@tarojs/components";
 import { AtTabBar } from "taro-ui";
 import Taro from "@tarojs/taro";
 import "./index.scss";
@@ -7,6 +7,7 @@ import Topics from "./topics";
 import Me from "../me/index";
 import Navbar from "../../components/Navbar/index";
 import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from "../config";
+import { getNavInfo } from "../../utils/dimension";
 
 interface State {
   selectedTabIndex: number;
@@ -33,7 +34,12 @@ export default class Index extends Component<{}, State> {
       <>
         <View className="root">
           {ENABLE_CUSTOM_NAVBAR && this.state.selectedTabIndex === 0 && (
-            <Navbar />
+            <Navbar>
+              <Text className="navTitle">过早客</Text>
+              <View className="searchEntry" style={{ height: getNavInfo().capsuleHeight + "px" }} onClick={() => Taro.showToast({ title: "开发中，敬请期待", icon: "none" })}>
+                <Text className="searchText">搜索</Text>
+              </View>
+            </Navbar>
           )}
           <View className="tabContent">
             <View style={{ display: this.state.selectedTabIndex === 0 ? 'block' : 'none', height: '100%' }}>

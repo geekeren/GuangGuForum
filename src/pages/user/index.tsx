@@ -1,4 +1,4 @@
-import { View } from "@tarojs/components";
+import { View, ScrollView } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useEffect, useState } from "react";
 import { getUserProfile, UserProfile } from "guanggu-forum-api";
@@ -51,7 +51,9 @@ const UserProfilePage = () => {
   return (
     <View className="userPage">
       <Navbar title="个人主页" back home />
-      <UserProfileDetail profile={profile} />
+      <ScrollView className="userScroll" scrollY enhanced showScrollbar={false}>
+        <UserProfileDetail profile={profile} />
+      </ScrollView>
     </View>
   );
 };

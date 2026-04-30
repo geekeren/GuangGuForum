@@ -53,6 +53,7 @@ const Index = () => {
   const [selectedComment, setSelectedComment] =
     useState<TopicDetail["comments"][0]>();
   const [commentAsc, setCommentAsc] = useState(() => getStorageSync("commentSortAsc") || false);
+  const [showNavTitle, setShowNavTitle] = useState(false);
   const pullDownRef = useRef<PullDownRefreshRef>(null);
   const router = useRouter();
   useEffect(() => {
@@ -110,7 +111,7 @@ const Index = () => {
   return (
     <>
       <View className="topicDetail">
-        <Navbar back home />
+        <Navbar back home title={showNavTitle ? topicDetail?.title : undefined} />
         <PullDownRefresh
           ref={pullDownRef}
           className="scrollViewContainer"
@@ -127,6 +128,7 @@ const Index = () => {
             onTouchEnd={(e: any) => pullDownRef.current?.onTouchEnd(e)}
             onScroll={(e: any) => {
               pullDownRef.current?.onScroll(e.detail.scrollTop);
+              setShowNavTitle(e.detail.scrollTop > 100);
             }}
           >
             <View className="main">

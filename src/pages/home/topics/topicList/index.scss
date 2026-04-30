@@ -6,6 +6,13 @@
   height: 100%;
   background: $bgColor;
 
+  .listFooter {
+    text-align: center;
+    padding: 24rpx 0 32rpx;
+    font-size: 24rpx;
+    color: $text-faint;
+  }
+
   .topicItem {
     box-sizing: border-box;
     padding: 8rpx 16rpx;

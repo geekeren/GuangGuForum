@@ -2,7 +2,12 @@
 
 .userPage {
   background: $bgColor;
-  min-height: 100vh;
-  overflow: hidden;
-  -webkit-overflow-scrolling: touch;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+
+  .userScroll {
+    flex: 1;
+    overflow: hidden;
+  }
 }

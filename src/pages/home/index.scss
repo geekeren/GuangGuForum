@@ -7,6 +7,34 @@
   overflow: hidden;
   background: $bgColor;
 
+  .navTitle {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: $text-primary;
+    letter-spacing: -0.3rpx;
+  }
+
+  .searchEntry {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 24rpx;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 40rpx;
+    flex: 1;
+    font-size: 26rpx;
+    color: $text-muted;
+    border: 1rpx solid $border-color;
+
+    .searchText {
+      margin-left: 12rpx;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      color: $text-faint;
+    }
+  }
+
   .bottomTab {
     height: 110rpx;
   }

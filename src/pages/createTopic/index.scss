@@ -3,10 +3,10 @@
 .createTopic {
   background: $bgColor;
   min-height: 100vh;
-  padding: 24rpx;
   box-sizing: border-box;
 
   .nodeSection {
+    margin: 0 24rpx 16rpx;
     background: $surface;
     border-radius: $radius-lg;
     padding: 0;
@@ -50,7 +50,7 @@
     border-radius: $radius-lg;
     padding: 32rpx 28rpx;
     box-shadow: $shadow-sm;
-    margin-bottom: 24rpx;
+    margin: 0 24rpx 24rpx;
   }
 
   .titleInput {
@@ -83,6 +83,7 @@
   .submitBtn {
     text-align: center;
     padding: 24rpx 0;
+    margin: 0 24rpx;
     border-radius: 44rpx;
     background: linear-gradient(135deg, $color-brand, $color-brand-dark);
     color: #fff;

@@ -129,6 +129,7 @@ export default class TopicList extends Component<TopicListProps, State> {
   loading = false;
 
   listReachBottom() {
+    if (this.state.topics.length >= 200) return;
     const page = this.state.loadingPage + 1;
     this.loading = true;
     const fetcher = () => this.props.getTopics(page);
@@ -176,6 +177,9 @@ export default class TopicList extends Component<TopicListProps, State> {
             {topics.map((topic) => (
               <TopicItem key={urlPathVaiable(URLS.TOPIC_DETAIL)(topic.link)?.params?.tid} topic={topic} />
             ))}
+            {topics.length >= 200 && (
+              <View className="listFooter">— 我是有底线的 —</View>
+            )}
           </ScrollView>
         ) : (
           <View style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "300rpx", color: "#999", fontSize: "28rpx" }}>
