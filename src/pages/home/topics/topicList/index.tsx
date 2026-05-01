@@ -1,5 +1,5 @@
 import React, { Component, createRef } from "react";
-import { Image, ScrollView, ShareElement, Text, View } from "@tarojs/components";
+import { Image, OpenContainer, ScrollView, ShareElement, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { TopicSummary, URLS } from "guanggu-forum-api";
 import Loading from "../../../../components/Loading";
@@ -24,41 +24,47 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
   const tid = urlPathVaiable(URLS.TOPIC_DETAIL)(link)?.params?.tid;
 
   return (
-    <View
+    <OpenContainer
       key={tid}
-      className="topicItem"
+      closedBorderRadius={12}
+      openBorderRadius={0}
+      transitionDuration={350}
       onClick={async () => {
         await Taro.navigateTo({
           url: `/pages/topicDetail/index?tid=${tid}`,
         });
       }}
     >
-      <View className="titleRow">
-        <View className="title" userSelect selectable>
-          <View className="categoryTag"><Image src={NodeIcon} svg className="categoryIcon" /><Text>{category}</Text></View>
-          <Text>{title}</Text>
+      <View className='topicItem'>
+        <View className='titleRow'>
+          <View className='title' userSelect selectable>
+            <ShareElement mapkey={`topic_title_${tid}`}>
+              <Text>{title}</Text>
+            </ShareElement>
+          </View>
         </View>
-      </View>
-      <View className="meta">
-        <View className="left">
-          <View className="user">
-            <ShareElement mapkey={`topic_avatar_${tid}`} transitionOnGesture>
-              <View className="avatar">
+        <View className='meta'>
+          <View className='left'>
+            <View className='categoryTag'><Image src={NodeIcon} svg className='categoryIcon' /><Text>{category}</Text></View>
+            <View className='user'>
+              <View className='avatar'>
                 <Image src={getFromLocalCache(userAvatarUrl)} />
               </View>
-            </ShareElement>
-            <View className="userName">{username}</View>
+              <View className='userName'>{username}</View>
+            </View>
+            <Text className='lastUpdateTime'>
+              {lastUpdated}更新
+            </Text>
           </View>
-          <View className="lastUpdateTime">
-            {lastUpdated.replace(" ", "")}更新
+          <View className='right'>
+            <Image src={CommentIcon} svg className='commentIcon' />
+            <Text className='commentCount'>
+              {commentCount === "" ? 0 : commentCount}
+            </Text>
           </View>
-        </View>
-        <View className="right">
-          <Image src={CommentIcon} svg className="commentIcon" />
-          {commentCount === "" ? 0 : commentCount}
         </View>
       </View>
-    </View>
+    </OpenContainer>
   );
 });
 
@@ -160,7 +166,7 @@ export default class TopicList extends Component<TopicListProps, State> {
       >
         {topics.length > 0 ? (
           <ScrollView
-            className="topicList"
+            className='topicList'
             scrollY
             enhanced
             showScrollbar
@@ -180,7 +186,7 @@ export default class TopicList extends Component<TopicListProps, State> {
               <TopicItem key={urlPathVaiable(URLS.TOPIC_DETAIL)(topic.link)?.params?.tid} topic={topic} />
             ))}
             {topics.length >= 200 && (
-              <View className="listFooter">— 我是有底线的 —</View>
+              <View className='listFooter'>— 我是有底线的 —</View>
             )}
           </ScrollView>
         ) : (

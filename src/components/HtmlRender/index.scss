@@ -7,6 +7,63 @@
   word-break: break-all;
 }
 
+.htmlWrap {
+  width: 100%;
+}
+
+.metaCard {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 16rpx 20rpx;
+  border-radius: $radius-md;
+  margin-bottom: 16rpx;
+
+  .metaCardTag {
+    flex-shrink: 0;
+    font-size: 22rpx;
+    font-weight: 600;
+    padding: 4rpx 14rpx;
+    border-radius: 6rpx;
+    color: #fff;
+  }
+
+  .metaCardInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4rpx;
+  }
+
+  .metaCardRow {
+    font-size: 24rpx;
+    color: $text-sub;
+    line-height: 1.5;
+  }
+
+  .metaCardLink {
+    font-size: 24rpx;
+    color: $color-brand;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+
+  &--repost {
+    background: #fff8f0;
+    .metaCardTag { background: #f90; }
+  }
+
+  &--event {
+    background: #f0f5ff;
+    .metaCardTag { background: $color-brand; }
+  }
+
+  &--dating {
+    background: #fff0f3;
+    .metaCardTag { background: #f5317f; }
+  }
+}
+
 .html {
   user-select: auto;
   color: $text-sub;
@@ -14,12 +71,11 @@
   line-height: 1.7;
 
   .h5-img {
-    width: 100%;
-    height: auto;
     max-width: 100%;
+    height: auto;
     border-radius: $radius-md;
     display: block;
-    margin: 16rpx 0;
+    margin: 16rpx auto;
     transition: all 0.2s;
   }
 
@@ -55,7 +111,7 @@
   }
 
   .html-link {
-    color: $color-brand;
+    color: $color-brand-dark;
     font-size: 28rpx;
     word-break: break-all;
 
@@ -64,7 +120,7 @@
     }
 
     &--mention {
-      display: inline;
+      display: inline-block;
       font-weight: 500;
       background: $color-brand-soft;
       padding: 2rpx 16rpx;
@@ -72,6 +128,7 @@
       font-size: 26rpx;
       line-height: 1.5;
       vertical-align: middle;
+      color: $color-brand;
 
       &:active {
         background: rgba($color-brand, 0.12);
@@ -79,16 +136,8 @@
     }
 
     &--external {
-      display: inline-flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 4rpx;
-
-      &::after {
-        content: "↗";
-        font-size: 24rpx;
-        opacity: 0.6;
-      }
+      display: inline;
+      font-weight: 500;
     }
   }
 }

@@ -14,6 +14,8 @@ import Taro, {
   useRouter,
   useShareAppMessage,
   useShareTimeline,
+  useReady,
+  useDidShow,
 } from "@tarojs/taro";
 import { useEffect, useRef, useState } from "react";
 import queryString from "query-string";
@@ -31,6 +33,8 @@ import Navbar from "../../components/Navbar";
 import { getFromLocalCache } from "../../utils/localAssets";
 import { rpxToPx } from "../../utils/dimension";
 import { withCache } from "../../utils/cacheRequest";
+import { isSkyline } from "../../utils/renderer";
+import { trimStrings } from "../../utils/trimStrings";
 import HtmlRender from "../../components/HtmlRender";
 import Tag from "../../components/Tag";
 import Icon from "../../components/Icon";
@@ -46,16 +50,40 @@ const Index = () => {
   const [id, setId] = useState<string>();
   const [refreshTime, setRefreshTime] = useState<number>(() => Date.now());
   const [topicDetail, setTopicDetail] = useState<TopicDetail>();
+  const [isActionSheetShown, showActionSheet] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
   const [sending, setSending] = useState(false);
-  const [isActionSheetShown, showActionSheet] = useState(false);
   const [commentContent, setCommentContent] = useState("");
   const [selectedComment, setSelectedComment] =
     useState<TopicDetail["comments"][0]>();
   const [commentAsc, setCommentAsc] = useState(() => getStorageSync("commentSortAsc") || false);
   const [navScrollProgress, setNavScrollProgress] = useState(0);
+  const workletReady = useRef(false);
+  const scrollProgressSV = useRef<any>(null);
   const pullDownRef = useRef<PullDownRefreshRef>(null);
   const router = useRouter();
+
+  useReady(() => {
+    const { page } = Taro.getCurrentInstance();
+    if (page && (Taro as any).worklet) {
+      const sv = (Taro as any).worklet.shared(0);
+      page._scrollProgress = sv;
+      scrollProgressSV.current = sv;
+
+      Taro.nextTick(() => {
+        page.applyAnimatedStyle(".customNavbar", () => {
+          "worklet";
+          const p = Math.min(Math.max(sv.value, 0), 1);
+          return {
+            backdropFilter: `blur(${p * 20}px)`,
+            backgroundColor: `rgba(255, 255, 255, ${p * 0.85})`,
+          };
+        });
+
+        workletReady.current = true;
+      });
+    }
+  });
   useEffect(() => {
     const { tid } = router.params;
     if (!tid) {
@@ -71,6 +99,14 @@ const Index = () => {
     if (cached) setTopicDetail(cached);
     refresh.then(setTopicDetail);
   }, [router.params, refreshTime]);
+
+  useDidShow(() => {
+    if (isSkyline() && id) {
+      getTopicDetail(id).then((data) => {
+        if (data) setTopicDetail(trimStrings(data));
+      });
+    }
+  });
 
   const pageUrl = `${router.path}?${queryString.stringify(router.params)}`;
 
@@ -89,7 +125,12 @@ const Index = () => {
   }));
 
   if (!topicDetail) {
-    return <Loading fullscreen />;
+    return (
+      <View className='topicDetail'>
+        <Navbar back home title='帖子详情' />
+        <Loading fullscreen />
+      </View>
+    );
   }
 
   const hasComments = topicDetail.commentTotalCount.trim() !== "";
@@ -97,24 +138,37 @@ const Index = () => {
 
   const showCommentDialog = (config?: { content: string }) => {
     if (!hasLogin) {
-      Taro.reLaunch({
-        url: `/pages/login/index?redirect=${encodeURIComponent(pageUrl)}`,
+      wx.navigateTo({
+        url: `/pages/login/index?redirect=${encodeURIComponent(pageUrl)}${isSkyline() ? '&modal=true' : ''}`,
+        routeType: "wx://cupertino-modal",
+        routeOptions: {
+          backgroundColor: "#00000066",
+        },
       });
-    } else {
-      setIsCommenting(true);
-      if (config?.content) {
-        setCommentContent(config?.content || "");
-      }
+      return;
+    }
+    setIsCommenting(true);
+    if (config?.content) {
+      setCommentContent(config.content);
     }
   };
 
   return (
     <>
-      <View className="topicDetail">
-        <Navbar back home title={topicDetail?.title} scrollProgress={navScrollProgress} />
+      <View className='topicDetail'>
+        <Navbar
+          back
+          home
+          scrollProgress={navScrollProgress}
+          title={navScrollProgress <= 0.3 ? '帖子详情' : topicDetail?.title}
+          titleStyle={navScrollProgress <= 0.3 ? { opacity: 1 } : {
+            opacity: Math.min(1, (navScrollProgress - 0.3) / 0.7),
+            transform: `translateY(${(1 - Math.min(navScrollProgress, 1)) * 8}px)`,
+          }}
+        />
         <PullDownRefresh
           ref={pullDownRef}
-          className="scrollViewContainer"
+          className='scrollViewContainer'
           onRefresh={() => setRefreshTime(Date.now())}
         >
           <ScrollView
@@ -122,44 +176,48 @@ const Index = () => {
             scrollY
             bounces
             enhanced
-            className="scrollContent"
+            className='scrollContent'
             onTouchStart={(e: any) => pullDownRef.current?.onTouchStart(e)}
             onTouchMove={(e: any) => pullDownRef.current?.onTouchMove(e)}
             onTouchEnd={(e: any) => pullDownRef.current?.onTouchEnd(e)}
             onScroll={(e: any) => {
               pullDownRef.current?.onScroll(e.detail.scrollTop);
-              setNavScrollProgress(Math.min(e.detail.scrollTop / 100, 1));
+              const progress = Math.min(e.detail.scrollTop / 100, 1);
+              if (workletReady.current && scrollProgressSV.current) {
+                scrollProgressSV.current.value = progress;
+              }
+              setNavScrollProgress(progress);
             }}
           >
-            <View className="main">
-              <View className="header">
-                <View className="title">
-                  <Text className="titleText">{topicDetail.title}</Text>
+            <View className='main'>
+              <View className='header'>
+                <View className='title'>
+                  <ShareElement mapkey={`topic_title_${id}`}>
+                    <Text className='titleText'>{topicDetail.title}</Text>
+                  </ShareElement>
                 </View>
-                <View className="metaRow">
+                <View className='metaRow'>
                   <View
-                    className="authorInfo"
+                    className='authorInfo'
                     onClick={() => {
                       Taro.navigateTo({
                         url: `/pages/user/index?username=${topicDetail.author}`,
                       });
                     }}
                   >
-                    <ShareElement mapkey={`topic_avatar_${id}`} transitionOnGesture>
-                      <View className="avatar">
-                        <Image
-                          lazyLoad
-                          src={getFromLocalCache(topicDetail.authorAvatarUrl)}
-                        />
-                      </View>
-                    </ShareElement>
+                    <View className='avatar'>
+                      <Image
+                        lazyLoad
+                        src={getFromLocalCache(topicDetail.authorAvatarUrl)}
+                      />
+                    </View>
                     <View>
-                      <View className="author">{topicDetail.author}</View>
-                      <View className="moreInfo">
-                        <View className="createTime">
-                          {topicDetail.createTime.replace(" ", "")}
+                      <View className='author'>{topicDetail.author}</View>
+                      <View className='moreInfo'>
+                        <View className='createTime'>
+                          {topicDetail.createTime}
                         </View>
-                        <View>{topicDetail.viewCount.replace(" ", "")}</View>
+                        <View>{topicDetail.viewCount}</View>
                       </View>
                     </View>
                   </View>
@@ -175,26 +233,26 @@ const Index = () => {
                       }
                     }}
                   >
-                    <Image src={NodeIcon} svg className="tagIcon" />
+                    <Image src={NodeIcon} svg className='tagIcon' />
                     <View style={{ display: "inline-block" }}>
                       {topicDetail.category}
                     </View>
                   </Tag>
                 </View>
               </View>
-              <View className="content">
+              <View className='content'>
                 <HtmlRender html={topicDetail.content} />
               </View>
-              <View className="extra">
-                <View className="right">
-                  <View>{topicDetail.upVoteCount.replace(" ", "")}</View>
-                  <View>{topicDetail.favoriteCount.replace(" ", "")}</View>
+              <View className='extra'>
+                <View className='right'>
+                  <View>{topicDetail.upVoteCount}</View>
+                  <View>{topicDetail.favoriteCount}</View>
                 </View>
               </View>
             </View>
-            <View className="comments section">
+            <View className='comments section'>
               {hasComments ? (
-                <View className="header">
+                <View className='header'>
                   {topicDetail.commentTotalCount}
                   <View
                     className={`sortBtn ${commentAsc ? "sortBtn--active" : ""}`}
@@ -204,15 +262,15 @@ const Index = () => {
                       setStorageSync("commentSortAsc", next);
                     }}
                   >
-                    <Image src={commentAsc ? SortDescIcon : SortAscIcon} svg className="sortIcon" />
+                    <Image src={commentAsc ? SortDescIcon : SortAscIcon} svg className='sortIcon' />
                   </View>
                 </View>
               ) : (
-                <View className="emptyComments">
-                  <View className="emptyIcon">💬</View>
-                  <View className="emptyTitle">暂无评论</View>
-                  <View className="emptyDesc">快来发表第一条评论吧</View>
-                  <View className="emptyBtn" onClick={() => showCommentDialog()}>
+                <View className='emptyComments'>
+                  <View className='emptyIcon'>💬</View>
+                  <View className='emptyTitle'>暂无评论</View>
+                  <View className='emptyDesc'>快来发表第一条评论吧</View>
+                  <View className='emptyBtn' onClick={() => showCommentDialog()}>
                     说点什么
                   </View>
                 </View>
@@ -305,42 +363,46 @@ const Index = () => {
                   return items;
                 })}
             </View>
-            <View className="relatingTopics section">
-              <View className="header">相关主题</View>
+            <View className='relatingTopics section'>
+              <View className='header'>相关主题</View>
               <RelatingTopics topicDetail={topicDetail} />
             </View>
           </ScrollView>
         </PullDownRefresh>
-        {isCommenting && (
-          <View
-            onClick={() => setIsCommenting(false)}
-            style={{
-              background: "#00000044",
-              position: "absolute",
-              top: 0,
-              bottom: 0,
-              width: "100%",
-            }}
-          />
-        )}
-        <View
-          className="actions"
-          style={{ height: isCommenting ? rpxToPx(400) : rpxToPx(120) }}
-        >
-          {isCommenting ? (
-            <View style={{ display: "block", width: "100%", height: "100%" }}>
-              <View className="commentActions">
-                <View
-                  onClick={() => {
-                    setIsCommenting(false);
-                  }}
-                >
-                  取消
+        <View className='actions'>
+          <View className='left' onClick={showCommentDialog}>
+            {hasLogin ? "说点什么..." : "请登录后再评论"}
+          </View>
+          <View className='right'>
+            <View className='badgeWrap'>
+              {topicDetail?.comments.length > 0 && (
+                <View className='badgeValue'>
+                  {Math.min(topicDetail.comments.length, 99)}
                 </View>
+              )}
+              <Image src={CommentIcon} svg className='commentIcon' />
+            </View>
+            <Button openType='share' className='share'>
+              <Image src={WechatIcon} svg className='icon' />
+              分享
+            </Button>
+          </View>
+        </View>
+        {isCommenting && (
+          <View className='commentPopup'>
+            <View className='commentPopupMask' onClick={() => setIsCommenting(false)} />
+            <View className='commentPopupBody'>
+              <View className='commentPopupHeader'>
+                <View className='commentPopupCancel' onClick={() => setIsCommenting(false)}>取消</View>
+                <View className='commentPopupTitle'>评论</View>
                 <View
-                  className={`sendBtn ${sending ? 'sendBtn--disabled' : ''}`}
+                  className={`commentPopupSend ${sending ? 'commentPopupSend--disabled' : ''}`}
                   onClick={() => {
                     if (sending) return;
+                    if (commentContent.trim().length < 3) {
+                      Taro.showToast({ title: '评论内容至少3个字', icon: 'none' });
+                      return;
+                    }
                     setSending(true);
                     Taro.showLoading({ title: "发送中...", mask: true });
                     id &&
@@ -362,55 +424,33 @@ const Index = () => {
                 </View>
               </View>
               <Textarea
-                className="commentTextArea"
+                className='commentPopupTextarea'
                 cursorSpacing={100}
                 adjustPosition
-                autoFocus
+                focus={isCommenting}
+                autoHeight
                 onInput={(event) => {
                   setCommentContent(event.detail.value);
                 }}
                 value={commentContent}
                 showConfirmBar={false}
-                style={{ height: 100 }}
-                placeholder="说点什么"
-                onClick={() => {
-                  setIsCommenting(true);
-                }}
+                placeholder='说点什么'
               />
             </View>
-          ) : (
-            <>
-              <View className="left" onClick={showCommentDialog}>
-                {hasLogin ? "说点什么..." : "请登录后再评论"}
-              </View>
-              <View className="right">
-                <View className="badgeWrap">
-                  {topicDetail?.comments.length > 0 && (
-                    <View className="badgeValue">
-                      {Math.min(topicDetail.comments.length, 99)}
-                    </View>
-                  )}
-                  <Image src={CommentIcon} svg className="commentIcon" />
-                </View>
-                <Button openType="share" className="share">
-                  <Image src={WechatIcon} svg className="icon" />
-                  分享
-                </Button>
-              </View>
-            </>
-          )}
-        </View>
+          </View>
+        )}
         {isActionSheetShown && (
-          <View className="actionSheet">
-            <View className="actionSheetMask" onClick={() => showActionSheet(false)} />
-            <View className="actionSheetBody">
-              <View className="actionSheetItem" onClick={() => {
+          <View className='actionSheet'>
+            <View className='actionSheetMask' onClick={() => showActionSheet(false)} />
+            <View className='actionSheetBody'>
+              <View className='actionSheetItem' onClick={() => {
                 showActionSheet(false);
                 showCommentDialog({ content: `@${selectedComment?.author} ` });
-              }}>
+              }}
+              >
                 <Text>回复</Text>
               </View>
-              <View className="actionSheetItem" onClick={() => {
+              <View className='actionSheetItem' onClick={() => {
                 showActionSheet(false);
                 Taro.setClipboardData({
                   data: selectedComment?.content.trim() || "",
@@ -419,10 +459,11 @@ const Index = () => {
                   },
                   fail: console.error,
                 }).catch(console.error).then();
-              }}>
+              }}
+              >
                 <Text>复制</Text>
               </View>
-              <View className="actionSheetItem actionSheetItem--cancel" onClick={() => showActionSheet(false)}>
+              <View className='actionSheetItem actionSheetItem--cancel' onClick={() => showActionSheet(false)}>
                 <Text>取消</Text>
               </View>
             </View>

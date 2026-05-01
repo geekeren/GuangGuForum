@@ -2,7 +2,7 @@ import { forwardRef, useImperativeHandle, useRef } from "react";
 import { Text, View } from "@tarojs/components";
 import "./index.scss";
 
-const DEFAULT_THRESHOLD = 80;
+const DEFAULT_THRESHOLD = 120;
 
 export interface PullDownRefreshRef {
   onScroll: (scrollTop: number) => void;
@@ -24,6 +24,7 @@ const PullDownRefresh = forwardRef<PullDownRefreshRef, PullDownRefreshProps>(
     const distanceRef = useRef(0);
     const scrollTopRef = useRef(0);
     const touchStartYRef = useRef(0);
+    const touchStartXRef = useRef(0);
     const pullingRef = useRef(false);
     const tipElRef = useRef<any>(null);
 
@@ -58,6 +59,7 @@ const PullDownRefresh = forwardRef<PullDownRefreshRef, PullDownRefreshProps>(
     const handleTouchStart = (e: any) => {
       if (scrollTopRef.current <= 0) {
         touchStartYRef.current = e.touches[0].clientY;
+        touchStartXRef.current = e.touches[0].clientX;
         pullingRef.current = true;
       }
     };
@@ -65,8 +67,14 @@ const PullDownRefresh = forwardRef<PullDownRefreshRef, PullDownRefreshProps>(
     const handleTouchMove = (e: any) => {
       if (!pullingRef.current) return;
       const deltaY = e.touches[0].clientY - touchStartYRef.current;
+      const deltaX = Math.abs(e.touches[0].clientX - touchStartXRef.current);
+      // 横向滑动大于纵向时，认为是侧滑返回，不触发下拉刷新
+      if (deltaX > deltaY && deltaY < 30) {
+        reset();
+        return;
+      }
       if (deltaY > 0 && scrollTopRef.current <= 0) {
-        const distance = Math.min(deltaY * 0.5, 150);
+        const distance = Math.min(deltaY * 0.4, 150);
         distanceRef.current = distance;
         updateTip(distance);
       } else if (deltaY < 0) {

@@ -146,7 +146,7 @@
       .stat-item {
         display: flex;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
 
         .stat-value {
           font-size: 38rpx;
@@ -296,14 +296,17 @@
 
       .topicTime {
         flex: 1;
+        white-space: nowrap;
       }
 
       .topicCommentCount {
-        display: inline-flex;
+        display: flex;
         flex-direction: row;
         align-items: center;
         color: $text-muted;
         gap: 6rpx;
+        white-space: nowrap;
+        flex-shrink: 0;
 
         image {
           width: 24rpx;

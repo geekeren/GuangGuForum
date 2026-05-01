@@ -4,9 +4,10 @@
   min-height: 100vh;
   background: linear-gradient(180deg, #b8dcfa 0%, #d6e8f8 30%, $bgColor 60%);
   box-sizing: border-box;
+  background-color: transparent;
 
   .loginHeader {
-    padding: 0 48rpx;
+    padding: 48rpx;
   }
 
   .loginCard {
@@ -28,7 +29,6 @@
 
 .loginHeader {
   text-align: left;
-  margin-bottom: 60rpx;
 
   .logoBadge {
     width: 96rpx;
@@ -92,7 +92,6 @@
     font-size: 32rpx;
     color: $text-primary;
     box-sizing: border-box;
-    line-height: 88rpx;
   }
 
   .inputPlaceholder {

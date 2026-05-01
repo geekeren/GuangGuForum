@@ -8,10 +8,11 @@
 
 .tab-header {
   flex-shrink: 0;
+  padding-bottom: 8rpx;
 }
 
 .tab-scroll {
-  height: 88rpx;
+  height: 80rpx;
   white-space: nowrap;
 }
 
@@ -21,8 +22,8 @@
   font-size: 28rpx;
   font-weight: 400;
   padding: 0 24rpx;
-  height: 88rpx;
-  line-height: 88rpx;
+  height: 80rpx;
+  line-height: 80rpx;
   position: relative;
   transition: all 0.2s ease;
   box-sizing: border-box;

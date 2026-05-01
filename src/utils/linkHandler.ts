@@ -72,3 +72,12 @@ export function linkHandler(href: string) {
 export function isUserMentionLink(href: string): boolean {
   return /^\/u\/[^/]+$/.test(href);
 }
+
+export function isWhitelistedDomain(url: string): boolean {
+  try {
+    const parsed = new URL(url, "https://www.guozaoke.com");
+    return !!DOMAIN_WHITELIST[parsed.hostname];
+  } catch {
+    return false;
+  }
+}

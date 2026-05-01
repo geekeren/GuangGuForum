@@ -55,9 +55,9 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
             <View className="nameRow">
               <Text className="username">{profile.username}</Text>
               {profile.reputation != null && (
-                <View className="levelBadge">
+                <Text className="levelBadge">
                   Lv.{Math.min(9, Math.floor((profile.reputation || 0) / 100) + 1)}
-                </View>
+                </Text>
               )}
             </View>
             {profile.nickname && profile.nickname !== profile.username && (
@@ -156,12 +156,12 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                       <Image src={NodeIcon} svg className="tagIcon" />
                       <View style={{ display: "inline-block" }}>{topic.category}</View>
                     </Tag>
-                    <View className="topicTime">
-                      {topic.lastUpdated.replace(" ", "")}
-                    </View>
+                    <Text className="topicTime">
+                      {topic.lastUpdated}
+                    </Text>
                     <View className="topicCommentCount">
                       <Image src={CommentIcon} svg />
-                      {topic.commentCount || 0}
+                      <Text>{topic.commentCount || 0}</Text>
                     </View>
                   </View>
                 </View>
@@ -181,7 +181,7 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                   <View className="replyTitle">
                     <Text>
                       {reply.replyTitle.replace(/^回复了\s+\S+\s+创建的主题\s*/, "")}
-                    </Text>setStorageItem
+                    </Text>
                   </View>
                   <View className="replyContent">
                     {reply.content.replace(/<[^>]*>/g, "").trim()}

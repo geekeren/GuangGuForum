@@ -78,6 +78,7 @@
             color: $text-faint;
             margin-top: 4rpx;
             gap: 16rpx;
+            white-space: nowrap;
           }
         }
       }
@@ -112,6 +113,7 @@
         display: flex;
         flex-direction: row;
         gap: 18rpx;
+        white-space: nowrap;
       }
     }
 
@@ -286,34 +288,6 @@
     position: relative;
     padding: 16rpx 24rpx 28rpx;
 
-    .commentActions {
-      display: flex;
-      flex-direction: row;
-      justify-content: space-between;
-      padding: 0 8rpx;
-      font-size: 30rpx;
-      color: $text-sub;
-
-      view:last-child {
-        color: $color-brand;
-        font-weight: 600;
-      }
-
-      .sendBtn--disabled {
-        color: $text-faint !important;
-      }
-    }
-
-    .commentTextArea {
-      margin-top: 16rpx;
-      background-color: $bgColor;
-      border-radius: $radius-md;
-      padding: 16rpx;
-      width: 100%;
-      box-sizing: border-box;
-      font-size: 28rpx;
-    }
-
     .left {
       flex: 1 1;
       background: $bgColor;
@@ -389,6 +363,95 @@
           margin-right: 8rpx;
         }
       }
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // WebView 兼容：内联评论弹窗
+  // ────────────────────────────────────────────────────────────
+  .commentPopup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+
+    .commentPopupMask {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .commentPopupBody {
+      position: relative;
+      background: $surface;
+      border-radius: 24rpx 24rpx 0 0;
+      padding: 24rpx 32rpx;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    .commentPopupHeader {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20rpx;
+    }
+
+    .commentPopupCancel {
+      font-size: 30rpx;
+      color: $text-muted;
+      padding: 8rpx 0;
+    }
+
+    .commentPopupTitle {
+      font-size: 30rpx;
+      font-weight: 600;
+      color: $text-primary;
+    }
+
+    .commentPopupSend {
+      font-size: 30rpx;
+      font-weight: 600;
+      color: $color-brand;
+      padding: 8rpx 0;
+
+      &--disabled {
+        color: $text-faint;
+      }
+    }
+
+    .commentPopupTextarea {
+      background-color: $bgColor;
+      border-radius: $radius-md;
+      padding: 20rpx;
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 28rpx;
+      min-height: 200rpx;
+    }
+
+    .commentPopupHint {
+      text-align: right;
+      font-size: 24rpx;
+      color: $text-muted;
+      margin-top: 12rpx;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
     }
   }
 

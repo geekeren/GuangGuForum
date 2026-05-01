@@ -1,4 +1,5 @@
 import Taro from "@tarojs/taro";
+import { trimStrings } from "./trimStrings";
 
 export function withCache<T>(
   cacheKey: string,
@@ -7,14 +8,15 @@ export function withCache<T>(
   let cached: T | null = null;
   try {
     const stored = Taro.getStorageSync(cacheKey);
-    if (stored) cached = JSON.parse(stored) as T;
+    if (stored) cached = trimStrings(JSON.parse(stored)) as T;
   } catch {}
 
   const refresh = fetcher().then((data) => {
+    const trimmed = trimStrings(data);
     try {
-      Taro.setStorageSync(cacheKey, JSON.stringify(data));
+      Taro.setStorageSync(cacheKey, JSON.stringify(trimmed));
     } catch {}
-    return data;
+    return trimmed;
   });
 
   return { cached, refresh };

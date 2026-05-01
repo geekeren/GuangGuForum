@@ -1,8 +1,11 @@
 import { Component } from "react";
 import "./app.scss";
+import { registerSkylineRoutes } from "./utils/skylineRoutes";
 
 class App extends Component {
-  componentDidMount() {}
+  componentDidMount() {
+    registerSkylineRoutes();
+  }
 
   componentDidShow() {}
 

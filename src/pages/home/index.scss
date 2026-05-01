@@ -87,9 +87,10 @@
         color: #fff;
         font-size: 40rpx;
         font-weight: 300;
-        line-height: 56rpx;
-        text-align: center;
-        box-shadow: 0 6rpx 16rpx rgba(31, 105, 255, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4rpx 16rpx rgba(31, 105, 255, 0.3);
       }
     }
   }

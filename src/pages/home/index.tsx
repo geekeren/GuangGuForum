@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { View, Text, Image } from "@tarojs/components";
+import { View, Text, Image, ShareElement } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import "./index.scss";
 import Topics from "./topics";
@@ -32,7 +32,10 @@ export default class Index extends Component<{}, State> {
 
   private handleClick(value: number): void {
     if (value === 1) {
-      Taro.navigateTo({ url: "/pages/createTopic/index" });
+      wx.navigateTo({
+        url: "/pages/createTopic/index",
+        routeType: "wx://upwards",
+      });
     } else {
       this.setState({ selectedTabIndex: value });
     }
@@ -65,7 +68,9 @@ export default class Index extends Component<{}, State> {
                 if (index === 1) {
                   return (
                     <View key={index} className="tabItem tabItem--add" onClick={() => this.handleClick(index)}>
-                      <View className="addIcon">+</View>
+                      <ShareElement mapkey="create_topic_btn">
+                        <View className="addIcon">+</View>
+                      </ShareElement>
                     </View>
                   );
                 }

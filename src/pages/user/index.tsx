@@ -45,7 +45,12 @@ const UserProfilePage = () => {
   }
 
   if (!profile) {
-    return <Loading />;
+    return (
+      <View className="userPage">
+        <Navbar title="个人主页" back home />
+        <Loading fullscreen />
+      </View>
+    );
   }
 
   return (

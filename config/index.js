@@ -18,6 +18,9 @@ const config = {
   framework: "react",
   compiler: "webpack5",
   mini: {
+    experimental: {
+      compileMode: true,
+    },
     webpackChain(chain) {
       chain.merge({
         module: {

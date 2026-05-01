@@ -1,9 +1,10 @@
 import { Image, ScrollView, Text, View } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useEffect, useState } from "react";
+import { fetchLinkSummary, LinkSummary } from "guanggu-forum-api";
 import Navbar from "../../components/Navbar";
 import Loading from "../../components/Loading";
-import { fetchLinkSummary, LinkSummary } from "guanggu-forum-api";
+import { withCache } from "../../utils/cacheRequest";
 import "./index.scss";
 
 function getHostname(url: string): string {
@@ -21,10 +22,12 @@ export default function LinkPreview() {
 
   useEffect(() => {
     if (!url) return;
-    fetchLinkSummary(url).then((data) => {
-      console.log("[LinkPreview] fetchLinkSummary result:", JSON.stringify(data));
-      setSummary(data);
-    });
+    const { cached, refresh } = withCache<LinkSummary>(
+      `link_summary_${url}`,
+      () => fetchLinkSummary(url),
+    );
+    if (cached) setSummary(cached);
+    refresh.then(setSummary);
   }, [url]);
 
   const copyLink = () => {

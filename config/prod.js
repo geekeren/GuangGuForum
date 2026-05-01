@@ -4,6 +4,9 @@ module.exports = {
   },
   defineConstants: {},
   mini: {},
+  cache: {
+    enable: true,
+  },
   h5: {
     /**
      * WebpackChain 插件配置

@@ -71,7 +71,7 @@ export default function Topics() {
       query
         .select(`#list_container`)
         .boundingClientRect((res) => {
-          res?.height && setTabPaneHeight(res.height - rpxToPx(90));
+          res?.height && setTabPaneHeight(res.height - rpxToPx(80));
         })
         .exec();
     });

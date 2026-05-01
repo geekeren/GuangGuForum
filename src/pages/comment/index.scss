@@ -1,0 +1,54 @@
+@import "../../vars.scss";
+
+.commentPage {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: $surface;
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+
+.commentPageHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 32rpx;
+  padding-top: calc(24rpx + env(safe-area-inset-top));
+  border-bottom: 1rpx solid $border-color;
+  flex-shrink: 0;
+}
+
+.commentPageCancel {
+  font-size: 30rpx;
+  color: $text-muted;
+  padding: 8rpx 0;
+}
+
+.commentPageTitle {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.commentPageSend {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: $color-brand;
+  padding: 8rpx 0;
+
+  &--disabled {
+    color: $text-faint;
+  }
+}
+
+.commentPageTextarea {
+  flex: 1;
+  background-color: $bgColor;
+  margin: 24rpx 32rpx;
+  border-radius: $radius-md;
+  padding: 20rpx;
+  font-size: 28rpx;
+  min-height: 200rpx;
+}

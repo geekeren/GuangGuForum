@@ -5,14 +5,15 @@ export interface LinkSummary {
   title: string;
   description: string;
   bodyText: string;
+  bodyHtml: string;
   image: string;
   favicon: string;
   siteName: string;
   url: string;
 }
 
-const CACHE_PREFIX = "link_html_";
-const CACHE_TTL = 30 * 60 * 1000;
+const HTML_CACHE_PREFIX = "link_html_";
+const HTML_CACHE_TTL = 30 * 60 * 1000;
 
 interface CachedHtml {
   html: string;
@@ -73,16 +74,6 @@ function extractBodyText(doc: HTMLElement): string {
   const clone = parse(body.innerHTML);
   clone.querySelectorAll("script, style, noscript, nav, header, footer, aside").forEach((el) => el.remove());
 
-  const paragraphs = clone.querySelectorAll("p, article, [role=article], .content, .article, .post, .entry");
-  if (paragraphs.length > 0) {
-    const texts = paragraphs
-      .map((el) => el.structuredText || "")
-      .filter((t) => t.trim().length > 20);
-    if (texts.length > 0) {
-      return texts.join(" ").replace(/\s+/g, " ").trim();
-    }
-  }
-
   const text = (clone.structuredText || clone.textContent || "")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -95,17 +86,30 @@ function extractBodyText(doc: HTMLElement): string {
   return text;
 }
 
+function extractBodyHtml(html: string): string {
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  const raw = bodyMatch ? bodyMatch[1] : html;
+  return raw
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+    .replace(/display\s*:\s*none\s*;?/gi, "")
+    .trim();
+}
+
 function parseSummary(html: string, url: string): LinkSummary {
   let origin = "";
   try { origin = new URL(url).origin; } catch {}
 
   const doc = parse(html);
   const bodyText = extractBodyText(doc);
+  const bodyHtml = extractBodyHtml(html);
 
   return {
     title: extractTitle(doc) || url,
     description: extractDescription(doc),
-    bodyText: bodyText.slice(0, 120),
+    bodyText,
+    bodyHtml,
     image: extractImage(doc),
     favicon: extractFavicon(doc, origin),
     siteName: extractSiteName(doc),
@@ -113,37 +117,51 @@ function parseSummary(html: string, url: string): LinkSummary {
   };
 }
 
-export async function fetchLinkSummary(url: string): Promise<LinkSummary> {
-  const cacheKey = CACHE_PREFIX + url;
-
-  let html = "";
+async function fetchHtml(url: string): Promise<string> {
   try {
-    const stored = Taro.getStorageSync(cacheKey);
+    const res = await Taro.request({
+      url,
+      responseType: "text",
+      timeout: 8000,
+    });
+    const html = typeof res.data === "string" ? res.data : "";
+    if (html) {
+      try {
+        Taro.setStorageSync(HTML_CACHE_PREFIX + url, JSON.stringify({ html, timestamp: Date.now() }));
+      } catch {}
+    }
+    return html;
+  } catch {
+    return "";
+  }
+}
+
+function getCachedHtml(url: string): string {
+  try {
+    const stored = Taro.getStorageSync(HTML_CACHE_PREFIX + url);
     if (stored) {
       const cached: CachedHtml = JSON.parse(stored);
-      if (Date.now() - cached.timestamp < CACHE_TTL) {
-        html = cached.html;
+      if (Date.now() - cached.timestamp < HTML_CACHE_TTL) {
+        return cached.html;
       }
     }
   } catch {}
+  return "";
+}
+
+export async function fetchLinkSummary(url: string): Promise<LinkSummary> {
+  const cachedHtml = getCachedHtml(url);
+  const html = cachedHtml || await fetchHtml(url);
 
   if (!html) {
-    try {
-      const res = await Taro.request({
-        url,
-        responseType: "text",
-        timeout: 8000,
-      });
-      html = typeof res.data === "string" ? res.data : "";
-      try {
-        Taro.setStorageSync(cacheKey, JSON.stringify({ html, timestamp: Date.now() }));
-      } catch {}
-    } catch {}
+    return { title: url, description: "", bodyText: "", bodyHtml: "", image: "", favicon: "", siteName: "", url };
   }
 
-  if (!html) {
-    return { title: url, description: "", bodyText: "", image: "", favicon: "", siteName: "", url };
+  const summary = parseSummary(html, url);
+
+  if (!cachedHtml) {
+    fetchHtml(url);
   }
 
-  return parseSummary(html, url);
+  return summary;
 }

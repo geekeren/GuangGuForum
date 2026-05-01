@@ -3,5 +3,6 @@ export default definePageConfig({
   enableShareAppMessage: false,
   renderer: "skyline",
   componentFramework: "glass-easel",
-  navigationStyle: 'custom'
+  navigationStyle: 'custom',
+  backgroundColorContent: "#00000000",
 });
