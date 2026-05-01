@@ -1,7 +1,8 @@
 import { View } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import { createRef, useEffect } from "react";
 import { TaroElement } from "@tarojs/runtime";
-import Taro from "@tarojs/taro";
+import { linkHandler, isUserMentionLink } from "../../utils/linkHandler";
 import "./index.scss";
 
 interface Props {
@@ -13,31 +14,30 @@ Taro.options.html.transformElement = (
   htmlEle: HTMLElement,
 ) => {
   if (htmlEle.tagName === "a") {
-    taroEle.tagName = "VIEW";
-    taroEle.nodeName = "view";
+    const href = taroEle.props.href || "";
+
+    const isMention = isUserMentionLink(href);
+
+    if (isMention) {
+      taroEle.tagName = "TEXT";
+      taroEle.nodeName = "text";
+    } else {
+      taroEle.tagName = "VIEW";
+      taroEle.nodeName = "view";
+    }
+    taroEle.setAttribute(
+      "class",
+      isMention ? "html-link html-link--mention" : "html-link html-link--external",
+    );
     taroEle.addEventListener(
       "tap",
       (e) => {
-        // if (e.target !== this) {
-        //   return;
-        // }
-        if (taroEle.children.length === 0) {
-          Taro.setClipboardData({
-            data: taroEle.props.href,
-            success: () => {
-              Taro.showToast({
-                title: "链接已复制！",
-                icon: "success",
-                duration: 2000,
-              }).then();
-            },
-          }).then();
-        }
+        e.stopPropagation();
+        linkHandler(href);
       },
       {},
     );
   } else if (htmlEle.tagName === "img") {
-    // taroEle.setAttribute('mode', 'widthFix');
     taroEle.setAttribute("lazyLoad", true);
     taroEle.addEventListener(
       "load",
@@ -89,12 +89,6 @@ const HtmlRender = (props: Props) => {
 
   useEffect(() => {
     htmlEle?.current?.addEventListener("tap", () => {}, {});
-
-    // el.addEventListener('tap', testOnTap)
-    //
-    // return () => {
-    //   el.removeEventListener('tap', testOnTap)
-    // }
   }, []);
 
   return (

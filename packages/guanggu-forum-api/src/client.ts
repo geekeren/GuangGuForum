@@ -12,6 +12,15 @@ export interface RequestConfig extends Omit<TaroRequestConfig, "url"> {
   query?: Record<string, string | undefined>;
   data?: Record<string, string | undefined>;
   method?: "POST" | "GET";
+  cacheTTL?: number;
+}
+
+const CACHE_PREFIX = "req_cache_";
+const DEFAULT_CACHE_TTL = 5 * 60 * 1000;
+
+interface CachedResponse {
+  data: string;
+  timestamp: number;
 }
 
 export function request(
@@ -27,6 +36,7 @@ export function request(
     method = "GET",
     useProxy = false,
     useCookie = true,
+    cacheTTL,
     ...rest
   } = config || {};
   Object.entries(query).forEach(([k, v]) => {
@@ -44,21 +54,37 @@ export function request(
     },
   });
 
-  return Taro.request({
-    url: newUrl,
-    method,
-    ...rest,
-    header: {
-      ...rest.header,
-      cookie: useCookie ? stringifyCookie(Taro.getStorageSync("cookies")) : "",
-    },
-  }).then((res: any) => {
-    if (res.cookies) {
-      Taro.setStorageSync("cookies", {
-        ...Taro.getStorageSync("cookies"),
-        ...parseCookie(res.cookies),
-      });
-    }
+  const shouldCache = method === "GET" && cacheTTL !== 0;
+  const ttl = cacheTTL ?? DEFAULT_CACHE_TTL;
+
+  const makeRequest = () =>
+    Taro.request({
+      url: newUrl,
+      method,
+      ...rest,
+      header: {
+        ...rest.header,
+        cookie: useCookie ? stringifyCookie(Taro.getStorageSync("cookies")) : "",
+      },
+    }).then((res: any) => {
+      if (res.cookies) {
+        Taro.setStorageSync("cookies", {
+          ...Taro.getStorageSync("cookies"),
+          ...parseCookie(res.cookies),
+        });
+      }
+
+      if (shouldCache) {
+        try {
+          const data = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+          Taro.setStorageSync(CACHE_PREFIX + newUrl, JSON.stringify({ data, timestamp: Date.now() }));
+        } catch {}
+      }
+
+      return res;
+    });
+
+  const run = (res: any) => {
     const resData = res.data;
     if (!useProxy) {
       const REG_BODY = /<body[^>]*>([\s\S]*)<\/body>/;
@@ -95,5 +121,20 @@ export function request(
       rawRes: res,
       data: res.data,
     };
-  });
+  };
+
+  if (shouldCache) {
+    try {
+      const stored = Taro.getStorageSync(CACHE_PREFIX + newUrl);
+      if (stored) {
+        const cached: CachedResponse = JSON.parse(stored);
+        if (Date.now() - cached.timestamp < ttl) {
+          const res = { data: cached.data, cookies: [], statusCode: 200 };
+          return Promise.resolve(run(res) as any);
+        }
+      }
+    } catch {}
+  }
+
+  return makeRequest().then(run);
 }

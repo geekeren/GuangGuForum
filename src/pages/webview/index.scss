@@ -1,0 +1,8 @@
+@import "../../vars.scss";
+
+.webviewPage {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: $surface;
+}

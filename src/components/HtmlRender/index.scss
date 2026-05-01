@@ -53,4 +53,42 @@
     overflow: hidden;
     font-size: 26rpx;
   }
+
+  .html-link {
+    color: $color-brand;
+    font-size: 28rpx;
+    word-break: break-all;
+
+    &:active {
+      opacity: 0.6;
+    }
+
+    &--mention {
+      display: inline;
+      font-weight: 500;
+      background: $color-brand-soft;
+      padding: 2rpx 16rpx;
+      border-radius: 8rpx;
+      font-size: 26rpx;
+      line-height: 1.5;
+      vertical-align: middle;
+
+      &:active {
+        background: rgba($color-brand, 0.12);
+      }
+    }
+
+    &--external {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 4rpx;
+
+      &::after {
+        content: "↗";
+        font-size: 24rpx;
+        opacity: 0.6;
+      }
+    }
+  }
 }

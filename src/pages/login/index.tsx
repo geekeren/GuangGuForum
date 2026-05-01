@@ -4,6 +4,8 @@ import { useState } from "react";
 import { login } from "guanggu-forum-api";
 import Taro, { useRouter } from "@tarojs/taro";
 import Navbar from "../../components/Navbar";
+import { BRAND_COLOR } from "../../utils/theme";
+import { linkHandler } from "../../utils/linkHandler";
 
 interface LoginParams {
   user?: string;
@@ -65,54 +67,59 @@ export default function Login() {
   };
 
   return (
-    <View className="loginPage">
-      <Navbar title="登录" back />
-      <View className="loginHeader">
-        <View className="logoBadge">早</View>
-        <Text className="loginTitle">登录过早客</Text>
-        <View className="loginSubtitle">武汉本地生活社区，欢迎回来</View>
+    <View className='loginPage'>
+      <Navbar back />
+      <View className='loginHeader'>
+        <View className='logoBadge'>早</View>
+        <Text className='loginTitle'>登录过早客</Text>
+        <View className='loginSubtitle'>武汉本地生活社区，欢迎回来</View>
       </View>
 
-      <View className="loginCard">
-        <View className="inputField">
-          <Text className="inputLabel">用户</Text>
+      <View className='loginCard'>
+        <View className='inputField'>
+          <Text className='inputLabel'>用户</Text>
           <Input
-            className="inputControl"
-            type="text"
-            placeholder="支持通过 E-mail，手机号登录"
-            placeholderClass="inputPlaceholder"
+            cursorColor={BRAND_COLOR}
+            className='inputControl'
+            type='text'
+            placeholder='支持通过 E-mail，手机号登录'
+            placeholderClass='inputPlaceholder'
             value={input.user || ""}
             onInput={(e) => handleChange("user", e.detail.value)}
+            autoFocus
+            focus
           />
         </View>
-        <View className="inputField">
-          <Text className="inputLabel">密码</Text>
+        <View className='inputField'>
+          <Text className='inputLabel'>密码</Text>
           <Input
-            className="inputControl"
-            type="password"
-            placeholder="请输入密码（不少于 6 个字符）"
-            placeholderClass="inputPlaceholder"
+            cursorColor={BRAND_COLOR}
+            className='inputControl'
+            type='safe-password'
+            password
+            placeholder='请输入密码（不少于 6 个字符）'
+            placeholderClass='inputPlaceholder'
             value={input.password || ""}
             onInput={(e) => handleChange("password", e.detail.value)}
           />
         </View>
       </View>
 
-      <View className="agreementRow" onClick={() => setAgreed(!agreed)}>
+      <View className='agreementRow' onClick={() => setAgreed(!agreed)}>
         <View className={`checkbox ${agreed ? "checkbox--checked" : ""}`}>
-          {agreed && <Text className="checkmark">✓</Text>}
+          {agreed && <Text className='checkmark'>✓</Text>}
         </View>
-        <Text className="agreementText">我承诺遵守法律法规，文明发言，尊重他人。讨论政治话题时保持理性，不传播不实信息或煽动对立。我不进行人身攻击、刷屏或发布广告，注意保护隐私，共同维护良好交流环境</Text>
+        <Text className='agreementText'>我承诺遵守法律法规，文明发言，尊重他人。讨论政治话题时保持理性，不传播不实信息或煽动对立。我不进行人身攻击、刷屏或发布广告，注意保护隐私，共同维护良好交流环境</Text>
       </View>
 
-      <View className="loginActions">
+      <View className='loginActions'>
         <View className={`loginBtn ${loading || !agreed ? "loginBtn--disabled" : ""}`} onClick={handleSubmit}>
           <Text>{loading ? "登录中..." : "登录"}</Text>
         </View>
       </View>
 
-      <View className="loginFooter">
-        <View className="webTip">更多操作如注册，请前往网页端 <Text className="webLink" onClick={() => Taro.setClipboardData({ data: "https://www.guozaoke.com/" })}>https://www.guozaoke.com/</Text> 进行</View>
+      <View className='loginFooter'>
+        <View className='webTip'>更多操作如注册，请前往网页端 <Text className='webLink' onClick={() => linkHandler("https://www.guozaoke.com/")}>https://www.guozaoke.com/</Text> 进行</View>
       </View>
     </View>
   );
