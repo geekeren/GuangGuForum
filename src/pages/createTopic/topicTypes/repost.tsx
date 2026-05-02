@@ -4,22 +4,93 @@ import { fetchLinkSummary } from "guanggu-forum-api";
 import type { LinkSummary } from "guanggu-forum-api";
 import { ClearableInput, ClearableTextarea } from "../../../components/ClearableInput";
 import LinkPreviewCard from "../../../components/LinkPreviewCard";
+import { LinkPreviewHeader } from "../../../components/LinkPreviewCard/Header";
 import MarkdownRender from "../../../components/MarkdownRender";
 import { htmlToMarkdown } from "../../../utils/htmlToMarkdown";
 import { extractSummaryUrl } from "../../../utils/linkHandler";
 import { BRAND_COLOR } from "../../../utils/theme";
 import type { TopicTypeDefinition, RenderFormContext, OnActivateContext } from "./registry";
 
-// 去掉 markdown 中的空链接标记 [](url)
+// 去掉 markdown 中的空链接 [](url)，保留有文字的链接文字
 function stripEmptyLinks(md: string): string {
   return md.replace(/\[([^\]]*)\]\([^)]+\)/g, (_match, text) => {
     return text.trim() ? text : "";
   });
 }
 
-function buildSummaryPreview(info: LinkSummary): string {
-  if (info.bodyText || info.description) {
-    return stripEmptyLinks((info.bodyText || info.description)).slice(0, 400);
+// 按连续非空行分组为段落
+function splitParagraphs(text: string): string[] {
+  // const paragraphs: string[] = [];
+  // let current: string[] = [];
+  // for (const line of text.split("\n")) {
+  //   if (line.trim()) {
+  //     current.push(line.trim());
+  //   } else if (current.length) {
+  //     paragraphs.push(current.join("\n"));
+  //     current = [];
+  //   }
+  // }
+  // if (current.length) paragraphs.push(current.join("\n"));
+  return text.split('\n');
+}
+
+// 统计字符串中非文字符号的数量（非字母/数字/CJK的字符，包括空格）
+function nonTextCount(s: string): number {
+  let count = 0;
+  for (const ch of s) {
+    if (/[\p{L}\p{N}]/u.test(ch)) continue;
+    count++;
+  }
+  return count;
+}
+
+// 判断一行是否为实质性内容：长度>5且非文字符号占比≤20%
+function isSubstantialLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (trimmed.length <= 5) return false;
+  return nonTextCount(trimmed) / trimmed.length <= 0.2;
+}
+
+// 从第一个实质性段落开始，往后取10行实质性内容
+function extractSummaryFromText(text: string): string {
+  const paragraphs = splitParagraphs(text);
+  const startIdx = paragraphs.findIndex((p) => p.length >= 20 && nonTextCount(p) / p.length <= 0.2);
+  if (startIdx < 0) return "";
+
+  const remaining = paragraphs.slice(startIdx).join("\n");
+  const lines = remaining.split("\n");
+  const filtered = lines.filter(isSubstantialLine);
+  const result = filtered.slice(0, 10).join("\n\n");
+  if (result.length > 200) return result.slice(0, 200) + "...";
+  if (filtered.length > 10) return result + "...";
+  return result;
+}
+
+// 全文：原文不做任何处理
+function buildFullSummary(info: LinkSummary): string {
+  if (info.bodyHtml) return htmlToMarkdown(info.bodyHtml);
+  if (info.bodyText || info.description) return info.bodyText || info.description;
+  return "";
+}
+
+// 摘要：优先用 description（作者自己写的摘要），否则从正文提取
+function buildTruncatedSummary(info: LinkSummary): string {
+  // 1. 优先用 OG description，这是作者/平台写的摘要，最干净
+  if (info.description) {
+    return info.description.slice(0, 200) + (info.description.length > 200 ? "..." : "");
+  }
+  // 2. 从 bodyHtml 转 markdown 后提取
+  if (info.bodyHtml) {
+    let md = htmlToMarkdown(info.bodyHtml);
+    md = md.replace(/!\[[^\]]*\]\([^)]+\)\s*/g, "");
+    md = stripEmptyLinks(md);
+    const result = extractSummaryFromText(md);
+    if (result) return result;
+  }
+  // 3. 从 bodyText 提取
+  if (info.bodyText) {
+    const result = extractSummaryFromText(info.bodyText);
+    if (result) return result;
   }
   return "";
 }
@@ -84,18 +155,7 @@ const repostDef: TopicTypeDefinition = {
       if (parts.length) setField("sourceTitle", parts.join(" - "));
       if (info.title) setTitle(info.title);
       if (info.image) setField("thumbnail", info.image);
-      if (info.bodyHtml) {
-        const md = stripEmptyLinks(htmlToMarkdown(info.bodyHtml));
-        if (fields.fullRepost) {
-          setField("summary", md);
-        } else {
-          const noImages = md.replace(/!\[[^\]]*\]\([^)]+\)\s*/g, "");
-          const lines = noImages.split("\n").filter((l: string) => l.trim());
-          setField("summary", lines.slice(0, 10).join("\n") + (lines.length > 10 ? "\n......" : ""));
-        }
-      } else if (info.bodyText || info.description) {
-        setField("summary", (info.bodyText || info.description).slice(0, 400));
-      }
+      setField("summary", fields.fullRepost ? buildFullSummary(info) : buildTruncatedSummary(info));
       setContent("大家怎么看");
       setField("repostPreview", null);
       setTimeout(() => {
@@ -209,15 +269,13 @@ const repostDef: TopicTypeDefinition = {
                 {fields.fullRepost ? (
                   <LinkPreviewCard summary={fields.repostPreview} url={fields.sourceUrl} />
                 ) : (
-                  <View className="repostPreviewContent">
-                    <LinkPreviewCard summary={fields.repostPreview} url={fields.sourceUrl} />
-                    {fields.repostPreview && (
-                      <View className="repostSummaryPreview">
-                        <Text className="repostSummaryLabel">摘要预览</Text>
-                        <MarkdownRender content={buildSummaryPreview(fields.repostPreview)} />
-                      </View>
-                    )}
-                  </View>
+                  <>
+                    <LinkPreviewHeader summary={fields.repostPreview} url={fields.sourceUrl} />
+                    <View className="repostSummaryPreview">
+                      <Text className="repostSummaryLabel">摘要预览</Text>
+                      <MarkdownRender content={fields.repostPreview ? buildTruncatedSummary(fields.repostPreview) : ""} />
+                    </View>
+                  </>
                 )}
               </ScrollView>
               <View className="repostSheetActions">
@@ -254,7 +312,6 @@ const repostDef: TopicTypeDefinition = {
         },
       });
     }
-    // Return first focus ref for the caller to use
     return sourceUrlRef;
   },
 };

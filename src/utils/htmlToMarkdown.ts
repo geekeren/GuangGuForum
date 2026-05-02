@@ -94,10 +94,12 @@ function convertNode(node: HTMLElement | TextNode, listDepth = 0): string {
       return convertTable(el);
     }
 
-    case "div":
     case "section":
     case "article":
     case "main":
+      return `\n\n${children().trim()}\n\n`;
+
+    case "div":
     case "header":
     case "span":
     case "figure":
@@ -155,20 +157,28 @@ export function htmlToMarkdown(html: string): string {
   if (!html) return "";
 
   const root = parse(html);
-
-  // debug: check skipped header content
-  const headerEl = root.querySelector("header");
-  if (headerEl) {
-    console.log("[htmlToMarkdown] header textContent:", (headerEl.textContent || "").trim().slice(0, 300));
-  }
-
   let md = convertNode(root);
 
-  // cleanup: collapse multiple blank lines
+  const lines = md.split("\n");
+
+  // 剔除纯符号行（没有字母/数字/CJK字符的行）
+  const filtered = lines.filter((line) => /[\p{L}\p{N}]/u.test(line));
+
+  // 从尾部剔除连续的短行（≤15字），这些通常是署名/来源/版权声明
+  while (filtered.length > 0) {
+    const last = filtered[filtered.length - 1].trim();
+    if (last.length <= 15) {
+      filtered.pop();
+    } else {
+      break;
+    }
+  }
+
+  md = filtered.join("\n\n");
+  // collapse multiple blank lines
   md = md.replace(/\n{3,}/g, "\n\n");
   // trim leading/trailing whitespace
   md = md.trim();
 
-  console.log("[htmlToMarkdown] full output:", md);
   return md;
 }
