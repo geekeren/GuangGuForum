@@ -40,7 +40,7 @@ export default function Settings() {
   const videoAdRef = useRef<Taro.RewardedVideoAd | null>(null);
 
   useEffect(() => {
-    setAdEnabled(!isAdDisabled());
+    // setAdEnabled(!isAdDisabled());
 
     // 创建激励视频广告实例
     if (Taro.createRewardedVideoAd) {
@@ -56,6 +56,7 @@ export default function Settings() {
         console.error("激励视频广告加载失败", err);
         setAdLoading(false);
         Taro.showToast({ title: "广告加载失败，请稍后重试", icon: "none" });
+        setAdEnabled(true);
       });
 
       videoAdRef.current.onClose((res: { isEnded: boolean }) => {
@@ -68,6 +69,7 @@ export default function Settings() {
           Taro.showToast({ title: "广告已关闭1个月", icon: "success" });
         } else {
           Taro.showToast({ title: "需看完广告才能关闭", icon: "none" });
+          setAdEnabled(true);
         }
       });
     }
@@ -189,7 +191,7 @@ export default function Settings() {
       { label: "开源地址", desc: "GitHub", action: () => handleExternalUrl(GITHUB_URL) },
     ],
     [
-      { label: "广告管理", switchControl: true, switchValue: adEnabled, onSwitchChange: handleAdSwitchChange, switchDesc: getAdSwitchDesc(), noArrow: true },
+      // { label: "广告管理", switchControl: true, switchValue: adEnabled, onSwitchChange: handleAdSwitchChange, switchDesc: getAdSwitchDesc(), noArrow: true },
       { label: "推荐给朋友", shareButton: true, noArrow: true },
       { label: "添加到桌面", action: handleAddToDesktop, noArrow: true },
       { label: "清除缓存", action: handleClearCache, noArrow: true },
@@ -221,12 +223,14 @@ export default function Settings() {
                       <Text className="settingsItemLabel">{item.label}</Text>
                       {item.switchDesc && <Text className="settingsItemDesc">{item.switchDesc}</Text>}
                     </View>
-                    <Switch
-                      checked={item.switchValue}
-                      onChange={(e) => item.onSwitchChange?.(e.detail.value)}
-                      disabled={adLoading}
-                      color="#1f69ff"
-                    />
+                    <View>
+                      <Switch
+                        onClick={(e) => { item.onSwitchChange?.(!item.switchValue); }}
+                        checked={item.switchValue}
+                        disabled={adLoading}
+                        color='#1f69ff'
+                      />
+                    </View>
                   </>
                 ) : (
                   <>

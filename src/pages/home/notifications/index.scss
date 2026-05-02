@@ -6,6 +6,11 @@
   background: $bgColor;
   overflow: hidden;
 
+  &--center {
+    justify-content: center;
+    align-items: center;
+  }
+
   .notificationsList {
     flex: 1;
     height: 0;

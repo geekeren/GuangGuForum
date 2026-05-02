@@ -56,7 +56,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
 
   if (loading) {
     return (
-      <View className="notificationsPage" style={{ height: "100%" }}>
+      <View className="notificationsPage notificationsPage--center" style={{ height: "100%" }}>
         <Loading />
       </View>
     );
@@ -64,7 +64,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
 
   if (notifications.length === 0) {
     return (
-      <View className="notificationsPage" style={{ height: "100%" }}>
+      <View className="notificationsPage notificationsPage--center" style={{ height: "100%" }}>
         <View className="emptyState">
           <View className="emptyIcon">🔔</View>
           <View className="emptyTitle">暂无消息</View>

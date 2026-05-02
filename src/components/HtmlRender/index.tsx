@@ -5,6 +5,7 @@ import { TaroElement, TaroText } from "@tarojs/runtime";
 import { isUserMentionLink, linkHandler } from "../../utils/linkHandler";
 import "./index.scss";
 import { rpxToPx } from "../../utils/dimension";
+import { isSkyline } from "../../utils/renderer";
 
 interface TopicMeta {
   type: "repost" | "event" | "dating";
@@ -39,7 +40,7 @@ Taro.options.html.transformElement = (
   htmlEle: HTMLElement,
 ) => {
   console.log('htmlEle', htmlEle.tagName, htmlEle, taroEle.tagName);
-  if(htmlEle.tagName === 'p') {
+  if(htmlEle.tagName === 'p' && isSkyline()) {
     taroEle.tagName = "TEXT";
     taroEle.nodeName = "text";
   } else if (htmlEle.tagName === "a") {
@@ -72,6 +73,10 @@ Taro.options.html.transformElement = (
     );
   } else if (htmlEle.tagName === "img") {
     taroEle.setAttribute("lazyLoad", true);
+    taroEle.setAttribute(
+      "style",
+      `display: none`,
+    );
     taroEle.addEventListener(
       "load",
       (e) => {
@@ -79,12 +84,12 @@ Taro.options.html.transformElement = (
         if (width < 300) {
           taroEle.setAttribute(
             "style",
-            `width: ${rpxToPx(width)}px; height: ${rpxToPx(height)}px`,
+            `display: inline-block;width: ${rpxToPx(width)}px; height: ${rpxToPx(height)}px`,
           );
         } else {
           taroEle.setAttribute(
             "style",
-            `width: 300px; height: ${(height / width) * 300}px`,
+            `display: block; width: 300px; height: ${(height / width) * 300}px`,
           );
           taroEle.addEventListener(
             "tap",

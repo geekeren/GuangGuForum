@@ -5,6 +5,7 @@ import { fetchLinkSummary, LinkSummary } from "guanggu-forum-api";
 import Navbar from "../../components/Navbar";
 import Loading from "../../components/Loading";
 import { withCache } from "../../utils/cacheRequest";
+import { isSkyline } from "../../utils/renderer";
 import "./index.scss";
 
 function getHostname(url: string): string {
@@ -42,7 +43,7 @@ export default function LinkPreview() {
 
   return (
     <View className="linkPreviewPage">
-      <Navbar back modal title={displayTitle} />
+      <Navbar back modal={isSkyline()} title={displayTitle} />
       <View className="linkPreviewContent">
         {summary ? (
           <ScrollView scrollY style={{ height: "100%" }} className="linkPreviewScroll">
