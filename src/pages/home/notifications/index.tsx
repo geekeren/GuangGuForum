@@ -137,15 +137,9 @@ const Notifications = ({ active }: { active?: boolean }) => {
 };
 
 function parseActionPrefix(titleHtml: string): string {
-  // titleHtml format: <a>username</a> action text <a>topicTitle</a>
-  // Remove first and last <a>...</a> tags, keep only the action text between them
-  let text = titleHtml;
-  // Remove first <a>...</a>
-  text = text.replace(/<a[^>]*>[\s\S]*?<\/a>/, "");
-  // Remove last <a>...</a>
-  text = text.replace(/<a[^>]*>[\s\S]*?<\/a>\s*$/, "");
-  // Strip any remaining HTML tags and trim
-  return text.replace(/<[^>]+>/g, "").trim();
+  // titleHtml format: <a>username</a> action text <a>topicTitle</a> ...
+  // Remove all <a>...</a> tags and their content, keep only the action text
+  return titleHtml.replace(/<a[^>]*>[\s\S]*?<\/a>/g, "").replace(/<[^>]+>/g, "").trim();
 }
 
 export default Notifications;

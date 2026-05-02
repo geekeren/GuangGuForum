@@ -58,45 +58,9 @@
   border-bottom: 16rpx solid rgba(255, 255, 255, 0.7);
 }
 
-.guideCapsule {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  background: #f7f7f7;
-  border: 1rpx solid rgba(0, 0, 0, 0.08);
-  border-radius: 999rpx;
-  overflow: hidden;
-}
-
-.guideCapsuleLeft {
-  flex: 1.2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.guideCapsuleIcon--dots {
-  width: 52rpx;
-  height: 52rpx;
-}
-
-.guideCapsuleDivider {
-  width: 1rpx;
-  height: 60%;
-  background: rgba(0, 0, 0, 0.1);
-}
-
-.guideCapsuleRight {
-  flex: 0.8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.35;
-}
-
-.guideCapsuleIcon--close {
-  width: 36rpx;
-  height: 36rpx;
+.guideMoreIcon {
+  width: 44rpx;
+  height: 44rpx;
 }
 
 .guideTipRow {

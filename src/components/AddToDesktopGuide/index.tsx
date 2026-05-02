@@ -2,7 +2,6 @@ import { View, Text, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useState, useRef } from "react";
 import MoreDotsIcon from "../../assets/more-dots.svg";
-import CapsuleCloseIcon from "../../assets/capsule-circle.svg";
 import { getNavInfo } from "../../utils/dimension";
 import "./index.scss";
 
@@ -69,16 +68,8 @@ export default function AddToDesktopGuide({ force, onClose }: Props = {}) {
           style={{ right: arrowRight + "px" }}
         />
         <View className="guideTipRow">
-          <Text className="guideTipText">点击 ⋯</Text>
-          <View className="guideCapsule" style={{ width: nav.capsuleWidth + "px", height: nav.capsuleHeight + "px" }}>
-            <View className="guideCapsuleLeft">
-              <Image src={MoreDotsIcon} svg className="guideCapsuleIcon--dots" />
-            </View>
-            <View className="guideCapsuleDivider" />
-            <View className="guideCapsuleRight">
-              <Image src={CapsuleCloseIcon} svg className="guideCapsuleIcon--close" />
-            </View>
-          </View>
+          <Text className="guideTipText">点击 </Text>
+          <Image src={MoreDotsIcon} svg className="guideMoreIcon" />
         </View>
         <Text className="guideTipSub">添加到「我的小程序」或桌面{"\n"}下次快速打开过早客</Text>
       </View>

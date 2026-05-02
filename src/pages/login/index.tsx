@@ -69,11 +69,14 @@ export default function Login() {
       Taro.hideLoading();
     }).then(() => {
       saveAccount(input.user!);
-      const { redirect } = router.params;
-      const redirectUrl = redirect
-        ? (decodeURIComponent(redirect).startsWith("/") ? decodeURIComponent(redirect) : "/" + decodeURIComponent(redirect))
-        : "/pages/home/index";
-      Taro.reLaunch({ url: redirectUrl });
+      Taro.showToast({ title: "登录成功", icon: "success", duration: 1000 });
+      setTimeout(() => {
+        const { redirect } = router.params;
+        const redirectUrl = redirect
+          ? (decodeURIComponent(redirect).startsWith("/") ? decodeURIComponent(redirect) : "/" + decodeURIComponent(redirect))
+          : "/pages/home/index";
+        Taro.reLaunch({ url: redirectUrl });
+      }, 1000);
     });
   };
 

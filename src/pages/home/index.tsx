@@ -39,6 +39,16 @@ export default class Index extends Component<{}, State> {
     };
   }
 
+  componentDidMount() {
+    const params = Taro.getCurrentInstance().router?.params;
+    if (params?.tab) {
+      const tab = parseInt(params.tab);
+      if ([0, 1, 3, 4].includes(tab)) {
+        this.setState({ selectedTabIndex: tab });
+      }
+    }
+  }
+
   private handleClick(value: number): void {
     if (value === 2) {
       wx.navigateTo({

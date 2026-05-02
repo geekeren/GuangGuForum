@@ -20,7 +20,7 @@ const LoginPrompt = ({ icon, title, desc }: LoginPromptProps) => {
       )}
       <Text className="loginPromptTitle">{title}</Text>
       <Text className="loginPromptDesc">{desc}</Text>
-      <View className="loginPromptBtn" onClick={() => openLoginModal(false)}>
+      <View className="loginPromptBtn" onClick={() => openLoginModal()}>
         去登录
       </View>
     </View>
