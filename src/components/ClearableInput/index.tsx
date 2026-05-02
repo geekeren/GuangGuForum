@@ -63,22 +63,25 @@ export const ClearableInput = forwardRef<any, ClearableInputProps>((props, ref) 
   } = props;
 
   const [focused, setFocused] = useState(false);
+  const wasEmptyRef = useRef(false);
 
   const handleInput = (e: any) => {
     const val = e.detail.value.replace(ZWSP, "");
-    if (!val && onDeleteWhenEmpty) {
+    if (!val && wasEmptyRef.current && onDeleteWhenEmpty) {
       onDeleteWhenEmpty();
       return;
     }
+    wasEmptyRef.current = !val;
     onInput(val);
   };
 
-  const handleFocus = (e: any) => {
+  const handleFocus = (_e: any) => {
     setFocused(true);
+    wasEmptyRef.current = !value;
     onFocus?.();
   };
 
-  const handleBlur = (e: any) => {
+  const handleBlur = (_e: any) => {
     setFocused(false);
     onBlur?.();
   };
@@ -136,22 +139,25 @@ export const ClearableTextarea = forwardRef<any, ClearableTextareaProps>((props,
   } = props;
 
   const [focused, setFocused] = useState(false);
+  const wasEmptyRef = useRef(false);
 
   const handleInput = (e: any) => {
     const val = e.detail.value.replace(ZWSP, "");
-    if (!val && onDeleteWhenEmpty) {
+    if (!val && wasEmptyRef.current && onDeleteWhenEmpty) {
       onDeleteWhenEmpty();
       return;
     }
+    wasEmptyRef.current = !val;
     onInput(val);
   };
 
-  const handleFocus = (e: any) => {
+  const handleFocus = (_e: any) => {
     setFocused(true);
+    wasEmptyRef.current = !value;
     onFocus?.();
   };
 
-  const handleBlur = (e: any) => {
+  const handleBlur = (_e: any) => {
     setFocused(false);
     onBlur?.();
   };
@@ -169,7 +175,6 @@ export const ClearableTextarea = forwardRef<any, ClearableTextareaProps>((props,
         onInput={handleInput}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        cursorColor={cursorColor}
         maxlength={maxlength}
         autoHeight={autoHeight}
         cursorSpacing={cursorSpacing}
@@ -177,6 +182,8 @@ export const ClearableTextarea = forwardRef<any, ClearableTextareaProps>((props,
         showConfirmBar={showConfirmBar}
         confirmType={confirmType as any}
         onConfirm={onConfirm}
+        // cursorColor 不在 Taro TextareaProps 类型中但运行时支持
+        {...({ cursorColor } as any)}
       />
       {value ? (
         <View className="clearableBtn clearableBtn--textarea" onClick={() => onInput("")}>

@@ -22,10 +22,12 @@ export async function login(payload: LoginPayload) {
       Accept: "text/html,application/xhtml+xml",
       Referer: `${URLS.ROOT_URL}`,
     },
-  }).then(({ data }) => {
+  }).then(() => {
     // 通过 cookie 判断是否登录成功
     const cookies = Taro.getStorageSync("cookies");
     if (cookies && Object.keys(cookies).length > 0) {
+      // proxy 请求不会解析 HTML 写入 current_username，发一次非 proxy 请求触发解析
+      request("").catch(() => {});
       Taro.showToast({
         title: "登录成功",
         icon: "success",

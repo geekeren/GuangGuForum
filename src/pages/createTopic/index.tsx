@@ -1,110 +1,103 @@
-import { View, Text, Textarea, Input, Picker, Radio, RadioGroup, Image, ScrollView } from "@tarojs/components";
+import { View, Text, ScrollView } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useState, useEffect, useRef } from "react";
-import { createTopic, fetchLinkSummary } from "guanggu-forum-api";
-import type { NodeGroup, LinkSummary } from "guanggu-forum-api";
+import { createTopic } from "guanggu-forum-api";
+import type { NodeGroup } from "guanggu-forum-api";
 import {
   getCachedNodeNavigation,
   fetchAndCacheNodeNavigation,
 } from "../../utils/nodeNavigation";
-import { extractSummaryUrl } from "../../utils/linkHandler";
 import { getCachedUsername } from "../../utils/currentUser";
 import { openLoginModal } from "../../utils/auth";
-import { ClearableInput, ClearableTextarea } from "../../components/ClearableInput";
 import Navbar from "../../components/Navbar";
-import LinkPreviewCard from "../../components/LinkPreviewCard";
 import MarkdownRender from "../../components/MarkdownRender";
-import { htmlToMarkdown } from "../../utils/htmlToMarkdown";
-import { BRAND_COLOR } from "../../utils/theme";
+import { TOPIC_TYPE_REGISTRY, ALL_TYPES, ALL_HIDDEN_NODES } from "./topicTypes/registry";
+import type { TopicType } from "./topicTypes/registry";
 import "./index.scss";
 
 const LAST_NODE_KEY = "last_selected_node";
-const DRAFT_KEY = "topic_draft";
 
-const DEBUG = false;
-
-type TopicType = "normal" | "repost" | "event" | "dating";
-
-const TOPIC_TYPES: { key: TopicType; label: string; node: string | null }[] = [
-  { key: "normal", label: "普通", node: null },
-  { key: "repost", label: "转载", node: "water" },
-  { key: "event", label: "活动", node: "lowshine" },
-  { key: "dating", label: "相亲贴", node: "date" },
-];
-
-const HIDDEN_NODES = ["lowshine", "date"];
-
-const GENDER_OPTIONS = ["男", "女"];
-
-const DATE_MODE_OPTIONS = ["请选择", "今天", "明天", "后天", "本周末", "下周"];
-
-function formatDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+function getDraftKey(type: TopicType, nodeSlug: string): string {
+  return `topic_draft_${type}_${nodeSlug}`;
 }
+
+const FROM_MINI = "\n\n---\n*本帖发自[小程序](https://www.guozaoke.com/t/91893)*";
 
 export default function CreateTopic() {
   const [nodeGroups, setNodeGroups] = useState<NodeGroup[]>([]);
   const [selectedNodeSlug, setSelectedNodeSlug] = useState("water");
   const [showNodePicker, setShowNodePicker] = useState(false);
   const [nodePickerClosing, setNodePickerClosing] = useState(false);
-  const [repostClosing, setRepostClosing] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [topicType, setTopicType] = useState<TopicType>("normal");
-
-  // 转载专用
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [sourceTitle, setSourceTitle] = useState("");
-  const [summary, setSummary] = useState("");
-  const [thumbnail, setThumbnail] = useState("");
-  const [clipLoading, setClipLoading] = useState(false);
-  const [repostPreview, setRepostPreview] = useState<LinkSummary | null>(null);
-  const [fullRepost, setFullRepost] = useState(true);
+  const [typeFields, setTypeFields] = useState<Record<string, any>>({});
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewClosing, setPreviewClosing] = useState(false);
-  const [eventDate, setEventDate] = useState("");
-  const [eventHour, setEventHour] = useState("");
-  const [eventLocation, setEventLocation] = useState("");
-  const eventTime = [eventDate, eventHour].filter(Boolean).join(" ");
-  // 相亲专用
-  const [gender, setGender] = useState("");
-  const [birthYear, setBirthYear] = useState("");
-  const [requirements, setRequirements] = useState("");
-
-  const contentRef = useRef<any>(null);
-  const nextFocusRef = useRef<any>(null);
-  const prevFocusRef = useRef<any>(null);
-  const sourceUrlRef = useRef<any>(null);
-  const eventLocationRef = useRef<any>(null);
-  const requirementsRef = useRef<any>(null);
-  const titleRef = useRef<any>(null);
   const [bodyHeight, setBodyHeight] = useState("100vh");
   const [draftRestored, setDraftRestored] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState("");
 
+  const refMap = useRef<Record<string, any>>({});
+  const getRef = (key: string) => {
+    if (!refMap.current[key]) {
+      refMap.current[key] = { current: null };
+    }
+    return refMap.current[key];
+  };
+
+  const focusRef = (r: any) => r?.current?.focus?.();
+
+  const currentDef = TOPIC_TYPE_REGISTRY[topicType];
+  const nodeLocked = topicType !== "normal";
+
+  const resolvedNodeSlug = nodeLocked ? currentDef.node! : selectedNodeSlug;
+
+  const resolvedNodeName = (() => {
+    if (!resolvedNodeSlug) return "选择板块";
+    for (const group of nodeGroups) {
+      const found = group.nodes.find((n) => n.slug === resolvedNodeSlug);
+      if (found) return found.name;
+    }
+    return resolvedNodeSlug;
+  })();
+
+  const filteredGroups = nodeGroups.map((g) => ({
+    ...g,
+    nodes: g.nodes.filter((n) => !ALL_HIDDEN_NODES.includes(n.slug)),
+  })).filter((g) => g.nodes.length > 0);
+
+  const setField = (key: string, value: any) => {
+    setTypeFields((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleTitleInput = (val: string) => {
+    if (val.includes("\n")) {
+      const parts = val.split("\n");
+      const newTitle = parts[0];
+      const restContent = parts.slice(1).join("\n");
+      setTitle(newTitle);
+      setContent((prev) => restContent + (prev ? "\n" + prev : ""));
+      setTimeout(() => {
+        const contentRef = getRef("content");
+        contentRef?.current?.focus?.();
+      }, 50);
+    } else {
+      setTitle(val);
+    }
+  };
+
+  // Body height
   useEffect(() => {
     const sys = Taro.getSystemInfoSync();
     const navH = 44 + (sys.statusBarHeight || 0);
     const safeBottom = sys.safeArea ? sys.screenHeight - sys.safeArea.bottom : 0;
-    const btnAreaH = 28 + 56 + 16 + safeBottom; // margin-top + btn(56rpx≈28px) + margin-bottom + safe
+    const btnAreaH = 28 + 56 + 16 + safeBottom;
     setBodyHeight(`calc(100vh - ${navH + btnAreaH}px)`);
-    nextFocusRef.current = contentRef.current;
   }, []);
 
-  const age = birthYear ? String(new Date().getFullYear() - parseInt(birthYear)) : "";
-
-  const currentTypeConfig = TOPIC_TYPES.find((t) => t.key === topicType)!;
-  const nodeLocked = topicType !== "normal";
-
-  const filteredGroups = nodeGroups.map((g) => ({
-    ...g,
-    nodes: g.nodes.filter((n) => !HIDDEN_NODES.includes(n.slug)),
-  })).filter((g) => g.nodes.length > 0);
-
+  // Node navigation
   const restoreNodeSelection = (groups: NodeGroup[], preferSlug?: string) => {
     const target = preferSlug || (() => {
       try {
@@ -138,6 +131,7 @@ export default function CreateTopic() {
     }
   }, []);
 
+  // Validate selected node when switching to normal type
   useEffect(() => {
     if (topicType === "normal" && nodeGroups.length > 0) {
       const isValid = filteredGroups.some((g) => g.nodes.some((n) => n.slug === selectedNodeSlug));
@@ -147,71 +141,51 @@ export default function CreateTopic() {
     }
   }, [topicType, nodeGroups]);
 
-  // 恢复草稿
+  // Restore draft — isolated by type + node
   useEffect(() => {
     try {
-      const raw = Taro.getStorageSync(DRAFT_KEY);
+      const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
+      const raw = Taro.getStorageSync(draftKey);
       if (!raw) { setDraftRestored(true); return; }
       const d = JSON.parse(raw);
       if (d.savedAt) setDraftSavedAt(d.savedAt);
-      if (d.topicType) setTopicType(d.topicType);
       if (d.title) setTitle(d.title);
       if (d.content) setContent(d.content);
-      if (d.selectedNodeSlug) setSelectedNodeSlug(d.selectedNodeSlug);
-      if (d.sourceUrl) setSourceUrl(d.sourceUrl);
-      if (d.sourceTitle) setSourceTitle(d.sourceTitle);
-      if (d.summary) setSummary(d.summary);
-      if (d.thumbnail) setThumbnail(d.thumbnail);
-      if (d.eventDate) setEventDate(d.eventDate);
-      if (d.eventHour) setEventHour(d.eventHour);
-      if (d.fullRepost !== undefined) setFullRepost(d.fullRepost);
-      if (d.eventDate) setEventDate(d.eventDate);
-      if (d.eventHour) setEventHour(d.eventHour);
-      if (d.eventLocation) setEventLocation(d.eventLocation);
-      if (d.gender) setGender(d.gender);
-      if (d.birthYear) setBirthYear(d.birthYear);
-      if (d.requirements) setRequirements(d.requirements);
+      if (d.typeFields) setTypeFields(d.typeFields);
     } catch {}
     setDraftRestored(true);
   }, []);
 
-  // 自动保存草稿
+  // Auto-save draft — isolated by type + node
   useEffect(() => {
     if (!draftRestored) return;
-    const hasContent = title || content || sourceUrl || eventTime || gender || requirements;
+    const hasContent = title || content || Object.values(typeFields).some((v) => v && v !== false && typeof v !== "object");
     if (!hasContent) { setDraftSavedAt(""); return; }
     const timer = setTimeout(() => {
       const savedAt = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       try {
-        Taro.setStorageSync(DRAFT_KEY, JSON.stringify({
+        const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
+        Taro.setStorageSync(draftKey, JSON.stringify({
           savedAt,
-          topicType, title, content, selectedNodeSlug,
-          sourceUrl, sourceTitle, summary, thumbnail, eventDate, eventHour, eventLocation, fullRepost,
-          sourceUrl, sourceTitle, summary, thumbnail, eventDate, eventHour, eventLocation, fullRepost,
-          gender, birthYear, requirements,
+          title,
+          content,
+          typeFields,
         }));
         setDraftSavedAt(savedAt);
       } catch {}
     }, 800);
     return () => clearTimeout(timer);
-  }, [draftRestored, topicType, title, content, selectedNodeSlug, sourceUrl, sourceTitle, summary, thumbnail, eventDate, eventHour, eventLocation, fullRepost, gender, birthYear, requirements]);
+  }, [draftRestored, topicType, title, content, resolvedNodeSlug, typeFields]);
 
   const clearForm = () => {
     setTitle("");
     setContent("");
-    setSourceUrl("");
-    setSourceTitle("");
-    setSummary("");
-    setThumbnail("");
-    setFullRepost(true);
-    setEventDate("");
-    setEventHour("");
-    setEventLocation("");
-    setGender("");
-    setBirthYear("");
-    setRequirements("");
+    setTypeFields(currentDef.initialFields);
     setDraftSavedAt("");
-    try { Taro.removeStorageSync(DRAFT_KEY); } catch {}
+    try {
+      const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
+      Taro.removeStorageSync(draftKey);
+    } catch {}
   };
 
   const openNodePicker = () => {
@@ -236,116 +210,18 @@ export default function CreateTopic() {
     closeNodePicker();
   };
 
-  const resolvedNodeSlug = nodeLocked ? currentTypeConfig.node! : selectedNodeSlug;
-
-  const resolvedNodeName = (() => {
-    if (!resolvedNodeSlug) return "选择板块";
-    for (const group of nodeGroups) {
-      const found = group.nodes.find((n) => n.slug === resolvedNodeSlug);
-      if (found) return found.name;
-    }
-    return resolvedNodeSlug;
-  })();
-
   const handleTopicTypeChange = (type: TopicType) => {
     setTopicType(type);
-    const refMap: Record<TopicType, any> = {
-      repost: sourceUrlRef,
-      event: eventLocationRef,
-      dating: requirementsRef,
-      normal: contentRef,
-    };
-    nextFocusRef.current = refMap[type]?.current || contentRef.current;
-    if (type === "repost" && !sourceUrl) {
-      Taro.getClipboardData({
-        success: (res) => {
-          const url = extractSummaryUrl((res.data || "").trim());
-          if (url) {
-            setClipLoading(true);
-            fetchLinkSummary(url).then((info: LinkSummary) => {
-              setClipLoading(false);
-              setRepostPreview({ ...info, url });
-            }).catch(() => {
-              setClipLoading(false);
-            });
-          }
-        },
-      });
-    }
+    const def = TOPIC_TYPE_REGISTRY[type];
+    const result = def.onActivate?.({ fields: typeFields, setField, getRef });
+    const contentRef = getRef("content");
+    nextFocusRef.current = result?.current ?? contentRef.current;
   };
 
-  const confirmRepost = () => {
-    const info = repostPreview;
-    if (!info) return;
-    setSourceUrl(info.url);
-    const parts = [info.siteName, info.title].filter(Boolean);
-    if (parts.length) setSourceTitle(parts.join(" - "));
-    if (info.title) setTitle(info.title);
-    if (info.image) setThumbnail(info.image);
-    if (info.bodyHtml) {
-      const md = htmlToMarkdown(info.bodyHtml);
-      if (fullRepost) {
-        setSummary(md);
-      } else {
-        const noImages = md.replace(/!\[[^\]]*\]\([^)]+\)\s*/g, "");
-        const lines = noImages.split("\n").filter((l) => l.trim());
-        setSummary(lines.slice(0, 10).join("\n") + (lines.length > 10 ? "\n......" : ""));
-      }
-    } else if (info.bodyText || info.description) {
-      setSummary((info.bodyText || info.description).slice(0, 400));
-    }
-    setContent("大家怎么看");
-    setRepostPreview(null);
-    setTimeout(() => {
-      contentRef.current?.focus?.();
-    }, 100);
-  };
-
-  const cancelRepost = () => {
-    setRepostClosing(true);
-    setTimeout(() => {
-      setRepostPreview(null);
-      setRepostClosing(false);
-    }, 250);
-  };
-
-  const handleTitleInput = (val: string) => {
-    if (val.includes("\n")) {
-      const parts = val.split("\n");
-      const newTitle = parts[0];
-      const restContent = parts.slice(1).join("\n");
-      setTitle(newTitle);
-      setContent((prev) => restContent + (prev ? "\n" + prev : ""));
-      setTimeout(() => {
-        nextFocusRef.current?.focus?.();
-      }, 50);
-    } else {
-      setTitle(val);
-    }
-  };
-
-  const FROM_MINI = "\n\n---\n*本帖发自[小程序](https://www.guozaoke.com/t/91893)*";
+  const nextFocusRef = useRef<any>(null);
 
   const buildContent = (): string => {
-    switch (topicType) {
-      case "repost": {
-        const thumbPart = thumbnail ? `![缩略图](${thumbnail})\n\n` : "";
-        const linkText = sourceTitle || sourceUrl;
-        if (fullRepost && summary) {
-          return `${thumbPart}> 转载自 [${linkText}](${sourceUrl})\n\n${summary}\n\n${content}${FROM_MINI}`;
-        }
-        const summaryPart = summary ? `\n\n**下面是摘要：**\n\n${summary}` : "";
-        return `${thumbPart}> 转载自 [${linkText}](${sourceUrl})${summaryPart}\n\n${content}${FROM_MINI}`;
-      }
-      case "event": {
-        return `## 📅 活动信息\n\n- 时间：${eventTime}\n- 地点：${eventLocation}\n\n## 📋 活动详情\n\n${content}${FROM_MINI}`;
-      }
-      case "dating": {
-        return `## 👤 基本信息\n\n- 性别：${gender}\n- 年龄：${age}\n\n## 💕 期望\n\n${requirements}\n\n## ✍️ 自我介绍\n\n${content}\n\n\n\n${FROM_MINI}`;
-      }
-      default:
-        return `${content}${FROM_MINI}`;
-    }
+    return currentDef.buildContent(typeFields, { title, content, fromMini: FROM_MINI });
   };
 
   const validateForm = (): string | null => {
@@ -353,7 +229,7 @@ export default function CreateTopic() {
       openLoginModal();
       return null;
     }
-    const resolvedNode = nodeLocked ? currentTypeConfig.node : selectedNodeSlug;
+    const resolvedNode = nodeLocked ? currentDef.node : selectedNodeSlug;
     if (!resolvedNode) {
       Taro.showToast({ title: "请选择板块", icon: "none" });
       return null;
@@ -367,16 +243,9 @@ export default function CreateTopic() {
       Taro.showToast({ title: "请输入内容", icon: "none" });
       return null;
     }
-    if (topicType === "repost" && !sourceUrl.trim()) {
-      Taro.showToast({ title: "请填写原文链接", icon: "none" });
-      return null;
-    }
-    if (topicType === "event" && (!eventTime.trim() || !eventLocation.trim())) {
-      Taro.showToast({ title: "请填写活动时间和地点", icon: "none" });
-      return null;
-    }
-    if (topicType === "dating" && (!gender.trim() || !age.trim())) {
-      Taro.showToast({ title: "请填写基本信息", icon: "none" });
+    const typeError = currentDef.validate(typeFields);
+    if (typeError) {
+      Taro.showToast({ title: typeError, icon: "none" });
       return null;
     }
     return finalContent;
@@ -399,7 +268,7 @@ export default function CreateTopic() {
   const confirmSubmit = async () => {
     const finalContent = previewContent;
     if (!finalContent) return;
-    const resolvedNode = nodeLocked ? currentTypeConfig.node : selectedNodeSlug;
+    const resolvedNode = nodeLocked ? currentDef.node : selectedNodeSlug;
     setPreviewContent(null);
     setSubmitting(true);
     Taro.showLoading({ title: "发布中...", mask: true });
@@ -410,7 +279,10 @@ export default function CreateTopic() {
         content: finalContent,
       });
       Taro.hideLoading();
-      try { Taro.removeStorageSync(DRAFT_KEY); } catch {}
+      try {
+        const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
+        Taro.removeStorageSync(draftKey);
+      } catch {}
       Taro.eventCenter.trigger("refreshTopics");
       Taro.navigateBack();
     } catch {
@@ -421,294 +293,6 @@ export default function CreateTopic() {
     }
   };
 
-  const focusRef = (r: any) => r?.current?.focus?.();
-
-  const renderForm = () => {
-    switch (topicType) {
-      case "repost":
-        return (
-          <View className="editorSection">
-            {!sourceUrl && (
-              <View className="repostTip">
-                <Text className="repostTipText">自动读取剪贴板链接用于转载，也可手动输入</Text>
-              </View>
-            )}
-            <View className="fieldGroup">
-              <Text className="fieldLabel">原文链接</Text>
-              <ClearableInput
-                ref={sourceUrlRef}
-                className="fieldInput"
-                placeholder="粘贴原文链接"
-                placeholderClass="fieldPlaceholder"
-                cursorColor={BRAND_COLOR}
-                value={sourceUrl}
-                onInput={(v) => setSourceUrl(v)}
-                onDeleteWhenEmpty={() => focusRef(titleRef)}
-                onBlur={() => {
-                  const url = extractSummaryUrl(sourceUrl) || (sourceUrl.trim().startsWith("http") ? sourceUrl.trim() : "");
-                  if (!url || repostPreview) return;
-                  setClipLoading(true);
-                  fetchLinkSummary(url).then((info: LinkSummary) => {
-                    setClipLoading(false);
-                    setRepostPreview({ ...info, url });
-                  }).catch(() => {
-                    setClipLoading(false);
-                  });
-                }}
-              />
-            </View>
-            <ClearableTextarea
-              ref={titleRef}
-              className="titleInput"
-              placeholder="标题"
-              placeholderClass="titlePlaceholder"
-              cursorColor={BRAND_COLOR}
-              maxlength={120}
-              value={title}
-              onInput={handleTitleInput}
-              autoHeight
-              confirmType="next"
-              onConfirm={() => focusRef(sourceUrlRef)}
-              onDeleteWhenEmpty={() => focusRef(sourceUrlRef)}
-            />
-            {sourceUrl ? (
-              <View className="fieldGroup">
-                <Text className="fieldLabel">摘要</Text>
-                <ClearableTextarea
-                  className="fieldTextarea"
-                  placeholder="文章摘要（可选）..."
-                  placeholderClass="fieldPlaceholder"
-                  cursorColor={BRAND_COLOR}
-                  maxlength={-1}
-                  value={summary}
-                  onInput={(v) => setSummary(v)}
-                  onDeleteWhenEmpty={() => focusRef(titleRef)}
-                />
-              </View>
-            ) : null}
-            {thumbnail ? (
-              <View className="fieldGroup">
-                <Text className="fieldLabel">缩略图</Text>
-                <View className="thumbnailRow">
-                  <Image className="thumbnailPreview" src={thumbnail} mode="aspectFill" />
-                  <View className="thumbnailRemove" onClick={() => setThumbnail("")}>
-                    <Text className="thumbnailRemoveText">✕</Text>
-                  </View>
-                </View>
-              </View>
-            ) : null}
-            <ClearableTextarea
-              ref={contentRef}
-              className="contentInput"
-              placeholder="补充说明（可选）..."
-              placeholderClass="contentPlaceholder"
-              cursorColor={BRAND_COLOR}
-              value={content}
-              onInput={(v) => setContent(v)}
-              autoHeight
-              cursorSpacing={100}
-              adjustPosition
-              onDeleteWhenEmpty={() => focusRef(titleRef)}
-            />
-          </View>
-        );
-      case "event":
-        return (
-          <View className="editorSection">
-            <ClearableTextarea
-              ref={titleRef}
-              className="titleInput"
-              placeholder="活动名称"
-              placeholderClass="titlePlaceholder"
-              cursorColor={BRAND_COLOR}
-              maxlength={120}
-              value={title}
-              onInput={handleTitleInput}
-              autoHeight
-              confirmType="next"
-              onConfirm={() => focusRef(eventLocationRef)}
-              onDeleteWhenEmpty={() => focusRef(eventLocationRef)}
-            />
-            <View className="fieldGroup fieldGroup--inline">
-              <Text className="fieldLabel">活动时间</Text>
-              <Picker
-                mode="date"
-                value={eventDate || formatDate(new Date())}
-                onChange={(e) => setEventDate(e.detail.value)}
-              >
-                <View className="fieldPicker">
-                  <Text className={eventDate ? "fieldPickerText" : "fieldPickerText fieldPickerText--placeholder"}>
-                    {eventDate || "选择日期"}
-                  </Text>
-                  <Text className="fieldPickerArrow">▼</Text>
-                </View>
-              </Picker>
-              <Picker
-                mode="time"
-                value={eventHour || "09:00"}
-                onChange={(e) => setEventHour(e.detail.value)}
-              >
-                <View className="fieldPicker">
-                  <Text className={eventHour ? "fieldPickerText" : "fieldPickerText fieldPickerText--placeholder"}>
-                    {eventHour || "选择时间"}
-                  </Text>
-                  <Text className="fieldPickerArrow">▼</Text>
-                </View>
-              </Picker>
-            </View>
-            <View className="fieldGroup">
-              <Text className="fieldLabel">活动地点</Text>
-              <View className="locationRow">
-                <ClearableInput
-                  ref={eventLocationRef}
-                  className="fieldInput fieldInput--location"
-                  placeholder="线下地址或线上链接"
-                  placeholderClass="fieldPlaceholder"
-                  cursorColor={BRAND_COLOR}
-                  value={eventLocation}
-                  onInput={(v) => setEventLocation(v)}
-                  onDeleteWhenEmpty={() => focusRef(titleRef)}
-                />
-                <View className="locationBtn" onClick={() => {
-                  Taro.chooseLocation({
-                    success: (res) => setEventLocation(res.name || res.address),
-                    fail: () => {},
-                  });
-                }}>
-                  <Text className="locationBtnText">定位</Text>
-                </View>
-              </View>
-            </View>
-            <ClearableTextarea
-              ref={contentRef}
-              className="contentInput"
-              placeholder="活动详情..."
-              placeholderClass="contentPlaceholder"
-              cursorColor={BRAND_COLOR}
-              value={content}
-              onInput={(v) => setContent(v)}
-              autoHeight
-              cursorSpacing={100}
-              adjustPosition
-              onDeleteWhenEmpty={() => focusRef(eventLocationRef)}
-            />
-          </View>
-        );
-      case "dating":
-        return (
-          <View className="editorSection">
-            <ClearableTextarea
-              ref={titleRef}
-              className="titleInput"
-              placeholder="一句话介绍自己"
-              placeholderClass="titlePlaceholder"
-              cursorColor={BRAND_COLOR}
-              maxlength={120}
-              value={title}
-              onInput={handleTitleInput}
-              autoHeight
-              confirmType="next"
-              onConfirm={() => focusRef(requirementsRef)}
-              onDeleteWhenEmpty={() => focusRef(requirementsRef)}
-            />
-            <View className="fieldRow">
-              <View className="fieldGroup fieldGroup--inline fieldGroup--half">
-                <Text className="fieldLabel">性别</Text>
-                <RadioGroup onChange={(e) => setGender(e.detail.value)} className="genderRadio">
-                  {GENDER_OPTIONS.map((g) => (
-                    <Radio
-                      key={g}
-                      value={g}
-                      checked={gender === g}
-                      color={BRAND_COLOR}
-                      className="genderRadioItem"
-                    >
-                      {g}
-                    </Radio>
-                  ))}
-                </RadioGroup>
-              </View>
-              <View className="fieldGroup fieldGroup--inline fieldGroup--half">
-                <Text className="fieldLabel">年龄</Text>
-                <Picker
-                  mode="date"
-                  fields="year"
-                  value={birthYear || "2000"}
-                  onChange={(e) => setBirthYear(e.detail.value)}
-                >
-                  <View className="fieldPicker">
-                    <Text className={age ? "fieldPickerText" : "fieldPickerText fieldPickerText--placeholder"}>
-                      {age ? `${age}岁` : "选择出生年"}
-                    </Text>
-                    <Text className="fieldPickerArrow">▼</Text>
-                  </View>
-                </Picker>
-              </View>
-            </View>
-            <View className="fieldGroup">
-              <Text className="fieldLabel">期望对象</Text>
-              <ClearableTextarea
-                ref={requirementsRef}
-                className="fieldTextarea"
-                placeholder="对另一半的期望..."
-                placeholderClass="fieldPlaceholder"
-                cursorColor={BRAND_COLOR}
-                value={requirements}
-                onInput={(v) => setRequirements(v)}
-                autoHeight
-                onDeleteWhenEmpty={() => focusRef(titleRef)}
-              />
-            </View>
-            <ClearableTextarea
-              ref={contentRef}
-              className="contentInput"
-              placeholder="自我介绍..."
-              placeholderClass="contentPlaceholder"
-              cursorColor={BRAND_COLOR}
-              value={content}
-              onInput={(v) => setContent(v)}
-              autoHeight
-              cursorSpacing={100}
-              adjustPosition
-              onDeleteWhenEmpty={() => focusRef(requirementsRef)}
-            />
-          </View>
-        );
-      default:
-        return (
-          <View className="editorSection">
-            <ClearableTextarea
-              ref={titleRef}
-              className="titleInput"
-              placeholder="标题"
-              placeholderClass="titlePlaceholder"
-              cursorColor={BRAND_COLOR}
-              maxlength={120}
-              value={title}
-              onInput={handleTitleInput}
-              autoHeight
-              confirmType="next"
-              onConfirm={() => focusRef(contentRef)}
-              onDeleteWhenEmpty={() => focusRef(contentRef)}
-            />
-            <ClearableTextarea
-              ref={contentRef}
-              className="contentInput"
-              placeholder="正文内容..."
-              placeholderClass="contentPlaceholder"
-              cursorColor={BRAND_COLOR}
-              value={content}
-              onInput={(v) => setContent(v)}
-              autoHeight
-              cursorSpacing={100}
-              adjustPosition
-              onDeleteWhenEmpty={() => focusRef(titleRef)}
-            />
-          </View>
-        );
-    }
-  };
-
   return (
     <View className="createTopic">
       <Navbar title="发帖" back home titleStyle={{ opacity: 1 }} />
@@ -716,11 +300,11 @@ export default function CreateTopic() {
         <View className="section typeSection">
         <Text className="typeLabel">发布类型</Text>
         <View className="typeRow">
-          {TOPIC_TYPES.map((t) => (
+          {ALL_TYPES.map((t) => (
             <View
               key={t.key}
               className={`typeTag ${topicType === t.key ? "typeTag--active" : ""}`}
-              onClick={() => handleTopicTypeChange(t.key)}
+              onClick={() => handleTopicTypeChange(t.key as TopicType)}
             >
               <Text className="typeTagText">{t.label}</Text>
             </View>
@@ -738,7 +322,17 @@ export default function CreateTopic() {
         </View>
       </View>
 
-      {renderForm()}
+      {currentDef.renderForm({
+        fields: typeFields,
+        setField,
+        title,
+        setTitle,
+        content,
+        setContent,
+        getRef,
+        focusRef,
+        handleTitleInput,
+      })}
 
       </ScrollView>
 
@@ -757,40 +351,6 @@ export default function CreateTopic() {
           <Text className="submitBtnText">{submitting ? "发布中..." : "预览"}</Text>
         </View>
       </View>
-
-      {repostPreview && (
-        <View className={`repostMask${repostClosing ? " repostMask--closing" : ""}`} onClick={cancelRepost}>
-          <View className={`repostSheet${repostClosing ? " repostSheet--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
-            <View className="repostSheetHeader">
-              <Text className="repostSheetTitle">转载确认</Text>
-              <View className="repostSheetClose" onClick={cancelRepost}>
-                <Text className="repostSheetCloseText">✕</Text>
-              </View>
-            </View>
-            <Text className="repostSheetHint">已读取剪贴板中的链接</Text>
-            <View className="repostSheetOptions">
-              <View className="repostCheckbox" onClick={() => setFullRepost(!fullRepost)}>
-                <View className={`repostCheckboxBox${fullRepost ? " repostCheckboxBox--checked" : ""}`}>
-                  {fullRepost && <Text className="repostCheckboxTick">✓</Text>}
-                </View>
-                <Text className="repostCheckboxLabel">原文转载</Text>
-              </View>
-              <Text className="repostCheckboxDesc">{fullRepost ? "转载完整正文内容" : "仅转载文章摘要"}</Text>
-            </View>
-            <ScrollView scrollY className="repostSheetScroll">
-              <LinkPreviewCard summary={repostPreview} url={sourceUrl} />
-            </ScrollView>
-            <View className="repostSheetActions">
-              <View className="repostSheetCancel" onClick={cancelRepost}>
-                <Text className="repostSheetCancelText">取消</Text>
-              </View>
-              <View className="repostSheetConfirm" onClick={confirmRepost}>
-                <Text className="repostSheetConfirmText">{fullRepost ? "原文转载" : "转载摘要"}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
 
       {previewContent && (
         <View className={`repostMask${previewClosing ? " repostMask--closing" : ""}`} onClick={closePreview}>
