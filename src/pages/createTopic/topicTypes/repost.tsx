@@ -10,9 +10,16 @@ import { extractSummaryUrl } from "../../../utils/linkHandler";
 import { BRAND_COLOR } from "../../../utils/theme";
 import type { TopicTypeDefinition, RenderFormContext, OnActivateContext } from "./registry";
 
+// 去掉 markdown 中的空链接标记 [](url)
+function stripEmptyLinks(md: string): string {
+  return md.replace(/\[([^\]]*)\]\([^)]+\)/g, (_match, text) => {
+    return text.trim() ? text : "";
+  });
+}
+
 function buildSummaryPreview(info: LinkSummary): string {
   if (info.bodyText || info.description) {
-    return (info.bodyText || info.description).slice(0, 400);
+    return stripEmptyLinks((info.bodyText || info.description)).slice(0, 400);
   }
   return "";
 }
@@ -78,7 +85,7 @@ const repostDef: TopicTypeDefinition = {
       if (info.title) setTitle(info.title);
       if (info.image) setField("thumbnail", info.image);
       if (info.bodyHtml) {
-        const md = htmlToMarkdown(info.bodyHtml);
+        const md = stripEmptyLinks(htmlToMarkdown(info.bodyHtml));
         if (fields.fullRepost) {
           setField("summary", md);
         } else {
