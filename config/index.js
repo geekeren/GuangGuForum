@@ -19,7 +19,7 @@ const config = {
   compiler: "webpack5",
   mini: {
     experimental: {
-      compileMode: true,
+      compileMode: false,
     },
     webpackChain(chain) {
       chain.merge({
@@ -72,7 +72,7 @@ const config = {
     },
     // ...
     optimizeMainPackage: {
-      enable: true,
+      enable: false,
     },
   },
   h5: {

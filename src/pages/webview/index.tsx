@@ -1,13 +1,14 @@
 import { WebView } from "@tarojs/components";
-import { useEffect, useState } from "react";
+import Taro from "@tarojs/taro";
+import { useState, useEffect } from "react";
 import "./index.scss";
 
 const WebviewPage = () => {
   const [url, setUrl] = useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const encodedUrl = params.get("url");
+    const instance = Taro.getCurrentInstance();
+    const encodedUrl = instance?.router?.params?.url;
     if (encodedUrl) {
       try {
         const decodedUrl = decodeURIComponent(encodedUrl);

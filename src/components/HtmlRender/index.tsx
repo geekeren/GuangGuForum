@@ -1,9 +1,10 @@
-import { View, Text } from "@tarojs/components";
+import { Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { createRef, useEffect, useMemo } from "react";
-import { TaroElement } from "@tarojs/runtime";
-import { linkHandler, isUserMentionLink } from "../../utils/linkHandler";
+import { TaroElement, TaroText } from "@tarojs/runtime";
+import { isUserMentionLink, linkHandler } from "../../utils/linkHandler";
 import "./index.scss";
+import { rpxToPx } from "../../utils/dimension";
 
 interface TopicMeta {
   type: "repost" | "event" | "dating";
@@ -14,7 +15,10 @@ interface TopicMeta {
   age?: string;
 }
 
-function parseTopicMeta(html: string): { meta: TopicMeta | null; cleanHtml: string } {
+function parseTopicMeta(html: string): {
+  meta: TopicMeta | null;
+  cleanHtml: string;
+} {
   const match = html.match(/<!--gg:(.+?)-->/);
   if (!match) return { meta: null, cleanHtml: html };
   try {
@@ -75,7 +79,7 @@ Taro.options.html.transformElement = (
         if (width < 300) {
           taroEle.setAttribute(
             "style",
-            `width: ${width}px; height: ${height}px`,
+            `width: ${rpxToPx(width)}px; height: ${rpxToPx(height)}px`,
           );
         } else {
           taroEle.setAttribute(

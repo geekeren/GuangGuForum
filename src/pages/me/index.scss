@@ -2,55 +2,5 @@
 
 .meProfile {
   background: $bgColor;
-
-  .notLoggedIn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 120rpx 0 0;
-
-    .emptyAvatar {
-      width: 160rpx;
-      height: 160rpx;
-      border-radius: 80rpx;
-      background: linear-gradient(135deg, #b8dcfa, #d6e8f8);
-      color: $color-brand;
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      justify-content: center;
-      font-size: 64rpx;
-      font-weight: 700;
-      margin-bottom: 40rpx;
-      box-shadow: $shadow-md;
-    }
-
-    .loginTip {
-      font-size: 34rpx;
-      font-weight: 600;
-      color: $text-primary;
-      margin-bottom: 12rpx;
-    }
-
-    .loginSubTip {
-      font-size: 26rpx;
-      color: $text-muted;
-      margin-bottom: 56rpx;
-    }
-
-    .loginBtn {
-      background: linear-gradient(135deg, $color-brand, $color-brand-dark);
-      color: #fff;
-      font-size: 30rpx;
-      font-weight: 600;
-      padding: 24rpx 120rpx;
-      border-radius: 48rpx;
-      box-shadow: $shadow-glow;
-      letter-spacing: 2rpx;
-
-      &:active {
-        opacity: 0.85;
-      }
-    }
-  }
+  padding-bottom: 40rpx;
 }

@@ -7,4 +7,5 @@ export const URLS = {
   NODE_HOME_PAGE: "/node/:node",
   REPLY_VOTE: "/replyVote",
   USER_PROFILE: "/u/:username",
+  NOTIFICATIONS: "/notifications",
 };

@@ -1,4 +1,4 @@
-import { View, Text, Textarea, Input, Picker, Radio, RadioGroup, Image, ScrollView, ShareElement } from "@tarojs/components";
+import { View, Text, Textarea, Input, Picker, Radio, RadioGroup, Image, ScrollView } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useState, useEffect, useRef } from "react";
 import { createTopic, NodeGroup, fetchLinkSummary, LinkSummary } from "guanggu-forum-api";
@@ -6,12 +6,16 @@ import {
   getCachedNodeNavigation,
   fetchAndCacheNodeNavigation,
 } from "../../utils/nodeNavigation";
-import { isWhitelistedDomain } from "../../utils/linkHandler";
+import { extractSummaryUrl } from "../../utils/linkHandler";
+import { getCachedUsername } from "../../utils/currentUser";
+import { openLoginModal } from "../../utils/auth";
+import { ClearableInput, ClearableTextarea } from "../../components/ClearableInput";
 import Navbar from "../../components/Navbar";
 import { BRAND_COLOR } from "../../utils/theme";
 import "./index.scss";
 
 const LAST_NODE_KEY = "last_selected_node";
+const DRAFT_KEY = "topic_draft";
 
 const DEBUG = false;
 
@@ -24,7 +28,7 @@ const TOPIC_TYPES: { key: TopicType; label: string; node: string | null }[] = [
   { key: "dating", label: "相亲贴", node: "date" },
 ];
 
-const HIDDEN_NODES = ["water", "lowshine", "date"];
+const HIDDEN_NODES = ["lowshine", "date"];
 
 const GENDER_OPTIONS = ["男", "女"];
 
@@ -39,8 +43,10 @@ function formatDate(date: Date): string {
 
 export default function CreateTopic() {
   const [nodeGroups, setNodeGroups] = useState<NodeGroup[]>([]);
-  const [pickerValue, setPickerValue] = useState<[number, number]>([0, 0]);
-  const [tempPickerValue, setTempPickerValue] = useState<[number, number]>([0, 0]);
+  const [selectedNodeSlug, setSelectedNodeSlug] = useState("water");
+  const [showNodePicker, setShowNodePicker] = useState(false);
+  const [nodePickerClosing, setNodePickerClosing] = useState(false);
+  const [repostClosing, setRepostClosing] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +68,15 @@ export default function CreateTopic() {
   const [requirements, setRequirements] = useState("");
 
   const contentRef = useRef<any>(null);
+  const nextFocusRef = useRef<any>(null);
+  const prevFocusRef = useRef<any>(null);
+  const sourceUrlRef = useRef<any>(null);
+  const eventLocationRef = useRef<any>(null);
+  const requirementsRef = useRef<any>(null);
+  const titleRef = useRef<any>(null);
   const [bodyHeight, setBodyHeight] = useState("100vh");
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState("");
 
   useEffect(() => {
     const sys = Taro.getSystemInfoSync();
@@ -70,6 +84,7 @@ export default function CreateTopic() {
     const safeBottom = sys.safeArea ? sys.screenHeight - sys.safeArea.bottom : 0;
     const btnAreaH = 28 + 56 + 16 + safeBottom; // margin-top + btn(56rpx≈28px) + margin-bottom + safe
     setBodyHeight(`calc(100vh - ${navH + btnAreaH}px)`);
+    nextFocusRef.current = contentRef.current;
   }, []);
 
   const age = birthYear ? String(new Date().getFullYear() - parseInt(birthYear)) : "";
@@ -82,36 +97,19 @@ export default function CreateTopic() {
     nodes: g.nodes.filter((n) => !HIDDEN_NODES.includes(n.slug)),
   })).filter((g) => g.nodes.length > 0);
 
-  const lockedNodeName = (() => {
-    if (!nodeLocked || !currentTypeConfig.node) return "";
-    for (const group of nodeGroups) {
-      const found = group.nodes.find((n) => n.slug === currentTypeConfig.node);
-      if (found) return found.name;
-    }
-    return currentTypeConfig.node;
-  })();
-
-  const restorePicker = (groups: NodeGroup[], preferNodeSlug?: string) => {
-    if (preferNodeSlug) {
-      for (let gi = 0; gi < groups.length; gi++) {
-        const ni = groups[gi].nodes.findIndex((n) => n.slug === preferNodeSlug);
-        if (ni >= 0) {
-          setPickerValue([gi, ni]);
-          setTempPickerValue([gi, ni]);
-          return;
+  const restoreNodeSelection = (groups: NodeGroup[], preferSlug?: string) => {
+    const target = preferSlug || (() => {
+      try {
+        const saved = Taro.getStorageSync(LAST_NODE_KEY);
+        if (saved) {
+          const { slug } = JSON.parse(saved);
+          if (slug) return slug;
         }
-      }
-    }
-    try {
-      const saved = Taro.getStorageSync(LAST_NODE_KEY);
-      if (saved) {
-        const { groupIndex, nodeIndex } = JSON.parse(saved);
-        if (groupIndex < groups.length && nodeIndex < (groups[groupIndex]?.nodes?.length || 0)) {
-          setPickerValue([groupIndex, nodeIndex]);
-          setTempPickerValue([groupIndex, nodeIndex]);
-        }
-      }
-    } catch {}
+      } catch {}
+      return null;
+    })() || "water";
+    const exists = groups.some((g) => g.nodes.some((n) => n.slug === target));
+    setSelectedNodeSlug(exists ? target : "water");
   };
 
   const router = useRouter();
@@ -121,42 +119,137 @@ export default function CreateTopic() {
     const cached = getCachedNodeNavigation();
     if (cached.length) {
       setNodeGroups(cached);
-      restorePicker(cached, nodeSlug);
+      restoreNodeSelection(cached, nodeSlug);
     }
     fetchAndCacheNodeNavigation().then((groups) => {
       setNodeGroups(groups);
-      restorePicker(groups, nodeSlug);
+      restoreNodeSelection(groups, nodeSlug);
     });
+    if (!getCachedUsername()) {
+      setTimeout(() => openLoginModal(), 500);
+    }
   }, []);
 
   useEffect(() => {
-    if (nodeLocked && currentTypeConfig.node) {
-      for (let gi = 0; gi < nodeGroups.length; gi++) {
-        const ni = nodeGroups[gi].nodes.findIndex((n) => n.slug === currentTypeConfig.node);
-        if (ni >= 0) {
-          setPickerValue([gi, ni]);
-          setTempPickerValue([gi, ni]);
-          return;
-        }
+    if (topicType === "normal" && nodeGroups.length > 0) {
+      const isValid = filteredGroups.some((g) => g.nodes.some((n) => n.slug === selectedNodeSlug));
+      if (!isValid) {
+        setSelectedNodeSlug("water");
       }
     }
   }, [topicType, nodeGroups]);
 
-  const currentGroup = filteredGroups[tempPickerValue[0]];
-  const confirmedGroup = filteredGroups[pickerValue[0]];
-  const confirmedNode = confirmedGroup?.nodes?.[pickerValue[1]];
+  // 恢复草稿
+  useEffect(() => {
+    try {
+      const raw = Taro.getStorageSync(DRAFT_KEY);
+      if (!raw) { setDraftRestored(true); return; }
+      const d = JSON.parse(raw);
+      if (d.savedAt) setDraftSavedAt(d.savedAt);
+      if (d.topicType) setTopicType(d.topicType);
+      if (d.title) setTitle(d.title);
+      if (d.content) setContent(d.content);
+      if (d.selectedNodeSlug) setSelectedNodeSlug(d.selectedNodeSlug);
+      if (d.sourceUrl) setSourceUrl(d.sourceUrl);
+      if (d.sourceTitle) setSourceTitle(d.sourceTitle);
+      if (d.summary) setSummary(d.summary);
+      if (d.thumbnail) setThumbnail(d.thumbnail);
+      if (d.eventTime) setEventTime(d.eventTime);
+      if (d.eventLocation) setEventLocation(d.eventLocation);
+      if (d.gender) setGender(d.gender);
+      if (d.birthYear) setBirthYear(d.birthYear);
+      if (d.requirements) setRequirements(d.requirements);
+    } catch {}
+    setDraftRestored(true);
+  }, []);
+
+  // 自动保存草稿
+  useEffect(() => {
+    if (!draftRestored) return;
+    const hasContent = title || content || sourceUrl || eventTime || gender || requirements;
+    if (!hasContent) { setDraftSavedAt(""); return; }
+    const timer = setTimeout(() => {
+      const savedAt = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      try {
+        Taro.setStorageSync(DRAFT_KEY, JSON.stringify({
+          savedAt,
+          topicType, title, content, selectedNodeSlug,
+          sourceUrl, sourceTitle, summary, thumbnail,
+          eventTime, eventLocation, gender, birthYear, requirements,
+        }));
+        setDraftSavedAt(savedAt);
+      } catch {}
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [draftRestored, topicType, title, content, selectedNodeSlug, sourceUrl, sourceTitle, summary, thumbnail, eventTime, eventLocation, gender, birthYear, requirements]);
+
+  const clearForm = () => {
+    setTitle("");
+    setContent("");
+    setSourceUrl("");
+    setSourceTitle("");
+    setSummary("");
+    setThumbnail("");
+    setEventTime("");
+    setEventLocation("");
+    setGender("");
+    setBirthYear("");
+    setRequirements("");
+    setDraftSavedAt("");
+    try { Taro.removeStorageSync(DRAFT_KEY); } catch {}
+  };
+
+  const openNodePicker = () => {
+    if (nodeLocked) return;
+    setNodePickerClosing(false);
+    setShowNodePicker(true);
+  };
+
+  const closeNodePicker = () => {
+    setNodePickerClosing(true);
+    setTimeout(() => {
+      setShowNodePicker(false);
+      setNodePickerClosing(false);
+    }, 250);
+  };
+
+  const selectNode = (slug: string) => {
+    setSelectedNodeSlug(slug);
+    try {
+      Taro.setStorageSync(LAST_NODE_KEY, JSON.stringify({ slug }));
+    } catch {}
+    closeNodePicker();
+  };
+
+  const resolvedNodeSlug = nodeLocked ? currentTypeConfig.node! : selectedNodeSlug;
+
+  const resolvedNodeName = (() => {
+    if (!resolvedNodeSlug) return "选择板块";
+    for (const group of nodeGroups) {
+      const found = group.nodes.find((n) => n.slug === resolvedNodeSlug);
+      if (found) return found.name;
+    }
+    return resolvedNodeSlug;
+  })();
 
   const handleTopicTypeChange = (type: TopicType) => {
     setTopicType(type);
+    const refMap: Record<TopicType, any> = {
+      repost: sourceUrlRef,
+      event: eventLocationRef,
+      dating: requirementsRef,
+      normal: contentRef,
+    };
+    nextFocusRef.current = refMap[type]?.current || contentRef.current;
     if (type === "repost" && !sourceUrl) {
       Taro.getClipboardData({
         success: (res) => {
-          const text = (res.data || "").trim();
-          if (isWhitelistedDomain(text)) {
+          const url = extractSummaryUrl((res.data || "").trim());
+          if (url) {
             setClipLoading(true);
-            fetchLinkSummary(text).then((info: LinkSummary) => {
+            fetchLinkSummary(url).then((info: LinkSummary) => {
               setClipLoading(false);
-              setRepostPreview({ ...info, url: text });
+              setRepostPreview({ ...info, url });
             }).catch(() => {
               setClipLoading(false);
             });
@@ -186,11 +279,14 @@ export default function CreateTopic() {
   };
 
   const cancelRepost = () => {
-    setRepostPreview(null);
+    setRepostClosing(true);
+    setTimeout(() => {
+      setRepostPreview(null);
+      setRepostClosing(false);
+    }, 250);
   };
 
-  const handleTitleInput = (e: any) => {
-    const val = e.detail.value;
+  const handleTitleInput = (val: string) => {
     if (val.includes("\n")) {
       const parts = val.split("\n");
       const newTitle = parts[0];
@@ -198,7 +294,7 @@ export default function CreateTopic() {
       setTitle(newTitle);
       setContent((prev) => restContent + (prev ? "\n" + prev : ""));
       setTimeout(() => {
-        contentRef.current?.focus?.();
+        nextFocusRef.current?.focus?.();
       }, 50);
     } else {
       setTitle(val);
@@ -227,7 +323,11 @@ export default function CreateTopic() {
   };
 
   const handleSubmit = async () => {
-    const resolvedNode = nodeLocked ? currentTypeConfig.node : confirmedNode?.slug;
+    if (!getCachedUsername()) {
+      openLoginModal();
+      return;
+    }
+    const resolvedNode = nodeLocked ? currentTypeConfig.node : selectedNodeSlug;
     if (!resolvedNode) {
       Taro.showToast({ title: "请选择板块", icon: "none" });
       return;
@@ -271,6 +371,7 @@ export default function CreateTopic() {
         content: finalContent,
       });
       Taro.hideLoading();
+      try { Taro.removeStorageSync(DRAFT_KEY); } catch {}
       Taro.eventCenter.trigger("refreshTopics");
       Taro.navigateBack();
     } catch {
@@ -281,23 +382,44 @@ export default function CreateTopic() {
     }
   };
 
+  const focusRef = (r: any) => r?.current?.focus?.();
+
   const renderForm = () => {
     switch (topicType) {
       case "repost":
         return (
           <View className="editorSection">
+            {!sourceUrl && (
+              <View className="repostTip">
+                <Text className="repostTipText">自动读取剪贴板链接用于转载，也可手动输入</Text>
+              </View>
+            )}
             <View className="fieldGroup">
               <Text className="fieldLabel">原文链接</Text>
-              <Input
+              <ClearableInput
+                ref={sourceUrlRef}
                 className="fieldInput"
                 placeholder="粘贴原文链接"
                 placeholderClass="fieldPlaceholder"
                 cursorColor={BRAND_COLOR}
                 value={sourceUrl}
-                onInput={(e) => setSourceUrl(e.detail.value)}
+                onInput={(v) => setSourceUrl(v)}
+                onDeleteWhenEmpty={() => focusRef(titleRef)}
+                onBlur={() => {
+                  const url = extractSummaryUrl(sourceUrl) || (sourceUrl.trim().startsWith("http") ? sourceUrl.trim() : "");
+                  if (!url || repostPreview) return;
+                  setClipLoading(true);
+                  fetchLinkSummary(url).then((info: LinkSummary) => {
+                    setClipLoading(false);
+                    setRepostPreview({ ...info, url });
+                  }).catch(() => {
+                    setClipLoading(false);
+                  });
+                }}
               />
             </View>
-            <Textarea
+            <ClearableTextarea
+              ref={titleRef}
               className="titleInput"
               placeholder="标题"
               placeholderClass="titlePlaceholder"
@@ -307,20 +429,21 @@ export default function CreateTopic() {
               onInput={handleTitleInput}
               autoHeight
               confirmType="next"
-              onConfirm={() => contentRef.current?.focus?.()}
+              onConfirm={() => focusRef(sourceUrlRef)}
+              onDeleteWhenEmpty={() => focusRef(sourceUrlRef)}
             />
             {sourceUrl ? (
               <View className="fieldGroup">
                 <Text className="fieldLabel">摘要</Text>
-                <Textarea
+                <ClearableTextarea
                   className="fieldTextarea"
                   placeholder="文章摘要（可选）..."
                   placeholderClass="fieldPlaceholder"
                   cursorColor={BRAND_COLOR}
                   maxlength={-1}
                   value={summary}
-                  onInput={(e) => setSummary(e.detail.value)}
-                  autoHeight
+                  onInput={(v) => setSummary(v)}
+                  onDeleteWhenEmpty={() => focusRef(titleRef)}
                 />
               </View>
             ) : null}
@@ -335,24 +458,26 @@ export default function CreateTopic() {
                 </View>
               </View>
             ) : null}
-            <Textarea
+            <ClearableTextarea
               ref={contentRef}
               className="contentInput"
               placeholder="补充说明（可选）..."
               placeholderClass="contentPlaceholder"
               cursorColor={BRAND_COLOR}
               value={content}
-              onInput={(e) => setContent(e.detail.value)}
+              onInput={(v) => setContent(v)}
               autoHeight
               cursorSpacing={100}
               adjustPosition
+              onDeleteWhenEmpty={() => focusRef(titleRef)}
             />
           </View>
         );
       case "event":
         return (
           <View className="editorSection">
-            <Textarea
+            <ClearableTextarea
+              ref={titleRef}
               className="titleInput"
               placeholder="活动名称"
               placeholderClass="titlePlaceholder"
@@ -362,7 +487,8 @@ export default function CreateTopic() {
               onInput={handleTitleInput}
               autoHeight
               confirmType="next"
-              onConfirm={() => contentRef.current?.focus?.()}
+              onConfirm={() => focusRef(eventLocationRef)}
+              onDeleteWhenEmpty={() => focusRef(eventLocationRef)}
             />
             <View className="fieldGroup fieldGroup--inline">
               <Text className="fieldLabel">活动时间</Text>
@@ -382,13 +508,15 @@ export default function CreateTopic() {
             <View className="fieldGroup">
               <Text className="fieldLabel">活动地点</Text>
               <View className="locationRow">
-                <Input
+                <ClearableInput
+                  ref={eventLocationRef}
                   className="fieldInput fieldInput--location"
                   placeholder="线下地址或线上链接"
                   placeholderClass="fieldPlaceholder"
                   cursorColor={BRAND_COLOR}
                   value={eventLocation}
-                  onInput={(e) => setEventLocation(e.detail.value)}
+                  onInput={(v) => setEventLocation(v)}
+                  onDeleteWhenEmpty={() => focusRef(titleRef)}
                 />
                 <View className="locationBtn" onClick={() => {
                   Taro.chooseLocation({
@@ -400,24 +528,26 @@ export default function CreateTopic() {
                 </View>
               </View>
             </View>
-            <Textarea
+            <ClearableTextarea
               ref={contentRef}
               className="contentInput"
               placeholder="活动详情..."
               placeholderClass="contentPlaceholder"
               cursorColor={BRAND_COLOR}
               value={content}
-              onInput={(e) => setContent(e.detail.value)}
+              onInput={(v) => setContent(v)}
               autoHeight
               cursorSpacing={100}
               adjustPosition
+              onDeleteWhenEmpty={() => focusRef(eventLocationRef)}
             />
           </View>
         );
       case "dating":
         return (
           <View className="editorSection">
-            <Textarea
+            <ClearableTextarea
+              ref={titleRef}
               className="titleInput"
               placeholder="一句话介绍自己"
               placeholderClass="titlePlaceholder"
@@ -427,7 +557,8 @@ export default function CreateTopic() {
               onInput={handleTitleInput}
               autoHeight
               confirmType="next"
-              onConfirm={() => contentRef.current?.focus?.()}
+              onConfirm={() => focusRef(requirementsRef)}
+              onDeleteWhenEmpty={() => focusRef(requirementsRef)}
             />
             <View className="fieldRow">
               <View className="fieldGroup fieldGroup--inline fieldGroup--half">
@@ -465,34 +596,38 @@ export default function CreateTopic() {
             </View>
             <View className="fieldGroup">
               <Text className="fieldLabel">期望对象</Text>
-              <Textarea
+              <ClearableTextarea
+                ref={requirementsRef}
                 className="fieldTextarea"
                 placeholder="对另一半的期望..."
                 placeholderClass="fieldPlaceholder"
                 cursorColor={BRAND_COLOR}
                 value={requirements}
-                onInput={(e) => setRequirements(e.detail.value)}
+                onInput={(v) => setRequirements(v)}
                 autoHeight
+                onDeleteWhenEmpty={() => focusRef(titleRef)}
               />
             </View>
-            <Textarea
+            <ClearableTextarea
               ref={contentRef}
               className="contentInput"
               placeholder="自我介绍..."
               placeholderClass="contentPlaceholder"
               cursorColor={BRAND_COLOR}
               value={content}
-              onInput={(e) => setContent(e.detail.value)}
+              onInput={(v) => setContent(v)}
               autoHeight
               cursorSpacing={100}
               adjustPosition
+              onDeleteWhenEmpty={() => focusRef(requirementsRef)}
             />
           </View>
         );
       default:
         return (
           <View className="editorSection">
-            <Textarea
+            <ClearableTextarea
+              ref={titleRef}
               className="titleInput"
               placeholder="标题"
               placeholderClass="titlePlaceholder"
@@ -502,19 +637,21 @@ export default function CreateTopic() {
               onInput={handleTitleInput}
               autoHeight
               confirmType="next"
-              onConfirm={() => contentRef.current?.focus?.()}
+              onConfirm={() => focusRef(contentRef)}
+              onDeleteWhenEmpty={() => focusRef(contentRef)}
             />
-            <Textarea
+            <ClearableTextarea
               ref={contentRef}
               className="contentInput"
               placeholder="正文内容..."
               placeholderClass="contentPlaceholder"
               cursorColor={BRAND_COLOR}
               value={content}
-              onInput={(e) => setContent(e.detail.value)}
+              onInput={(v) => setContent(v)}
               autoHeight
               cursorSpacing={100}
               adjustPosition
+              onDeleteWhenEmpty={() => focusRef(titleRef)}
             />
           </View>
         );
@@ -523,7 +660,7 @@ export default function CreateTopic() {
 
   return (
     <View className="createTopic">
-      <Navbar title="发帖" back home />
+      <Navbar title="发帖" back home titleStyle={{ opacity: 1 }} />
       <ScrollView scrollY style={{ height: bodyHeight }} className="createTopicBody" enhanced showScrollbar={false}>
         <View className="section typeSection">
         <Text className="typeLabel">发布类型</Text>
@@ -541,58 +678,38 @@ export default function CreateTopic() {
       </View>
 
       <View className="section nodeSection">
-        {nodeLocked ? (
-          <View className="pickerItem">
-            <Text className="pickerLabel">发布到</Text>
-            <Text className="pickerValue pickerValue--locked">{lockedNodeName}</Text>
-          </View>
-        ) : (
-          <Picker
-            mode="multiSelector"
-            range={[filteredGroups.map((g) => g.category), currentGroup?.nodes?.map((n) => n.name) || []]}
-            value={tempPickerValue}
-            onChange={(e) => {
-              const val = e.detail.value as [number, number];
-              setPickerValue(val);
-              setTempPickerValue(val);
-              try {
-                Taro.setStorageSync(LAST_NODE_KEY, JSON.stringify({ groupIndex: val[0], nodeIndex: val[1] }));
-              } catch {}
-            }}
-            onColumnChange={(e) => {
-              const { column, value } = e.detail;
-              if (column === 0) {
-                setTempPickerValue([value, 0]);
-              } else {
-                setTempPickerValue([tempPickerValue[0], value]);
-              }
-            }}
-          >
-            <View className="pickerItem">
-              <Text className="pickerLabel">发布到</Text>
-              <Text className="pickerValue">{confirmedNode ? `${confirmedGroup.category} · ${confirmedNode.name}` : "选择板块"}</Text>
-              <Text className="arrow">▼</Text>
-            </View>
-          </Picker>
-        )}
+        <View className="pickerItem" onClick={openNodePicker}>
+          <Text className="pickerLabel">发布到</Text>
+          <Text className={`pickerValue ${nodeLocked ? "pickerValue--locked" : ""}`}>
+            {resolvedNodeName}
+          </Text>
+          {!nodeLocked && <Text className="arrow">▼</Text>}
+        </View>
       </View>
 
       {renderForm()}
 
       </ScrollView>
 
-      <ShareElement mapkey="create_topic_btn">
+      {draftSavedAt && (
+        <Text className="draftTime">草稿已保存于 {draftSavedAt}</Text>
+      )}
+
+      <View className="btnRow">
+        <View className="clearBtn" onClick={clearForm}>
+          <Text className="clearBtnText">清空</Text>
+        </View>
         <View
           className={`submitBtn ${submitting ? "submitBtn--disabled" : ""}`}
           onClick={handleSubmit}
         >
-          {submitting ? "发布中..." : "发布"}
+          <Text className="submitBtnText">{submitting ? "发布中..." : "发布"}</Text>
         </View>
-      </ShareElement>
+      </View>
 
       {repostPreview && (
-        <View className="repostMask" onClick={cancelRepost}>
-          <View className="repostSheet" onClick={(e) => e.stopPropagation()}>
+        <View className={`repostMask${repostClosing ? " repostMask--closing" : ""}`} onClick={cancelRepost}>
+          <View className={`repostSheet${repostClosing ? " repostSheet--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
             <View className="repostSheetHeader">
               <Text className="repostSheetTitle">转载确认</Text>
               <View className="repostSheetClose" onClick={cancelRepost}>
@@ -630,16 +747,6 @@ export default function CreateTopic() {
               </View>
             </ScrollView>
             <View className="repostSheetActions">
-              <View className="repostSheetCopy" onClick={() => {
-                const copyText = [
-                  repostPreview.title,
-                  repostPreview.url,
-                  repostPreview.description || repostPreview.bodyText,
-                ].filter(Boolean).join("\n");
-                Taro.setClipboardData({ data: copyText });
-              }}>
-                <Text className="repostSheetCopyText">复制内容</Text>
-              </View>
               <View className="repostSheetCancel" onClick={cancelRepost}>
                 <Text className="repostSheetCancelText">取消</Text>
               </View>
@@ -647,6 +754,37 @@ export default function CreateTopic() {
                 <Text className="repostSheetConfirmText">转载此文章</Text>
               </View>
             </View>
+          </View>
+        </View>
+      )}
+
+      {showNodePicker && (
+        <View className={`nodePickerMask${nodePickerClosing ? " nodePickerMask--closing" : ""}`} onClick={closeNodePicker}>
+          <View className={`nodePickerSheet${nodePickerClosing ? " nodePickerSheet--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
+            <View className="nodePickerHeader">
+              <Text className="nodePickerTitle">选择板块</Text>
+              <View className="nodePickerClose" onClick={closeNodePicker}>
+                <Text className="nodePickerCloseText">✕</Text>
+              </View>
+            </View>
+            <ScrollView scrollY className="nodePickerScroll">
+              {filteredGroups.map((group) => (
+                <View className="nodeGroup" key={group.category}>
+                  <Text className="nodeGroupLabel">{group.category}</Text>
+                  <View className="nodeGroupTags">
+                    {group.nodes.map((node) => (
+                      <View
+                        key={node.slug}
+                        className={`nodeTag ${selectedNodeSlug === node.slug ? "nodeTag--active" : ""}`}
+                        onClick={() => selectNode(node.slug)}
+                      >
+                        <Text className="nodeTagText">{node.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         </View>
       )}

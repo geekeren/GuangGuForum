@@ -1,0 +1,78 @@
+@import "../../../vars.scss";
+
+.notificationsPage {
+  display: flex;
+  flex-direction: column;
+  background: $bgColor;
+  overflow: hidden;
+
+  .notificationsList {
+    flex: 1;
+    height: 0;
+  }
+
+  .notificationItem {
+    display: flex;
+    flex-direction: row;
+    padding: 24rpx 32rpx;
+    background: $surface;
+    border-bottom: 1rpx solid $border-color;
+
+    &:active {
+      background: $surfaceAlt;
+    }
+  }
+
+  .notificationAvatar {
+    flex-shrink: 0;
+    margin-right: 20rpx;
+
+    .avatarImg {
+      width: 72rpx;
+      height: 72rpx;
+      border-radius: 36rpx;
+    }
+  }
+
+  .notificationBody {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .notificationTitle {
+    font-size: 28rpx;
+    color: $text-sub;
+    line-height: 1.5;
+  }
+
+  .notificationUser {
+    color: $color-brand;
+    font-weight: 500;
+  }
+
+  .notificationAction {
+    color: $text-muted;
+  }
+
+  .notificationTopicLink {
+    color: $color-brand;
+    font-weight: 500;
+  }
+
+  .notificationContent {
+    margin-top: 8rpx;
+    padding: 12rpx 16rpx;
+    background: $surfaceAlt;
+    border-radius: $radius-sm;
+    font-size: 26rpx;
+    color: $text-muted;
+    overflow: hidden;
+
+    .htmlWrap {
+      .html {
+        font-size: 26rpx;
+        line-height: 1.5;
+      }
+    }
+  }
+}

@@ -1,0 +1,108 @@
+@import "../../vars.scss";
+
+.settingsPage {
+  min-height: 100vh;
+  background: $bgColor;
+}
+
+.settingsBody {
+  padding: 16rpx 22rpx 40rpx;
+}
+
+.settingsGroup {
+  background: $surface;
+  border-radius: $radius-md;
+  box-shadow: $shadow-sm;
+  margin-bottom: 20rpx;
+  overflow: hidden;
+}
+
+.settingsItem {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 28rpx 28rpx;
+  border-bottom: 1rpx solid $border-color;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: $surfaceAlt;
+  }
+
+  &--danger {
+    justify-content: center;
+
+    .settingsItemLabel {
+      color: #e74c3c;
+      font-weight: 600;
+    }
+
+    &:active {
+      background: #fef2f2;
+    }
+  }
+}
+
+.settingsItemLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.settingsItemLabel {
+  font-size: 28rpx;
+  color: $text-primary;
+  line-height: 1.4;
+}
+
+.settingsItemDesc {
+  display: block;
+  font-size: 22rpx;
+  color: $text-faint;
+  margin-top: 4rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settingsItemArrow {
+  flex-shrink: 0;
+  width: 28rpx;
+  height: 28rpx;
+  margin-left: 16rpx;
+  opacity: 0.4;
+}
+
+.settingsItemBtn {
+  flex: 1;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  line-height: inherit;
+  font-size: inherit;
+  display: block;
+
+  &::after {
+    display: none;
+  }
+
+  .settingsItemLabel {
+    font-size: 28rpx;
+    color: $text-primary;
+  }
+}
+
+.settingsFooter {
+  text-align: center;
+  padding: 40rpx 0 20rpx;
+}
+
+.settingsFooterText {
+  font-size: 22rpx;
+  color: $text-faint;
+}

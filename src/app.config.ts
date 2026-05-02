@@ -8,6 +8,7 @@ export default defineAppConfig({
     "pages/createTopic/index",
     "pages/webview/index",
     "pages/linkPreview/index",
+    "pages/settings/index",
   ],
   window: {
     backgroundTextStyle: "light",

@@ -37,14 +37,16 @@ import { isSkyline } from "../../utils/renderer";
 import { trimStrings } from "../../utils/trimStrings";
 import HtmlRender from "../../components/HtmlRender";
 import Tag from "../../components/Tag";
-import Icon from "../../components/Icon";
 import NodeIcon from "../../assets/topic_node.svg";
 import CommentIcon from "../../assets/comment.svg";
 import WechatIcon from "../../assets/wechat.svg";
 import SortAscIcon from "../../assets/sort-asc.svg";
 import SortDescIcon from "../../assets/sort-desc.svg";
+import UpvoteIcon from "../../assets/upvote.svg";
 import RelatingTopics from "./relatingTopics";
 import PullDownRefresh, { PullDownRefreshRef } from "../../components/PullDownRefresh";
+import AddToDesktopGuide from "../../components/AddToDesktopGuide";
+import AdBanner from "../../components/AdBanner";
 
 const Index = () => {
   const [id, setId] = useState<string>();
@@ -341,7 +343,7 @@ const Index = () => {
                               });
                             }}
                           >
-                            <Icon name="upvote.svg" size={rpxToPx(34)} />
+                            <Image src={UpvoteIcon} svg style={{ height: rpxToPx(34), width: rpxToPx(34) }} />
                             {parseInt(comment.upVoteCount.replace("赞", ""))}
                           </View>
                         </View>
@@ -470,6 +472,7 @@ const Index = () => {
           </View>
         )}
       </View>
+      <AddToDesktopGuide />
     </>
   );
 };

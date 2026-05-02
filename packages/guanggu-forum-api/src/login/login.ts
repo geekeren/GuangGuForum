@@ -23,7 +23,9 @@ export async function login(payload: LoginPayload) {
       Referer: `${URLS.ROOT_URL}`,
     },
   }).then(({ data }) => {
-    if (data?.location) {
+    // 通过 cookie 判断是否登录成功
+    const cookies = Taro.getStorageSync("cookies");
+    if (cookies && Object.keys(cookies).length > 0) {
       Taro.showToast({
         title: "登录成功",
         icon: "success",
@@ -35,6 +37,7 @@ export async function login(payload: LoginPayload) {
         icon: "error",
         duration: 2000,
       });
+      return Promise.reject(new Error("登录失败"));
     }
   });
 }

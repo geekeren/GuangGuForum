@@ -1,0 +1,41 @@
+@import "../../vars.scss";
+
+.clearableWrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+
+  .clearableControl {
+    flex: 1;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  .clearableBtn {
+    flex-shrink: 0;
+    width: 36rpx;
+    height: 36rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: $border-strong;
+    margin-left: 12rpx;
+  }
+
+  .clearableBtnText {
+    font-size: 20rpx;
+    color: #fff;
+    line-height: 1;
+  }
+
+  &--textarea {
+    align-items: flex-start;
+
+    .clearableBtn {
+      margin-top: 28rpx;
+    }
+  }
+}

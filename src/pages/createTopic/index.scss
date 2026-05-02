@@ -11,6 +11,14 @@
     width: 100%;
   }
 
+  .draftTime {
+    font-size: 22rpx;
+    color: $text-faint;
+    text-align: center;
+    margin: 8rpx 24rpx 0;
+    flex-shrink: 0;
+  }
+
   .typeSection {
     margin: 16rpx 24rpx;
     background: $surface;
@@ -111,6 +119,19 @@
     margin: 0 24rpx 24rpx;
   }
 
+  .repostTip {
+    background: $color-accent-soft;
+    border-radius: $radius-sm;
+    padding: 16rpx 20rpx;
+    margin-bottom: 20rpx;
+  }
+
+  .repostTipText {
+    font-size: 24rpx;
+    color: $color-accent-deep;
+    line-height: 1.5;
+  }
+
   .titleInput {
     width: 100%;
     font-size: 36rpx;
@@ -187,6 +208,10 @@
     &--location {
       flex: 1;
     }
+  }
+
+  .clearableWrap .fieldTextarea {
+    padding-right: 12rpx;
   }
 
   .locationRow {
@@ -296,25 +321,52 @@
     }
   }
 
-  .submitBtn {
+  .btnRow {
+    display: flex;
+    flex-direction: row;
+    gap: 16rpx;
+    margin: 16rpx 24rpx;
+    margin-bottom: calc(16rpx + env(safe-area-inset-bottom));
+    flex-shrink: 0;
+  }
+
+  .clearBtn {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     height: 88rpx;
-    margin: 16rpx 24rpx;
-    margin-bottom: calc(16rpx + env(safe-area-inset-bottom));
+    border-radius: 44rpx;
+    background: $bgColor;
+    border: 2rpx solid $border-color;
+  }
+
+  .clearBtnText {
+    font-size: 28rpx;
+    color: $text-muted;
+    font-weight: 500;
+  }
+
+  .submitBtn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 88rpx;
     border-radius: 44rpx;
     background: linear-gradient(135deg, $color-brand, $color-brand-dark);
-    color: #fff;
-    font-size: 28rpx;
-    font-weight: 600;
     box-shadow: 0 4rpx 16rpx rgba(31, 105, 255, 0.3);
-    flex-shrink: 0;
 
     &--disabled {
       opacity: 0.5;
       pointer-events: none;
     }
+  }
+
+  .submitBtnText {
+    font-size: 28rpx;
+    color: #fff;
+    font-weight: 600;
   }
 
   // 转载确认弹窗
@@ -328,6 +380,11 @@
     z-index: 999;
     display: flex;
     align-items: flex-end;
+    animation: fadeIn 0.25s ease;
+
+    &--closing {
+      animation: fadeOut 0.25s ease forwards;
+    }
   }
 
   .repostSheet {
@@ -337,6 +394,11 @@
     height: 80vh;
     display: flex;
     flex-direction: column;
+    animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+
+    &--closing {
+      animation: slideDown 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+    }
   }
 
   .repostSheetHeader {
@@ -543,4 +605,139 @@
     color: #fff;
     font-weight: 600;
   }
+
+  // 节点选择弹窗
+  .nodePickerMask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: flex;
+    align-items: flex-end;
+    animation: fadeIn 0.25s ease;
+
+    &--closing {
+      animation: fadeOut 0.25s ease forwards;
+    }
+  }
+
+  .nodePickerSheet {
+    width: 100%;
+    background: $surface;
+    border-radius: 24rpx 24rpx 0 0;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+
+    &--closing {
+      animation: slideDown 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+    }
+  }
+
+  .nodePickerHeader {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28rpx 32rpx 16rpx;
+    flex-shrink: 0;
+  }
+
+  .nodePickerTitle {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: $text-primary;
+  }
+
+  .nodePickerClose {
+    width: 48rpx;
+    height: 48rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: $bgColor;
+  }
+
+  .nodePickerCloseText {
+    font-size: 24rpx;
+    color: $text-muted;
+  }
+
+  .nodePickerScroll {
+    width: 100%;
+    height: calc(70vh - 100rpx - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 32rpx 32rpx;
+    box-sizing: border-box;
+  }
+
+  .nodeGroup {
+    margin-bottom: 24rpx;
+  }
+
+  .nodeGroupLabel {
+    font-size: 24rpx;
+    font-weight: 600;
+    color: $text-muted;
+    margin-bottom: 16rpx;
+  }
+
+  .nodeGroupTags {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 16rpx;
+  }
+
+  .nodeTag {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12rpx 28rpx;
+    border-radius: $radius-md;
+    background: $bgColor;
+    border: 2rpx solid transparent;
+
+    &--active {
+      background: $color-brand-soft;
+      border-color: $color-brand;
+    }
+  }
+
+  .nodeTagText {
+    font-size: 26rpx;
+    color: $text-muted;
+    font-weight: 500;
+  }
+
+  .nodeTag--active .nodeTagText {
+    color: $color-brand;
+    font-weight: 600;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
 }

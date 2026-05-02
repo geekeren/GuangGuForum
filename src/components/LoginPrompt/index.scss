@@ -1,0 +1,57 @@
+@import "../../vars.scss";
+
+.loginPrompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.loginPromptIcon {
+  font-size: 80rpx;
+  margin-bottom: 24rpx;
+}
+
+.loginPromptBadge {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 60rpx;
+  background: linear-gradient(135deg, #b8dcfa, #d6e8f8);
+  color: $color-brand;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  font-size: 52rpx;
+  font-weight: 700;
+  margin-bottom: 32rpx;
+  box-shadow: $shadow-md;
+}
+
+.loginPromptTitle {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: 12rpx;
+}
+
+.loginPromptDesc {
+  font-size: 26rpx;
+  color: $text-muted;
+  margin-bottom: 40rpx;
+}
+
+.loginPromptBtn {
+  padding: 20rpx 72rpx;
+  background: linear-gradient(135deg, $color-brand, $color-brand-dark);
+  color: #fff;
+  border-radius: 44rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  box-shadow: $shadow-glow;
+
+  &:active {
+    opacity: 0.85;
+  }
+}

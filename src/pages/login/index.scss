@@ -73,6 +73,16 @@
     &:last-child {
       margin-bottom: 0;
     }
+
+    &--withDropdown {
+      position: relative;
+      margin-bottom: 0;
+      z-index: 10;
+    }
+  }
+
+  .inputField + .inputField {
+    margin-top: 24rpx;
   }
 
   .inputLabel {
@@ -97,6 +107,36 @@
   .inputPlaceholder {
     color: $text-faint;
     font-size: 28rpx;
+  }
+
+  .accountSuggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: $surface;
+    border-radius: 0 0 $radius-md $radius-md;
+    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+    z-index: 10;
+    overflow: hidden;
+  }
+
+  .accountSuggestionItem {
+    padding: 20rpx 28rpx;
+    border-top: 1rpx solid $border-color;
+
+    &:first-child {
+      border-top: none;
+    }
+
+    &:active {
+      background: $bgColor;
+    }
+  }
+
+  .accountSuggestionText {
+    font-size: 28rpx;
+    color: $text-sub;
   }
 }
 
@@ -160,6 +200,11 @@
     font-size: 22rpx;
     color: $text-muted;
     line-height: 1.7;
+  }
+
+  .agreementLink {
+    color: $color-brand;
+    font-weight: 500;
   }
 }
 

@@ -121,16 +121,10 @@
       line-height: 1;
     }
 
-    .logoutBtn {
+    .settingsIcon {
       flex-shrink: 0;
-      padding: 12rpx 24rpx;
-      border-radius: 28rpx;
-      background: #fff;
-      color: #e74c3c;
-      border: 1rpx solid rgba(231, 76, 60, 0.25);
-      font-size: 24rpx;
-      font-weight: 600;
-      line-height: 1;
+      width: 42rpx;
+      height: 42rpx;
     }
 
     .stats {

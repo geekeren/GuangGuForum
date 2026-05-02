@@ -3,14 +3,21 @@ import { View, Text, Image, ShareElement } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import "./index.scss";
 import Topics from "./topics";
+import Discovery from "./discovery";
 import Me from "../me/index";
+import Notifications from "./notifications";
 import Navbar from "../../components/Navbar/index";
+import AddToDesktopGuide from "../../components/AddToDesktopGuide";
 import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from "../config";
 import { getNavInfo } from "../../utils/dimension";
 import HomeIcon from "../../assets/home.svg";
 import HomeActiveIcon from "../../assets/home-active.svg";
+import DiscoverIcon from "../../assets/discover.svg";
+import DiscoverActiveIcon from "../../assets/discover-active.svg";
 import UserIcon from "../../assets/user.svg";
 import UserActiveIcon from "../../assets/user-active.svg";
+import NotificationIcon from "../../assets/notification.svg";
+import NotificationActiveIcon from "../../assets/notification-active.svg";
 
 interface State {
   selectedTabIndex: number;
@@ -18,7 +25,9 @@ interface State {
 
 const TAB_CONFIG = [
   { title: "首页", icon: HomeIcon, activeIcon: HomeActiveIcon },
+  { title: "发现", icon: DiscoverIcon, activeIcon: DiscoverActiveIcon },
   { title: "", icon: null, activeIcon: null },
+  { title: "消息", icon: NotificationIcon, activeIcon: NotificationActiveIcon },
   { title: "我的", icon: UserIcon, activeIcon: UserActiveIcon },
 ];
 
@@ -31,7 +40,7 @@ export default class Index extends Component<{}, State> {
   }
 
   private handleClick(value: number): void {
-    if (value === 1) {
+    if (value === 2) {
       wx.navigateTo({
         url: "/pages/createTopic/index",
         routeType: "wx://upwards",
@@ -53,19 +62,35 @@ export default class Index extends Component<{}, State> {
               </View>
             </Navbar>
           )}
+          {ENABLE_CUSTOM_NAVBAR && this.state.selectedTabIndex === 1 && (
+            <Navbar left>
+              <Text className="navTitle">发现</Text>
+            </Navbar>
+          )}
+          {ENABLE_CUSTOM_NAVBAR && this.state.selectedTabIndex === 3 && (
+            <Navbar left>
+              <Text className="navTitle">消息</Text>
+            </Navbar>
+          )}
           <View className="tabContent">
             <View style={{ display: this.state.selectedTabIndex === 0 ? 'block' : 'none', height: '100%' }}>
               <Topics />
             </View>
-            <View style={{ display: this.state.selectedTabIndex === 2 ? 'block' : 'none', height: '100%' }}>
-              <Me active={this.state.selectedTabIndex === 2} />
+            <View style={{ display: this.state.selectedTabIndex === 1 ? 'block' : 'none', height: '100%' }}>
+              <Discovery active={this.state.selectedTabIndex === 1} />
+            </View>
+            <View style={{ display: this.state.selectedTabIndex === 3 ? 'block' : 'none', height: '100%' }}>
+              <Notifications active={this.state.selectedTabIndex === 3} />
+            </View>
+            <View style={{ display: this.state.selectedTabIndex === 4 ? 'block' : 'none', height: '100%' }}>
+              <Me active={this.state.selectedTabIndex === 4} />
             </View>
           </View>
           {!HIDE_TAB && (
             <View className="bottomTab">
               {TAB_CONFIG.map((tab, index) => {
                 const active = this.state.selectedTabIndex === index;
-                if (index === 1) {
+                if (index === 2) {
                   return (
                     <View key={index} className="tabItem tabItem--add" onClick={() => this.handleClick(index)}>
                       <ShareElement mapkey="create_topic_btn">
@@ -84,6 +109,7 @@ export default class Index extends Component<{}, State> {
             </View>
           )}
         </View>
+        <AddToDesktopGuide />
       </>
     );
   }

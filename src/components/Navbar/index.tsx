@@ -13,11 +13,12 @@ interface Props {
   scrollProgress?: number;
   workletDriven?: boolean;
   titleStyle?: React.CSSProperties;
+  left?: boolean;
   children?: React.ReactNode;
 }
 
 const Navbar = (props: Props) => {
-  const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, children } = props;
+  const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, left = false, children } = props;
   const { capsulePaddingTop, capsuleHeight, capsuleWidth, capsuleLeft, screenWidth, statusBarHeight, marginSides } = getNavInfo();
   const paddingRight = screenWidth - capsuleLeft;
   const singleBtnWidth = (capsuleWidth - 0.5) / 2;
@@ -73,7 +74,7 @@ const Navbar = (props: Props) => {
             </View>
           </View>
         )}
-        <View className="navContent" style={{ height: capsuleHeight + "px" }}>
+        <View className={`navContent ${left ? 'navContent--left' : ''}`} style={{ height: capsuleHeight + "px" }}>
           {title && !children && (
             <Text className="navTitle" style={titleStyle}>{title}</Text>
           )}

@@ -6,19 +6,16 @@ type WhitelistEntry = {
   mode: "webview" | "summary";
 };
 
-const DOMAIN_WHITELIST: Record<string, WhitelistEntry> = {
-  "github.com": { mode: "webview" },
-  "twitter.com": { mode: "summary" },
-  "x.com": { mode: "summary" },
-  "youtube.com": { mode: "summary" },
+export const DOMAIN_WHITELIST: Record<string, WhitelistEntry> = {
+  "github.com": { mode: "summary" },
   "bilibili.com": { mode: "summary" },
   "www.bilibili.com": { mode: "summary" },
-  "zhihu.com": { mode: "webview" },
-  "www.zhihu.com": { mode: "webview" },
-  "juejin.cn": { mode: "webview" },
-  "segmentfault.com": { mode: "webview" },
-  "www.segmentfault.com": { mode: "webview" },
+  "zhihu.com": { mode: "summary" },
+  "www.zhihu.com": { mode: "summary" },
+  "juejin.cn": { mode: "summary" },
   "mp.weixin.qq.com": { mode: "summary" },
+  "www.toutiao.com": { mode: "summary" },
+  "www.xiaohongshu.com": { mode: "summary" },
 };
 
 function resolveGuozaokeLink(pathname: string): string | null {
@@ -45,6 +42,10 @@ export function linkHandler(href: string) {
       if (miniPath) {
         Taro.navigateTo({ url: miniPath });
         return;
+      } else {
+        Taro.navigateTo({
+          url: `/pages/webview/index?url=${encodeURIComponent(href)}`,
+        });
       }
     }
 
@@ -80,4 +81,23 @@ export function isWhitelistedDomain(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function extractSummaryUrl(text: string): string | null {
+  const urlRegex = /https?:\/\/[^\s<>"']+/g;
+  const matches = text.match(urlRegex);
+  if (!matches) return null;
+  const summaryDomains = Object.entries(DOMAIN_WHITELIST)
+    .filter(([, v]) => v.mode === "summary")
+    .map(([k]) => k);
+  for (const raw of matches) {
+    const cleaned = raw.replace(/[.,;:!?)\]}>]+$/, "");
+    try {
+      const parsed = new URL(cleaned);
+      if (summaryDomains.some((d) => parsed.hostname === d || parsed.hostname.endsWith(`.${d}`))) {
+        return cleaned;
+      }
+    } catch {}
+  }
+  return null;
 }

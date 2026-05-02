@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Image, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { UserProfile, URLS, urlPathVaiable } from "guanggu-forum-api";
+import { UserProfile, URLS, urlPathVaiable, getUserFavorites, FavoriteTopic } from "guanggu-forum-api";
 import { getFromLocalCache } from "../../utils/localAssets";
 import Tag from "../Tag";
 import NodeIcon from "../../assets/topic_node.svg";
 import CommentIcon from "../../assets/comment.svg";
+import Loading from "../Loading";
 import "./index.scss";
 
 interface Props {
@@ -24,6 +25,17 @@ type TabKey = (typeof TAB_LIST)[number]["key"];
 
 export default function UserProfileDetail({ profile, actions, navPaddingTop }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("topics");
+  const [favorites, setFavorites] = useState<FavoriteTopic[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "favorites" && favorites.length === 0) {
+      setFavoritesLoading(true);
+      getUserFavorites({ username: profile.username })
+        .then(setFavorites)
+        .finally(() => setFavoritesLoading(false));
+    }
+  }, [activeTab, profile.username]);
 
   const navigateToTopic = (link: string) => {
     const tid = urlPathVaiable(URLS.TOPIC_DETAIL)(link)?.params?.tid;
@@ -192,9 +204,40 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
               <View className="emptyTip">暂无回复</View>
             ))}
 
-          {activeTab === "favorites" && (
-            <View className="emptyTip">暂无收藏</View>
-          )}
+          {activeTab === "favorites" &&
+            (favoritesLoading ? (
+              <Loading />
+            ) : favorites.length > 0 ? (
+              favorites.map((topic, idx) => (
+                <View
+                  key={idx}
+                  className="topicItem"
+                  onClick={() => navigateToTopic(topic.link)}
+                >
+                  <View className="topicTitle">{topic.title}</View>
+                  <View className="topicMeta">
+                    <Tag
+                      onClick={(e) => {
+                        e?.stopPropagation?.();
+                        navigateToNode(`/node/${topic.category}`, topic.category);
+                      }}
+                    >
+                      <Image src={NodeIcon} svg className="tagIcon" />
+                      <View style={{ display: "inline-block" }}>{topic.category}</View>
+                    </Tag>
+                    <Text className="topicTime">
+                      {topic.lastUpdated}
+                    </Text>
+                    <View className="topicCommentCount">
+                      <Image src={CommentIcon} svg />
+                      <Text>{topic.commentCount || 0}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View className="emptyTip">暂无收藏</View>
+            ))}
         </View>
       </View>
     </View>

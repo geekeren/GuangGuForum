@@ -61,6 +61,10 @@
     justify-content: center;
     overflow: hidden;
     gap: 16rpx;
+
+    &--left {
+      justify-content: flex-start;
+    }
   }
 
   .navTitle {
