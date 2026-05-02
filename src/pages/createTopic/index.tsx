@@ -1,7 +1,8 @@
 import { View, Text, Textarea, Input, Picker, Radio, RadioGroup, Image, ScrollView } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useState, useEffect, useRef } from "react";
-import { createTopic, NodeGroup, fetchLinkSummary, LinkSummary } from "guanggu-forum-api";
+import { createTopic, fetchLinkSummary } from "guanggu-forum-api";
+import type { NodeGroup, LinkSummary } from "guanggu-forum-api";
 import {
   getCachedNodeNavigation,
   fetchAndCacheNodeNavigation,
@@ -11,6 +12,9 @@ import { getCachedUsername } from "../../utils/currentUser";
 import { openLoginModal } from "../../utils/auth";
 import { ClearableInput, ClearableTextarea } from "../../components/ClearableInput";
 import Navbar from "../../components/Navbar";
+import LinkPreviewCard from "../../components/LinkPreviewCard";
+import MarkdownRender from "../../components/MarkdownRender";
+import { htmlToMarkdown } from "../../utils/htmlToMarkdown";
 import { BRAND_COLOR } from "../../utils/theme";
 import "./index.scss";
 
@@ -59,9 +63,13 @@ export default function CreateTopic() {
   const [thumbnail, setThumbnail] = useState("");
   const [clipLoading, setClipLoading] = useState(false);
   const [repostPreview, setRepostPreview] = useState<LinkSummary | null>(null);
-  // 活动专用
-  const [eventTime, setEventTime] = useState("");
+  const [fullRepost, setFullRepost] = useState(true);
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [previewClosing, setPreviewClosing] = useState(false);
+  const [eventDate, setEventDate] = useState("");
+  const [eventHour, setEventHour] = useState("");
   const [eventLocation, setEventLocation] = useState("");
+  const eventTime = [eventDate, eventHour].filter(Boolean).join(" ");
   // 相亲专用
   const [gender, setGender] = useState("");
   const [birthYear, setBirthYear] = useState("");
@@ -154,7 +162,11 @@ export default function CreateTopic() {
       if (d.sourceTitle) setSourceTitle(d.sourceTitle);
       if (d.summary) setSummary(d.summary);
       if (d.thumbnail) setThumbnail(d.thumbnail);
-      if (d.eventTime) setEventTime(d.eventTime);
+      if (d.eventDate) setEventDate(d.eventDate);
+      if (d.eventHour) setEventHour(d.eventHour);
+      if (d.fullRepost !== undefined) setFullRepost(d.fullRepost);
+      if (d.eventDate) setEventDate(d.eventDate);
+      if (d.eventHour) setEventHour(d.eventHour);
       if (d.eventLocation) setEventLocation(d.eventLocation);
       if (d.gender) setGender(d.gender);
       if (d.birthYear) setBirthYear(d.birthYear);
@@ -174,14 +186,15 @@ export default function CreateTopic() {
         Taro.setStorageSync(DRAFT_KEY, JSON.stringify({
           savedAt,
           topicType, title, content, selectedNodeSlug,
-          sourceUrl, sourceTitle, summary, thumbnail,
-          eventTime, eventLocation, gender, birthYear, requirements,
+          sourceUrl, sourceTitle, summary, thumbnail, eventDate, eventHour, eventLocation, fullRepost,
+          sourceUrl, sourceTitle, summary, thumbnail, eventDate, eventHour, eventLocation, fullRepost,
+          gender, birthYear, requirements,
         }));
         setDraftSavedAt(savedAt);
       } catch {}
     }, 800);
     return () => clearTimeout(timer);
-  }, [draftRestored, topicType, title, content, selectedNodeSlug, sourceUrl, sourceTitle, summary, thumbnail, eventTime, eventLocation, gender, birthYear, requirements]);
+  }, [draftRestored, topicType, title, content, selectedNodeSlug, sourceUrl, sourceTitle, summary, thumbnail, eventDate, eventHour, eventLocation, fullRepost, gender, birthYear, requirements]);
 
   const clearForm = () => {
     setTitle("");
@@ -190,7 +203,9 @@ export default function CreateTopic() {
     setSourceTitle("");
     setSummary("");
     setThumbnail("");
-    setEventTime("");
+    setFullRepost(true);
+    setEventDate("");
+    setEventHour("");
     setEventLocation("");
     setGender("");
     setBirthYear("");
@@ -267,9 +282,17 @@ export default function CreateTopic() {
     if (parts.length) setSourceTitle(parts.join(" - "));
     if (info.title) setTitle(info.title);
     if (info.image) setThumbnail(info.image);
-    if (info.bodyText || info.description) {
-      const fullText = info.bodyText || info.description;
-      setSummary(fullText.slice(0, 400));
+    if (info.bodyHtml) {
+      const md = htmlToMarkdown(info.bodyHtml);
+      if (fullRepost) {
+        setSummary(md);
+      } else {
+        const noImages = md.replace(/!\[[^\]]*\]\([^)]+\)\s*/g, "");
+        const lines = noImages.split("\n").filter((l) => l.trim());
+        setSummary(lines.slice(0, 10).join("\n") + (lines.length > 10 ? "\n......" : ""));
+      }
+    } else if (info.bodyText || info.description) {
+      setSummary((info.bodyText || info.description).slice(0, 400));
     }
     setContent("大家怎么看");
     setRepostPreview(null);
@@ -308,65 +331,81 @@ export default function CreateTopic() {
       case "repost": {
         const thumbPart = thumbnail ? `![缩略图](${thumbnail})\n\n` : "";
         const linkText = sourceTitle || sourceUrl;
-        const summaryPart = summary ? `，摘要：${summary.slice(0, 400)}…` : "";
+        if (fullRepost && summary) {
+          return `${thumbPart}> 转载自 [${linkText}](${sourceUrl})\n\n${summary}\n\n${content}${FROM_MINI}`;
+        }
+        const summaryPart = summary ? `\n\n**下面是摘要：**\n\n${summary}` : "";
         return `${thumbPart}> 转载自 [${linkText}](${sourceUrl})${summaryPart}\n\n${content}${FROM_MINI}`;
       }
       case "event": {
-        return `- 时间：${eventTime}\n- 地点：${eventLocation}\n\n${content}${FROM_MINI}`;
+        return `## 📅 活动信息\n\n- 时间：${eventTime}\n- 地点：${eventLocation}\n\n## 📋 活动详情\n\n${content}${FROM_MINI}`;
       }
       case "dating": {
-        return `- 性别：${gender}\n- 年龄：${age}\n\n**期望：**\n${requirements}\n\n**自我介绍：**\n${content}${FROM_MINI}`;
+        return `## 👤 基本信息\n\n- 性别：${gender}\n- 年龄：${age}\n\n## 💕 期望\n\n${requirements}\n\n## ✍️ 自我介绍\n\n${content}\n\n\n\n${FROM_MINI}`;
       }
       default:
         return `${content}${FROM_MINI}`;
     }
   };
 
-  const handleSubmit = async () => {
+  const validateForm = (): string | null => {
     if (!getCachedUsername()) {
       openLoginModal();
-      return;
+      return null;
     }
     const resolvedNode = nodeLocked ? currentTypeConfig.node : selectedNodeSlug;
     if (!resolvedNode) {
       Taro.showToast({ title: "请选择板块", icon: "none" });
-      return;
+      return null;
     }
     if (!title.trim()) {
       Taro.showToast({ title: "请输入标题", icon: "none" });
-      return;
+      return null;
     }
     const finalContent = buildContent().trim();
     if (!finalContent) {
       Taro.showToast({ title: "请输入内容", icon: "none" });
-      return;
+      return null;
     }
     if (topicType === "repost" && !sourceUrl.trim()) {
       Taro.showToast({ title: "请填写原文链接", icon: "none" });
-      return;
+      return null;
     }
     if (topicType === "event" && (!eventTime.trim() || !eventLocation.trim())) {
       Taro.showToast({ title: "请填写活动时间和地点", icon: "none" });
-      return;
+      return null;
     }
     if (topicType === "dating" && (!gender.trim() || !age.trim())) {
       Taro.showToast({ title: "请填写基本信息", icon: "none" });
-      return;
+      return null;
     }
-    if (DEBUG) {
-      console.log("=== 生成内容 ===", finalContent);
-      Taro.showModal({
-        title: "生成内容预览",
-        content: finalContent,
-        showCancel: false,
-      });
-      return;
-    }
+    return finalContent;
+  };
+
+  const handleSubmit = () => {
+    const finalContent = validateForm();
+    if (!finalContent) return;
+    setPreviewContent(finalContent);
+  };
+
+  const closePreview = () => {
+    setPreviewClosing(true);
+    setTimeout(() => {
+      setPreviewContent(null);
+      setPreviewClosing(false);
+    }, 250);
+  };
+
+  const confirmSubmit = async () => {
+    const finalContent = previewContent;
+    if (!finalContent) return;
+    const resolvedNode = nodeLocked ? currentTypeConfig.node : selectedNodeSlug;
+    setPreviewContent(null);
     setSubmitting(true);
     Taro.showLoading({ title: "发布中...", mask: true });
     try {
       await createTopic({
-        node: resolvedNode,
+        node: resolvedNode!,
         title: title.trim(),
         content: finalContent,
       });
@@ -494,12 +533,24 @@ export default function CreateTopic() {
               <Text className="fieldLabel">活动时间</Text>
               <Picker
                 mode="date"
-                value={eventTime || formatDate(new Date())}
-                onChange={(e) => setEventTime(e.detail.value)}
+                value={eventDate || formatDate(new Date())}
+                onChange={(e) => setEventDate(e.detail.value)}
               >
                 <View className="fieldPicker">
-                  <Text className={eventTime ? "fieldPickerText" : "fieldPickerText fieldPickerText--placeholder"}>
-                    {eventTime || "选择日期"}
+                  <Text className={eventDate ? "fieldPickerText" : "fieldPickerText fieldPickerText--placeholder"}>
+                    {eventDate || "选择日期"}
+                  </Text>
+                  <Text className="fieldPickerArrow">▼</Text>
+                </View>
+              </Picker>
+              <Picker
+                mode="time"
+                value={eventHour || "09:00"}
+                onChange={(e) => setEventHour(e.detail.value)}
+              >
+                <View className="fieldPicker">
+                  <Text className={eventHour ? "fieldPickerText" : "fieldPickerText fieldPickerText--placeholder"}>
+                    {eventHour || "选择时间"}
                   </Text>
                   <Text className="fieldPickerArrow">▼</Text>
                 </View>
@@ -703,7 +754,7 @@ export default function CreateTopic() {
           className={`submitBtn ${submitting ? "submitBtn--disabled" : ""}`}
           onClick={handleSubmit}
         >
-          <Text className="submitBtnText">{submitting ? "发布中..." : "发布"}</Text>
+          <Text className="submitBtnText">{submitting ? "发布中..." : "预览"}</Text>
         </View>
       </View>
 
@@ -717,41 +768,51 @@ export default function CreateTopic() {
               </View>
             </View>
             <Text className="repostSheetHint">已读取剪贴板中的链接</Text>
-            <ScrollView scrollY className="repostSheetScroll">
-              <View className="previewCard">
-                {repostPreview.image && (
-                  <View className="previewBanner">
-                    <Image className="previewBannerImg" src={repostPreview.image} mode="aspectFill" />
-                  </View>
-                )}
-                <View className="previewBody">
-                  <View className="previewSite">
-                    {repostPreview.favicon ? (
-                      <Image className="previewFavicon" src={repostPreview.favicon} />
-                    ) : (
-                      <View className="previewFaviconPlaceholder">
-                        <Text className="previewFaviconText">{(repostPreview.siteName || sourceUrl)[0]}</Text>
-                      </View>
-                    )}
-                    <Text className="previewSiteName">
-                      {repostPreview.siteName || sourceUrl}
-                    </Text>
-                  </View>
-                  {repostPreview.title && (
-                    <Text className="previewTitle" numberOfLines={2}>{repostPreview.title}</Text>
-                  )}
-                  {(repostPreview.bodyText || repostPreview.description) && (
-                    <Text className="previewBodyText" numberOfLines={5}>{repostPreview.bodyText || repostPreview.description}</Text>
-                  )}
+            <View className="repostSheetOptions">
+              <View className="repostCheckbox" onClick={() => setFullRepost(!fullRepost)}>
+                <View className={`repostCheckboxBox${fullRepost ? " repostCheckboxBox--checked" : ""}`}>
+                  {fullRepost && <Text className="repostCheckboxTick">✓</Text>}
                 </View>
+                <Text className="repostCheckboxLabel">原文转载</Text>
               </View>
+              <Text className="repostCheckboxDesc">{fullRepost ? "转载完整正文内容" : "仅转载文章摘要"}</Text>
+            </View>
+            <ScrollView scrollY className="repostSheetScroll">
+              <LinkPreviewCard summary={repostPreview} url={sourceUrl} />
             </ScrollView>
             <View className="repostSheetActions">
               <View className="repostSheetCancel" onClick={cancelRepost}>
                 <Text className="repostSheetCancelText">取消</Text>
               </View>
               <View className="repostSheetConfirm" onClick={confirmRepost}>
-                <Text className="repostSheetConfirmText">转载此文章</Text>
+                <Text className="repostSheetConfirmText">{fullRepost ? "原文转载" : "转载摘要"}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {previewContent && (
+        <View className={`repostMask${previewClosing ? " repostMask--closing" : ""}`} onClick={closePreview}>
+          <View className={`repostSheet${previewClosing ? " repostSheet--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
+            <View className="repostSheetHeader">
+              <Text className="repostSheetTitle">预览</Text>
+              <View className="repostSheetClose" onClick={closePreview}>
+                <Text className="repostSheetCloseText">✕</Text>
+              </View>
+            </View>
+            <ScrollView scrollY className="repostSheetScroll" style={{ height: "calc(80vh - 200rpx - env(safe-area-inset-bottom))" }}>
+              <View className="previewContentWrap">
+                <Text className="previewContentTitle">{title.trim()}</Text>
+                <MarkdownRender content={previewContent} />
+              </View>
+            </ScrollView>
+            <View className="repostSheetActions">
+              <View className="repostSheetCancel" onClick={closePreview}>
+                <Text className="repostSheetCancelText">取消</Text>
+              </View>
+              <View className="repostSheetConfirm" onClick={confirmSubmit}>
+                <Text className="repostSheetConfirmText">确认发布</Text>
               </View>
             </View>
           </View>

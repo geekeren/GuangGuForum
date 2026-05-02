@@ -1,25 +1,30 @@
-import { Image, ScrollView, Text, View } from "@tarojs/components";
+import { View, ScrollView, Text } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useEffect, useState } from "react";
-import { fetchLinkSummary, LinkSummary } from "guanggu-forum-api";
+import { fetchLinkSummary } from "guanggu-forum-api";
+import type { LinkSummary } from "guanggu-forum-api";
 import Navbar from "../../components/Navbar";
 import Loading from "../../components/Loading";
+import LinkPreviewCard from "../../components/LinkPreviewCard";
 import { withCache } from "../../utils/cacheRequest";
 import { isSkyline } from "../../utils/renderer";
 import "./index.scss";
-
-function getHostname(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
-}
 
 export default function LinkPreview() {
   const router = useRouter();
   const url = decodeURIComponent(router.params.url || "");
   const [summary, setSummary] = useState<LinkSummary | null>(null);
+  const [scrollHeight, setScrollHeight] = useState("auto");
+
+  useEffect(() => {
+    const sys = Taro.getSystemInfoSync();
+    const statusBarH = sys.statusBarHeight || 0;
+    const navH = 44 + statusBarH;
+    const safeBottom = sys.safeArea ? sys.screenHeight - sys.safeArea.bottom : 0;
+    const btnWrapH = 16 + 20 + 16 + 40 + 20 + safeBottom;
+    const available = sys.windowHeight - navH - btnWrapH;
+    setScrollHeight(`${available}px`);
+  }, []);
 
   useEffect(() => {
     if (!url) return;
@@ -39,46 +44,18 @@ export default function LinkPreview() {
     });
   };
 
-  const displayTitle = summary?.title || getHostname(url);
+  const displayTitle = summary?.title || (() => { try { return new URL(url).hostname; } catch { return url; } })();
 
   return (
     <View className="linkPreviewPage">
       <Navbar back modal={isSkyline()} title={displayTitle} />
-      <View className="linkPreviewContent">
+      <ScrollView scrollY style={{ height: scrollHeight }} className="linkPreviewContent">
         {summary ? (
-          <ScrollView scrollY style={{ height: "100%" }} className="linkPreviewScroll">
-            <View className="previewCard">
-              {summary.image && (
-                <View className="previewBanner">
-                  <Image className="previewBannerImg" src={summary.image} mode="aspectFill" />
-                </View>
-              )}
-              <View className="previewBody">
-                <View className="previewSite">
-                  {summary.favicon ? (
-                    <Image className="previewFavicon" src={summary.favicon} />
-                  ) : (
-                    <View className="previewFaviconPlaceholder">
-                      <Text className="previewFaviconText">{(summary.siteName || getHostname(url))[0]}</Text>
-                    </View>
-                  )}
-                  <Text className="previewSiteName">
-                    {summary.siteName || getHostname(url)}
-                  </Text>
-                </View>
-                {summary.title && (
-                  <Text className="previewTitle" numberOfLines={2}>{summary.title}</Text>
-                )}
-                {(summary.bodyText || summary.description) && (
-                  <Text className="previewBodyText" numberOfLines={5}>{summary.bodyText || summary.description}</Text>
-                )}
-              </View>
-            </View>
-          </ScrollView>
+          <LinkPreviewCard summary={summary} url={url} />
         ) : (
           <Loading />
         )}
-      </View>
+      </ScrollView>
       <View className="copyBtnWrap">
         <View className="sheetTip">
           <Text className="sheetTipText">小程序无法直接打开外部链接，请复制后在浏览器中访问</Text>

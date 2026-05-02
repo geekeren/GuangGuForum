@@ -1,5 +1,6 @@
 import Taro from "@tarojs/taro";
 import { parse, HTMLElement } from "node-html-parser";
+import { matchContentRule } from "./linkContentRules";
 
 export interface LinkSummary {
   title: string;
@@ -67,11 +68,11 @@ function extractSiteName(doc: HTMLElement): string {
   return metaContent(doc, "og:site_name") || "";
 }
 
-function extractBodyText(doc: HTMLElement): string {
-  const body = doc.querySelector("body");
-  if (!body) return "";
+function extractBodyText(doc: HTMLElement, rootSelector?: string): string {
+  const root = (rootSelector && doc.querySelector(rootSelector)) || doc.querySelector("body");
+  if (!root) return "";
 
-  const clone = parse(body.innerHTML);
+  const clone = parse(root.innerHTML);
   clone.querySelectorAll("script, style, noscript, nav, header, footer, aside").forEach((el) => el.remove());
 
   const text = (clone.structuredText || clone.textContent || "")
@@ -86,15 +87,11 @@ function extractBodyText(doc: HTMLElement): string {
   return text;
 }
 
-function extractBodyHtml(html: string): string {
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-  const raw = bodyMatch ? bodyMatch[1] : html;
-  return raw
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
-    .replace(/display\s*:\s*none\s*;?/gi, "")
-    .trim();
+function extractBodyHtml(doc: HTMLElement, rootSelector?: string): string {
+  const root = (rootSelector && doc.querySelector(rootSelector)) || doc.querySelector("body");
+  if (!root) return "";
+  root.querySelectorAll("script, style, noscript").forEach((el) => el.remove());
+  return root.innerHTML.trim();
 }
 
 function parseSummary(html: string, url: string): LinkSummary {
@@ -102,14 +99,30 @@ function parseSummary(html: string, url: string): LinkSummary {
   try { origin = new URL(url).origin; } catch {}
 
   const doc = parse(html);
-  const bodyText = extractBodyText(doc);
-  const bodyHtml = extractBodyHtml(html);
+  const rule = matchContentRule(url);
+  const rootSelector = rule?.selector;
+
+  // debug: check if selector matches and what it contains
+  if (rootSelector) {
+    const el = doc.querySelector(rootSelector);
+    console.log("[parseSummary] rule matched:", rootSelector, "found:", !!el, "innerHTML len:", el?.innerHTML?.length || 0);
+    const body = doc.querySelector("body");
+    console.log("[parseSummary] body innerHTML len:", body?.innerHTML?.length || 0);
+    // check if content is in script tags (WeChat stores article HTML in a JS variable)
+    const scripts = doc.querySelectorAll("script");
+    for (const s of scripts) {
+      const text = s.textContent || "";
+      if (text.includes("rich_media_content")) {
+        console.log("[parseSummary] found rich_media_content in script, preview:", text.slice(0, 300));
+      }
+    }
+  }
 
   return {
     title: extractTitle(doc) || url,
     description: extractDescription(doc),
-    bodyText,
-    bodyHtml,
+    bodyText: extractBodyText(doc, rootSelector),
+    bodyHtml: extractBodyHtml(doc, rootSelector),
     image: extractImage(doc),
     favicon: extractFavicon(doc, origin),
     siteName: extractSiteName(doc),

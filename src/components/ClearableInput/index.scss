@@ -3,18 +3,17 @@
 .clearableWrap {
   position: relative;
   width: 100%;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
 
   .clearableControl {
-    flex: 1;
+    width: 100%;
     box-sizing: border-box;
-    min-width: 0;
   }
 
   .clearableBtn {
-    flex-shrink: 0;
+    position: absolute;
+    right: 16rpx;
+    top: 50%;
+    transform: translateY(-50%);
     width: 36rpx;
     height: 36rpx;
     display: flex;
@@ -22,7 +21,6 @@
     justify-content: center;
     border-radius: 50%;
     background: $border-strong;
-    margin-left: 12rpx;
   }
 
   .clearableBtnText {
@@ -32,10 +30,9 @@
   }
 
   &--textarea {
-    align-items: flex-start;
-
     .clearableBtn {
-      margin-top: 28rpx;
+      top: 28rpx;
+      transform: none;
     }
   }
 }

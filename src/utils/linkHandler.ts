@@ -50,6 +50,7 @@ export function linkHandler(href: string) {
     }
 
     const entry = DOMAIN_WHITELIST[parsed.hostname];
+    const isSummary = entry?.mode === "summary";
     if (entry?.mode === "webview") {
       Taro.navigateTo({
         url: `/pages/webview/index?url=${encodeURIComponent(href)}`,
@@ -58,6 +59,7 @@ export function linkHandler(href: string) {
       wx.navigateTo({
         url: `/pages/linkPreview/index?url=${encodeURIComponent(href)}`,
         routeType: "wx://bottom-sheet",
+        routeOptions: { height: isSummary ? "75%" : "40%" },
       });
     }
   } catch {

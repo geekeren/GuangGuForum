@@ -1,0 +1,168 @@
+@import "../../vars.scss";
+
+.markdown-body {
+  font-size: 28rpx;
+  color: $text-sub;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+// Headings
+.md-heading {
+  color: $text-primary;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.md-h1 { font-size: 40rpx; margin: 32rpx 0 16rpx; padding-bottom: 12rpx; border-bottom: 2rpx solid $border-color; }
+.md-h2 { font-size: 36rpx; margin: 28rpx 0 14rpx; padding-bottom: 10rpx; border-bottom: 1rpx solid $border-color; }
+.md-h3 { font-size: 32rpx; margin: 24rpx 0 12rpx; }
+.md-h4 { font-size: 30rpx; margin: 20rpx 0 10rpx; }
+.md-h5 { font-size: 28rpx; margin: 18rpx 0 8rpx; }
+.md-h6 { font-size: 26rpx; margin: 16rpx 0 8rpx; color: $text-muted; }
+
+// Paragraph
+.md-paragraph {
+  margin: 12rpx 0;
+}
+
+// Inline styles
+.md-bold {
+  font-weight: 700;
+  color: $text-primary;
+}
+
+.md-italic {
+  font-style: italic;
+}
+
+.md-strikethrough {
+  text-decoration: line-through;
+  color: $text-muted;
+}
+
+.md-inline-code {
+  background: rgba($color-brand, 0.08);
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  font-size: 24rpx;
+  color: $color-brand-dark;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+
+.md-link {
+  color: $color-brand;
+  font-weight: 500;
+}
+
+.md-image {
+  max-width: 100%;
+  border-radius: $radius-sm;
+  margin: 12rpx auto;
+  display: block;
+}
+
+.md-linked-image {
+  display: flex;
+  justify-content: center;
+}
+
+// HR
+.md-hr {
+  height: 2rpx;
+  background: $border-color;
+  margin: 24rpx 0;
+}
+
+// Blockquote
+.md-blockquote {
+  border-left: 6rpx solid $color-brand;
+  background: rgba($color-brand, 0.06);
+  padding: 12rpx 20rpx;
+  margin: 16rpx 0;
+  border-radius: 0 $radius-sm $radius-sm 0;
+  font-size: 26rpx;
+  color: $text-muted;
+}
+
+// Code block
+.md-code-block {
+  background: $bgColor;
+  border-radius: $radius-sm;
+  padding: 16rpx 20rpx;
+  margin: 16rpx 0;
+  overflow-x: auto;
+}
+
+.md-code-text {
+  font-size: 24rpx;
+  line-height: 1.6;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  color: $text-sub;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+// List
+.md-list {
+  margin: 12rpx 0;
+}
+
+.md-list-item {
+  display: flex;
+  flex-direction: row;
+  padding: 4rpx 0;
+  line-height: 1.6;
+}
+
+.md-list-bullet {
+  flex-shrink: 0;
+  width: 40rpx;
+  color: $color-brand;
+  font-weight: 600;
+  font-size: 24rpx;
+}
+
+.md-list-content {
+  flex: 1;
+  min-width: 0;
+}
+
+// Table
+.md-table {
+  width: 100%;
+  margin: 16rpx 0;
+  border: 1rpx solid $border-color;
+  border-radius: $radius-sm;
+  overflow: hidden;
+}
+
+.md-table-header {
+  display: flex;
+  flex-direction: row;
+  background: $surfaceAlt;
+}
+
+.md-table-row {
+  display: flex;
+  flex-direction: row;
+  border-top: 1rpx solid $border-color;
+
+  &:nth-child(2n) {
+    background: $bgColor;
+  }
+}
+
+.md-table-cell {
+  flex: 1;
+  padding: 10rpx 16rpx;
+  font-size: 24rpx;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.md-table-header-cell {
+  font-weight: 600;
+  color: $text-primary;
+}

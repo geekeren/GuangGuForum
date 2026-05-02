@@ -8,118 +8,13 @@
   border-radius: 24rpx 24rpx 0 0;
 
   .linkPreviewContent {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .linkPreviewScroll {
     width: 100%;
     padding: 16rpx 32rpx;
     box-sizing: border-box;
   }
 
-  .previewCard {
-    background: $bgColor;
-    border-radius: $radius-lg;
-    overflow: hidden;
-    width: 100%;
-    box-sizing: border-box;
-
-    .previewBanner {
-      width: 100%;
-      height: 280rpx;
-      background: $surfaceAlt;
-      overflow: hidden;
-
-      .previewBannerImg {
-        width: 100%;
-        height: 100%;
-      }
-    }
-
-    .previewBody {
-      padding: 20rpx 24rpx;
-      display: flex;
-      flex-direction: column;
-      gap: 10rpx;
-    }
-
-    .previewSite {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 8rpx;
-
-      .previewFavicon {
-        width: 32rpx;
-        height: 32rpx;
-        border-radius: 6rpx;
-        flex-shrink: 0;
-      }
-
-      .previewFaviconPlaceholder {
-        width: 32rpx;
-        height: 32rpx;
-        border-radius: 6rpx;
-        background: $color-brand-soft;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        .previewFaviconText {
-          font-size: 20rpx;
-          color: $color-brand;
-          font-weight: 700;
-          text-transform: uppercase;
-        }
-      }
-
-      .previewSiteName {
-        font-size: 22rpx;
-        color: $text-faint;
-        font-weight: 500;
-      }
-    }
-
-    .previewTitle {
-      font-size: 30rpx;
-      font-weight: 600;
-      color: $text-primary;
-      line-height: 1.5;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-    }
-
-    .previewDesc {
-      font-size: 24rpx;
-      color: $text-muted;
-      line-height: 1.65;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    .previewBodyText {
-      font-size: 24rpx;
-      color: $text-sub;
-      line-height: 1.7;
-      display: -webkit-box;
-      -webkit-line-clamp: 5;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      padding-top: 8rpx;
-      border-top: 1rpx solid $border-color;
-    }
-  }
-
   .copyBtnWrap {
+    flex-shrink: 0;
     padding: 16rpx 32rpx;
     padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
     border-top: 1rpx solid $border-color;

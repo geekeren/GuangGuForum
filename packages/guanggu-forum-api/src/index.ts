@@ -11,6 +11,7 @@ export * from "./node/getNodeNavigation";
 export * from "./user/getUserProfile";
 export * from "./user/getUserFavorites";
 export * from "./link/getLinkSummary";
+export * from "./link/linkContentRules";
 export * from "./notification/getNotifications";
 export * from "./discovery/index";
 export * from "./utils/urls";
