@@ -1,4 +1,4 @@
-import { View, Text, Image, Button, Switch } from "@tarojs/components";
+import { View, Text, Image, Button, Switch, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useState, useEffect, useRef } from "react";
 import Navbar from "../../components/Navbar";
@@ -7,7 +7,7 @@ import ArrowRightIcon from "../../assets/arrow-right.svg";
 import { linkHandler } from "../../utils/linkHandler";
 import { getCachedUsername } from "../../utils/currentUser";
 import { cacheService, CacheCategory, type CategoryStats } from "../../utils/CacheService";
-import AddToDesktopGuide from "../../components/AddToDesktopGuide";
+import AddToDesktopGuide, { checkMiniProgramAdded } from "../../components/AddToDesktopGuide";
 import "./index.scss";
 
 const FEEDBACK_URL = "https://www.guozaoke.com/t/91893";
@@ -27,6 +27,7 @@ type MenuItem = {
   switchValue?: boolean;
   onSwitchChange?: (value: boolean) => void;
   switchDesc?: string;
+  statusTag?: string;
 };
 
 function isAdDisabled(): boolean {
@@ -35,6 +36,7 @@ function isAdDisabled(): boolean {
 
 export default function Settings() {
   const [showGuide, setShowGuide] = useState(false);
+  const [miniProgramAdded, setMiniProgramAdded] = useState(false);
   const [adEnabled, setAdEnabled] = useState(!isAdDisabled());
   const [adLoading, setAdLoading] = useState(false);
   const videoAdRef = useRef<Taro.RewardedVideoAd | null>(null);
@@ -103,6 +105,10 @@ export default function Settings() {
     }
   };
 
+  const handleAddToMiniProgram = () => {
+    setShowGuide(true);
+  };
+
   const [cacheStats, setCacheStats] = useState<CategoryStats[]>([]);
 
   const refreshCacheStats = () => {
@@ -110,6 +116,7 @@ export default function Settings() {
   };
 
   Taro.useDidShow(() => {
+    checkMiniProgramAdded().then(setMiniProgramAdded);
     refreshCacheStats();
   });
 
@@ -140,12 +147,25 @@ export default function Settings() {
   const handleClearAll = async () => {
     const { confirm } = await Taro.showModal({
       title: "清除缓存",
-      content: "确定要清除所有可清除的缓存吗？登录状态等数据将保留。",
+      content: "确定要清除缓存吗？登录状态等数据将保留。",
     });
     if (confirm) {
       cacheService.clearAll(true);
       refreshCacheStats();
       Taro.showToast({ title: "缓存已清除", icon: "success" });
+    }
+  };
+
+  const handleForceClearAll = async () => {
+    const { confirm } = await Taro.showModal({
+      title: "强制清除所有数据",
+      content: "将清除所有本地数据，包括登录状态和偏好设置，需要重新登录。确定继续？",
+      confirmColor: "#e74c3c",
+    });
+    if (confirm) {
+      cacheService.clearAll(false);
+      refreshCacheStats();
+      Taro.showToast({ title: "所有数据已清除", icon: "success" });
     }
   };
 
@@ -222,15 +242,16 @@ export default function Settings() {
     ],
     [
       // { label: "广告管理", switchControl: true, switchValue: adEnabled, onSwitchChange: handleAdSwitchChange, switchDesc: getAdSwitchDesc(), noArrow: true },
-      { label: "推荐给朋友", shareButton: true, noArrow: true },
-      { label: "添加到桌面", action: handleAddToDesktop, noArrow: true },
+      { label: "推荐给朋友", shareButton: true },
+      { label: "添加到桌面", action: handleAddToDesktop },
+      { label: "添加到我的小程序", action: handleAddToMiniProgram, statusTag: miniProgramAdded ? "已添加" : "未添加" },
     ],
   ];
 
   return (
     <View className="settingsPage">
       <Navbar title="设置" back />
-      <View className="settingsBody">
+      <ScrollView scrollY className="settingsBody" style={{ height: "calc(100vh - 88px)" }}>
         {sections.map((group, gi) => (
           <View className="settingsGroup" key={gi}>
             {group.map((item, ii) => (
@@ -242,6 +263,7 @@ export default function Settings() {
                 {item.shareButton ? (
                   <Button className="settingsItemBtn" open-type="share">
                     <Text className="settingsItemLabel">{item.label}</Text>
+                    <Image src={ArrowRightIcon} svg className="settingsItemArrow" />
                   </Button>
                 ) : item.switchControl ? (
                   <>
@@ -264,9 +286,11 @@ export default function Settings() {
                       <Text className="settingsItemLabel">{item.label}</Text>
                       {item.desc && <Text className="settingsItemDesc">{item.desc}</Text>}
                     </View>
-                    {!item.noArrow && (
+                    {item.statusTag ? (
+                      <Text className={`settingsItemStatusTag ${item.statusTag === "已添加" ? "settingsItemStatusTag--added" : "settingsItemStatusTag--not"}`}>{item.statusTag}</Text>
+                    ) : !item.noArrow ? (
                       <Image src={ArrowRightIcon} svg className="settingsItemArrow" />
-                    )}
+                    ) : null}
                   </>
                 )}
               </View>
@@ -276,7 +300,7 @@ export default function Settings() {
 
         <View className="cacheCard">
           <View className="cacheHeader">
-            <Text className="cacheHeaderLabel">本地缓存</Text>
+            <Text className="cacheHeaderLabel">本地数据</Text>
             <Text className="cacheHeaderSize">{formatSize(totalSize)}</Text>
           </View>
           {cacheStats.length > 0 ? (
@@ -302,7 +326,10 @@ export default function Settings() {
             </View>
           )}
           <View className="cacheRow cacheRow--action" onClick={handleClearAll}>
-            <Text className="cacheActionText">清除可清除缓存</Text>
+            <Text className="cacheActionText">清除缓存</Text>
+          </View>
+          <View className="cacheRow cacheRow--action" onClick={handleForceClearAll}>
+            <Text className="cacheActionText" style={{ color: "#e74c3c" }}>清除所有数据</Text>
           </View>
         </View>
 
@@ -317,7 +344,7 @@ export default function Settings() {
         <View className="settingsFooter">
           <Text className="settingsFooterText">过早客 · 武汉本地生活社区</Text>
         </View>
-      </View>
+      </ScrollView>
 
       {showGuide && <AddToDesktopGuide force onClose={() => setShowGuide(false)} />}
     </View>

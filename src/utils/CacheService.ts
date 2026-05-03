@@ -154,6 +154,46 @@ class CacheService implements ICacheService {
     return true;
   }
 
+  async setAsync(
+    key: string,
+    value: any,
+    options: {
+      category: CacheCategory;
+      ttl?: number;
+      priority?: CachePriority;
+    },
+  ): Promise<boolean> {
+    const ttl = options.ttl ?? DEFAULT_TTL;
+    const priority = options.priority ?? "normal";
+    const category = options.category;
+    const clearable = !NON_CLEARABLE_CATEGORIES.has(category);
+    const stored = typeof value === "string" ? value : JSON.stringify(value);
+
+    try {
+      await Taro.setStorage({ key, data: stored });
+    } catch (e) {
+      console.warn("[CacheService] setAsync failed, evicting and retrying", key, e);
+      this.evict(clearable ? 0.2 : 0.1);
+      try {
+        await Taro.setStorage({ key, data: stored });
+      } catch (e2) {
+        console.warn("[CacheService] setAsync retry failed", key, e2);
+        return false;
+      }
+    }
+
+    this.saveMeta(key, {
+      key,
+      size: this.approxSize(stored),
+      createdAt: Date.now(),
+      expiresAt: Date.now() + ttl,
+      priority,
+      category,
+    });
+    this.trackKey(key);
+    return true;
+  }
+
   remove(key: string, force = false) {
     if (!force) {
       const meta = this.getMeta(key);
@@ -227,14 +267,19 @@ class CacheService implements ICacheService {
   }
 
   clearAll(onlyClearable = true): number {
-    const metas = this.getAllMeta();
-    let removed = 0;
-    for (const meta of metas) {
-      if (onlyClearable && NON_CLEARABLE_CATEGORIES.has(meta.category)) continue;
-      this.remove(meta.key, !onlyClearable);
-      removed++;
+    if (onlyClearable) {
+      const metas = this.getAllMeta();
+      let removed = 0;
+      for (const meta of metas) {
+        if (NON_CLEARABLE_CATEGORIES.has(meta.category)) continue;
+        this.remove(meta.key, false);
+        removed++;
+      }
+      return removed;
     }
-    return removed;
+    Taro.clearStorageSync();
+    this.saveIndex({ keys: [] });
+    return 0;
   }
 
   // ─── Stats ───

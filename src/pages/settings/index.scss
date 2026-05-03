@@ -75,6 +75,24 @@
   opacity: 0.4;
 }
 
+.settingsItemStatusTag {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: $radius-sm;
+  margin-left: 16rpx;
+
+  &--added {
+    color: $color-brand;
+    background: $color-brand-soft;
+  }
+
+  &--not {
+    color: $text-faint;
+    background: $surfaceAlt;
+  }
+}
+
 .settingsItemBtn {
   flex: 1;
   text-align: left;

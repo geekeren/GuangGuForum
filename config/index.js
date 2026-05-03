@@ -16,41 +16,8 @@ const config = {
     options: {},
   },
   framework: "react",
-  compiler: "webpack5",
+  compiler: "vite",
   mini: {
-    experimental: {
-      compileMode: false,
-    },
-    webpackChain(chain) {
-      chain.merge({
-        module: {
-          rule: {
-            myscript: {
-              test: /\.[jt]sx?$/,
-              include: [/packages\//],
-              use: {
-                babelLoader: {
-                  loader: require.resolve("babel-loader"),
-                  options: {
-                    presets: [
-                      [
-                        "taro",
-                        {
-                          framework: "react",
-                          ts: true,
-                        },
-                      ],
-                    ],
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-      // 忽略 CSS 顺序冲突警告
-      chain.set("ignoreWarnings", [/Conflicting order/]);
-    },
     postcss: {
       pxtransform: {
         enable: true,
@@ -70,10 +37,6 @@ const config = {
         },
       },
     },
-    // ...
-    optimizeMainPackage: {
-      enable: false,
-    },
   },
   h5: {
     publicPath: "/",
@@ -89,14 +52,6 @@ const config = {
           namingPattern: "module", // 转换模式，取值为 global/module
           generateScopedName: "[name]__[local]___[hash:base64:5]",
         },
-      },
-    },
-  },
-  rn: {
-    appName: "taroDemo",
-    postcss: {
-      cssModules: {
-        enable: true, // 默认为 false，如需使用 css modules 功能，则设为 true
       },
     },
   },
