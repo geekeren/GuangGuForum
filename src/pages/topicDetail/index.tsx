@@ -46,6 +46,7 @@ import PullDownRefresh, { PullDownRefreshRef } from "../../components/PullDownRe
 import AddToDesktopGuide from "../../components/AddToDesktopGuide";
 import AdBanner from "../../components/AdBanner";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
+import { openLoginModal } from "../../utils/auth";
 
 const Index = () => {
   const [refreshTime, setRefreshTime] = useState<number>(() => Date.now());
@@ -142,8 +143,10 @@ const Index = () => {
   if (!topicDetail) {
     return (
       <View className='topicDetail'>
-        <Navbar back home shareKey="navbar" title='帖子详情' />
-        <Loading fullscreen />
+        <Navbar back home title='帖子详情' />
+        <View style={{ flex: 1, position: 'relative' }}>
+          <Loading fullscreen />
+        </View>
       </View>
     );
   }
@@ -153,13 +156,7 @@ const Index = () => {
 
   const showCommentDialog = (config?: { content: string }) => {
     if (!hasLogin) {
-      wx.navigateTo({
-        url: `/pages/login/index?redirect=${encodeURIComponent(pageUrl)}${isSkyline() ? '&modal=true' : ''}`,
-        routeType: "wx://cupertino-modal",
-        routeOptions: {
-          backgroundColor: "#00000066",
-        },
-      });
+      openLoginModal(pageUrl);
       return;
     }
     setIsCommenting(true);
@@ -174,7 +171,7 @@ const Index = () => {
         <Navbar
           back
           home
-          shareKey="navbar"
+         
           scrollProgress={navScrollProgress}
           title={navScrollProgress <= 0.3 ? '帖子详情' : topicDetail?.title}
           titleStyle={navScrollProgress <= 0.3 ? { opacity: 1 } : {
