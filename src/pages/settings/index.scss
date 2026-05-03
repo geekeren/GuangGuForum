@@ -157,6 +157,16 @@
     }
   }
 
+  &--system {
+    &:active {
+      background: transparent;
+    }
+
+    .cacheRowLabel {
+      color: $text-faint;
+    }
+  }
+
   &--action {
     justify-content: center;
     padding: 28rpx;
@@ -167,9 +177,24 @@
   }
 }
 
+.cacheRowLeft {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12rpx;
+}
+
 .cacheRowLabel {
   font-size: 28rpx;
   color: $text-sub;
+}
+
+.cacheRowHint {
+  font-size: 20rpx;
+  color: $text-faint;
+  background: $surfaceAlt;
+  padding: 2rpx 10rpx;
+  border-radius: $radius-sm;
 }
 
 .cacheRowRight {

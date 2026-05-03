@@ -106,7 +106,7 @@ export default function Settings() {
   const [cacheStats, setCacheStats] = useState<CategoryStats[]>([]);
 
   const refreshCacheStats = () => {
-    setCacheStats(cacheService.getAllCategoryStats().filter((s) => s.category !== CacheCategory.System));
+    setCacheStats(cacheService.getAllCategoryStats());
   };
 
   Taro.useDidShow(() => {
@@ -122,6 +122,10 @@ export default function Settings() {
   const totalSize = cacheStats.reduce((sum, s) => sum + s.size, 0);
 
   const handleClearCategory = async (cat: CacheCategory, label: string) => {
+    if (cat === CacheCategory.System) {
+      Taro.showToast({ title: "包含登录态及系统必须数据，不可删除", icon: "none" });
+      return;
+    }
     const { confirm } = await Taro.showModal({
       title: `清除${label}`,
       content: `确定要清除所有${label}吗？`,
@@ -279,10 +283,13 @@ export default function Settings() {
             cacheStats.map((stat) => (
               <View
                 key={stat.category}
-                className="cacheRow"
+                className={`cacheRow ${stat.category === CacheCategory.System ? "cacheRow--system" : ""}`}
                 onClick={() => handleClearCategory(stat.category, stat.label)}
               >
-                <Text className="cacheRowLabel">{stat.label}</Text>
+                <View className="cacheRowLeft">
+                  <Text className="cacheRowLabel">{stat.label}</Text>
+                  {stat.category === CacheCategory.System && <Text className="cacheRowHint">不可删除</Text>}
+                </View>
                 <View className="cacheRowRight">
                   <Text className="cacheRowSize">{formatSize(stat.size)}</Text>
                   <Text className="cacheRowCount">{stat.count} 项</Text>
