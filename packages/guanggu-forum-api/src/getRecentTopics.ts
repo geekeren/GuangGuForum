@@ -1,5 +1,6 @@
 import { request } from "./client";
 import { DataDom, getDataFromHtml } from "./utils/getDataFromHtml";
+import { ApiOptions, CacheAPIFunc } from "./types";
 
 export interface TopicSummary {
   username: string;
@@ -43,7 +44,7 @@ export const domStructure: DataDom<TopicSummary> = {
     _type: "string",
   },
   userAvatarUrl: {
-    _selector: "a img",
+    _selector: "a img.avatar",
     _attribute: "src",
     _type: "string",
   },
@@ -64,10 +65,12 @@ export interface GetTopicsParam {
   page: number;
 }
 
-export function getRecentTopics(
-  param: GetTopicsParam,
-): Promise<TopicSummary[]> {
+export const getRecentTopics: CacheAPIFunc<GetTopicsParam, TopicSummary[]> = (
+  param,
+  options?,
+) => {
   const { type = "default", page = 1 } = param;
+  const cache = options?.cache ?? true;
 
   const tabUrlValue = {
     default: undefined,
@@ -77,14 +80,15 @@ export function getRecentTopics(
   };
 
   return request("/", {
+    cache,
     query: {
       p: String(page),
       tab: tabUrlValue[type],
     },
-  }).then(({ body, rawRes }) => {
-    return getDataFromHtml(
-      body,
-      domStructure as any,
-    ) as unknown as TopicSummary[];
+    onRefresh: options?.onRefresh
+      ? (body) => options.onRefresh!(getDataFromHtml(body, domStructure) as unknown as TopicSummary[])
+      : undefined,
+  }).then(({ body }) => {
+    return getDataFromHtml(body, domStructure as any) as unknown as TopicSummary[];
   });
-}
+};

@@ -8,7 +8,6 @@ import { getFromLocalCache } from "../../../../utils/localAssets";
 import NodeIcon from "../../../../assets/topic_node.svg";
 import CommentIcon from "../../../../assets/comment.svg";
 import { urlPathVaiable } from "../../../../utils/urls";
-import { withCache } from "../../../../utils/cacheRequest";
 import PullDownRefresh, { PullDownRefreshRef } from "../../../../components/PullDownRefresh";
 
 const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
@@ -69,7 +68,6 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
 });
 
 interface TopicListProps {
-  height: number;
   cacheKey?: string;
   style?: React.CSSProperties;
   getTopics: (page: number) => Promise<TopicSummary[]>;
@@ -93,21 +91,7 @@ export default class TopicList extends Component<TopicListProps, State> {
   }
 
   getRecentTopics(page: number): Promise<TopicSummary[]> {
-    const cacheKey = this.props.cacheKey
-      ? `${this.props.cacheKey}_${page}`
-      : null;
-    const fetcher = () => this.props.getTopics(page);
-    if (cacheKey) {
-      const { cached, refresh } = withCache<TopicSummary[]>(cacheKey, fetcher);
-      if (cached) {
-        this.setState((prev) => ({
-          topics: page === 1 ? cached : prev.topics.concat(cached),
-          loadingPage: page === 1 ? 1 : page,
-        }));
-      }
-      return refresh;
-    }
-    return fetcher();
+    return this.props.getTopics(page);
   }
 
   componentDidMount() {
@@ -140,14 +124,7 @@ export default class TopicList extends Component<TopicListProps, State> {
     if (this.state.topics.length >= 200) return;
     const page = this.state.loadingPage + 1;
     this.loading = true;
-    const fetcher = () => this.props.getTopics(page);
-    const cacheKey = this.props.cacheKey
-      ? `${this.props.cacheKey}_${page}`
-      : null;
-    const doFetch = cacheKey
-      ? withCache<TopicSummary[]>(cacheKey, fetcher).refresh
-      : fetcher();
-    doFetch.then((newTopics) => {
+    this.props.getTopics(page).then((newTopics) => {
       this.loading = false;
       this.setState((prev) => ({
         topics: prev.topics.concat(newTopics),
@@ -172,7 +149,6 @@ export default class TopicList extends Component<TopicListProps, State> {
             showScrollbar
             scrollbarFadingEnabled={false}
             bounces
-            style={{ height: this.props.height + "px" }}
             onScrollToLower={() => this.listReachBottom()}
             lowerThreshold={300}
             onScroll={(e: any) => {

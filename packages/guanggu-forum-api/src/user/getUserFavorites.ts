@@ -1,5 +1,6 @@
 import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
+import { CacheAPIFunc } from "../types";
 
 export interface FavoriteTopic {
   username: string;
@@ -70,16 +71,22 @@ export interface GetUserFavoritesParam {
   page?: number;
 }
 
-export function getUserFavorites(
-  param: GetUserFavoritesParam,
-): Promise<FavoriteTopic[]> {
+export const getUserFavorites: CacheAPIFunc<GetUserFavoritesParam, FavoriteTopic[]> = (
+  param,
+  options?,
+) => {
   const { username, page = 1 } = param;
+  const cache = options?.cache ?? true;
 
   return request(`/u/${username}/favorites`, {
+    cache,
     query: {
       p: String(page),
     },
+    onRefresh: options?.onRefresh
+      ? (body) => options.onRefresh!(getDataFromHtml(body, domStructure) as unknown as FavoriteTopic[])
+      : undefined,
   }).then(({ body }) => {
     return getDataFromHtml(body, domStructure) as unknown as FavoriteTopic[];
   });
-}
+};

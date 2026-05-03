@@ -1,48 +1,27 @@
 import { View, Image, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { getNotifications, Notification } from "guanggu-forum-api";
 import { getCachedUsername } from "../../../utils/currentUser";
-import { withCache } from "../../../utils/cacheRequest";
 import HtmlRender from "../../../components/HtmlRender";
 import Loading from "../../../components/Loading";
 import LoginPrompt from "../../../components/LoginPrompt";
+import { useDataWithCache } from "../../../hooks/useDataWithCache";
 import "./index.scss";
 
 const Notifications = ({ active }: { active?: boolean }) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const fetchNotifications = () => {
-    if (!getCachedUsername()) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const { cached, refresh } = withCache<Notification[]>(
-      "notifications",
-      () => getNotifications({ page: 1 }),
-    );
-    if (cached) {
-      setNotifications(cached);
-      setLoading(false);
-    }
-    refresh.then((data) => {
-      setNotifications(data);
-      setLoading(false);
-    });
-  };
+  const isLoggedIn = !!getCachedUsername();
+  const { data: notifications, loading, request: fetchNotifications } = useDataWithCache(getNotifications);
 
   useEffect(() => {
-    fetchNotifications();
+    if (isLoggedIn) fetchNotifications({ page: 1 });
   }, []);
 
   useEffect(() => {
-    if (active) fetchNotifications();
-  }, [active, refreshKey]);
+    if (active && isLoggedIn) fetchNotifications({ page: 1 });
+  }, [active]);
 
-  if (!getCachedUsername()) {
+  if (!isLoggedIn) {
     return (
       <View className="notificationsPage" style={{ height: "100%" }}>
         <LoginPrompt
@@ -54,7 +33,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
     );
   }
 
-  if (loading) {
+  if (loading && !notifications) {
     return (
       <View className="notificationsPage notificationsPage--center" style={{ height: "100%" }}>
         <Loading />
@@ -62,7 +41,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
     );
   }
 
-  if (notifications.length === 0) {
+  if (!notifications || notifications.length === 0) {
     return (
       <View className="notificationsPage notificationsPage--center" style={{ height: "100%" }}>
         <View className="emptyState">
@@ -147,8 +126,6 @@ function stripHtml(html: string): string {
 }
 
 function parseActionPrefix(titleHtml: string): string {
-  // titleHtml format: <a>username</a> action text <a>topicTitle</a> ...
-  // Remove all <a>...</a> tags and their content, keep only the action text
   return titleHtml.replace(/<a[^>]*>[\s\S]*?<\/a>/g, "").replace(/<[^>]+>/g, "").trim();
 }
 

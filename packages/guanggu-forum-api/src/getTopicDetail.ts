@@ -1,7 +1,8 @@
-import { getUrl } from "./utils/urls";
 import { request } from "./client";
+import { getUrl } from "./utils/urls";
 import { URLS } from "./urls";
 import { DataDom, getDataFromHtml } from "./utils/getDataFromHtml";
+import { CacheAPIFunc } from "./types";
 
 export interface TopicDetail {
   author: string;
@@ -173,12 +174,28 @@ const domStructure: DataDom<TopicDetail> = {
   },
 };
 
-export function getTopicDetail(tid: string): Promise<TopicDetail> {
+function parseTopicDetail(body: any): TopicDetail {
+  return getDataFromHtml(body, domStructure) as TopicDetail;
+}
+
+export interface GetTopicDetailParam {
+  tid: string;
+}
+
+export const getTopicDetail: CacheAPIFunc<GetTopicDetailParam, TopicDetail> = (
+  { tid },
+  options?,
+) => {
+  const cache = options?.cache ?? true;
   return request(
-    getUrl(URLS.TOPIC_DETAIL, {
-      tid,
-    }),
+    getUrl(URLS.TOPIC_DETAIL, { tid }),
+    {
+      cache,
+      onRefresh: options?.onRefresh
+        ? (body) => options.onRefresh!(parseTopicDetail(body))
+        : undefined,
+    },
   ).then(({ body }) => {
-    return getDataFromHtml(body, domStructure) as TopicDetail;
+    return parseTopicDetail(body);
   });
 }

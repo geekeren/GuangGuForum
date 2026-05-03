@@ -2,6 +2,7 @@ import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
 import { getUrl } from "../utils/urls";
 import { URLS } from "../urls";
+import { CacheAPIFunc } from "../types";
 
 export interface UserTopicSummary {
   username: string;
@@ -213,42 +214,66 @@ const domStructure: DataDom<UserProfileRaw> = {
   },
 };
 
-export function getUserProfile(username: string): Promise<UserProfile> {
+function parseProfile(body: any): UserProfile {
+  if (!body) {
+    return null;
+  }
+  const raw = getDataFromHtml(body, domStructure) as UserProfileRaw;
+  if (!raw.username) {
+    return null;
+  }
+
+  const details: Record<string, string> = {};
+  (raw.profileDetails || []).forEach((item) => {
+    details[item.label] = item.value;
+  });
+
+  return {
+    username: raw.username,
+    avatarUrl: raw.avatarUrl,
+    website: raw.website,
+    memberNumber: raw.memberNumber,
+    joinDate: raw.joinDate,
+    id: details["ID"] || "",
+    nickname: details["昵称"] || "",
+    city: details["城市"] || "",
+    email: details["Email"] || "",
+    blog: details["Blog"] || "",
+    topicCount: raw.topicCount,
+    replyCount: raw.replyCount,
+    favoriteCount: raw.favoriteCount,
+    reputation: raw.reputation,
+    topics: raw.topics || [],
+    replies: raw.replies || [],
+    moreTopicsLink: raw.moreTopicsLink,
+    moreRepliesLink: raw.moreRepliesLink,
+  };
+}
+
+export interface GetUserProfileParam {
+  username: string;
+}
+
+export const getUserProfile: CacheAPIFunc<GetUserProfileParam, UserProfile> = (
+  { username },
+  options?,
+) => {
   const trimmed = username.trim();
   const profileUrl = getUrl(URLS.USER_PROFILE, { username: trimmed });
-  return request(profileUrl).then(({ body }) => {
-    if (!body) {
+  const cache = options?.cache ?? true;
+  return request(profileUrl, {
+    cache,
+    onRefresh: options?.onRefresh
+      ? (body) => {
+          const profile = parseProfile(body);
+          if (profile) options.onRefresh!(profile);
+        }
+      : undefined,
+  }).then(({ body }) => {
+    const profile = parseProfile(body);
+    if (!profile) {
       throw new Error(`[getUserProfile] body is null, username: ${username}`);
     }
-    const raw = getDataFromHtml(body, domStructure) as UserProfileRaw;
-    if (!raw.username) {
-      throw new Error(`[getUserProfile] parsed raw has no username, username param: ${trimmed}`);
-    }
-
-    const details: Record<string, string> = {};
-    (raw.profileDetails || []).forEach((item) => {
-      details[item.label] = item.value;
-    });
-
-    return {
-      username: raw.username,
-      avatarUrl: raw.avatarUrl,
-      website: raw.website,
-      memberNumber: raw.memberNumber,
-      joinDate: raw.joinDate,
-      id: details["ID"] || "",
-      nickname: details["昵称"] || "",
-      city: details["城市"] || "",
-      email: details["Email"] || "",
-      blog: details["Blog"] || "",
-      topicCount: raw.topicCount,
-      replyCount: raw.replyCount,
-      favoriteCount: raw.favoriteCount,
-      reputation: raw.reputation,
-      topics: raw.topics || [],
-      replies: raw.replies || [],
-      moreTopicsLink: raw.moreTopicsLink,
-      moreRepliesLink: raw.moreRepliesLink,
-    };
+    return profile;
   });
 }

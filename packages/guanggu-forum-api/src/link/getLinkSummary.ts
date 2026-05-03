@@ -1,6 +1,7 @@
 import Taro from "@tarojs/taro";
 import { parse, HTMLElement } from "node-html-parser";
 import { matchContentRule } from "./linkContentRules";
+import { CacheAPIFunc } from "../types";
 
 export interface LinkSummary {
   title: string;
@@ -162,18 +163,31 @@ function getCachedHtml(url: string): string {
   return "";
 }
 
-export async function fetchLinkSummary(url: string): Promise<LinkSummary> {
+export interface FetchLinkSummaryParam {
+  url: string;
+}
+
+export const fetchLinkSummary: CacheAPIFunc<FetchLinkSummaryParam, LinkSummary> = async (
+  { url },
+  options?,
+) => {
+  const emptySummary = { title: url, description: "", bodyText: "", bodyHtml: "", image: "", favicon: "", siteName: "", url };
   const cachedHtml = getCachedHtml(url);
   const html = cachedHtml || await fetchHtml(url);
 
   if (!html) {
-    return { title: url, description: "", bodyText: "", bodyHtml: "", image: "", favicon: "", siteName: "", url };
+    return emptySummary;
   }
 
   const summary = parseSummary(html, url);
 
-  if (!cachedHtml) {
-    fetchHtml(url);
+  if (cachedHtml && options?.onRefresh) {
+    fetchHtml(url).then((freshHtml) => {
+      if (freshHtml) {
+        const freshSummary = parseSummary(freshHtml, url);
+        options.onRefresh!(freshSummary);
+      }
+    });
   }
 
   return summary;

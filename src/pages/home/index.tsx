@@ -65,7 +65,7 @@ export default class Index extends Component<{}, State> {
       <>
         <View className="root">
           {ENABLE_CUSTOM_NAVBAR && this.state.selectedTabIndex === 0 && (
-            <Navbar>
+            <Navbar shareKey="navbar">
               <Text className="navTitle">过早客</Text>
               <View className="searchEntry" style={{ height: getNavInfo().capsuleHeight + "px" }} onClick={() => Taro.showToast({ title: "开发中，敬请期待", icon: "none" })}>
                 <Text className="searchText">搜索</Text>

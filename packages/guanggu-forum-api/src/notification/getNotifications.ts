@@ -1,5 +1,6 @@
 import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
+import { CacheAPIFunc } from "../types";
 
 export interface Notification {
   username: string;
@@ -57,16 +58,22 @@ export interface GetNotificationsParam {
   page?: number;
 }
 
-export function getNotifications(
-  param?: GetNotificationsParam,
-): Promise<Notification[]> {
-  const { page = 1 } = param || {};
+export const getNotifications: CacheAPIFunc<GetNotificationsParam, Notification[]> = (
+  param = {},
+  options?,
+) => {
+  const { page = 1 } = param;
+  const cache = options?.cache ?? true;
 
   return request("/notifications", {
+    cache,
     query: {
       p: String(page),
     },
+    onRefresh: options?.onRefresh
+      ? (body) => options.onRefresh!(getDataFromHtml(body, domStructure) as Notification[])
+      : undefined,
   }).then(({ body }) => {
     return getDataFromHtml(body, domStructure) as Notification[];
   });
-}
+};

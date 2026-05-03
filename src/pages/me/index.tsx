@@ -1,49 +1,32 @@
 import { View, Image, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { getUserProfile, UserProfile, getRecentTopics } from "guanggu-forum-api";
 import Loading from "../../components/Loading";
 import "./index.scss";
 import UserProfileDetail from "../../components/UserProfileDetail";
 import LoginPrompt from "../../components/LoginPrompt";
 import { getCachedUsername } from "../../utils/currentUser";
-import { withCache } from "../../utils/cacheRequest";
 import { getNavInfo } from "../../utils/dimension";
 import SettingsIcon from "../../assets/settings.svg";
+import { useDataWithCache } from "../../hooks/useDataWithCache";
 
 const Me = ({ active }: { active?: boolean }) => {
-  const [profile, setProfile] = useState<UserProfile>();
-  const [refreshKey, setRefreshKey] = useState(0);
+  const username = getCachedUsername();
+  const { data: profile, request: fetchProfile } = useDataWithCache(getUserProfile);
 
-  const fetchProfile = () => {
-    const username = getCachedUsername();
+  useEffect(() => {
     if (!username) {
-      // 登录后 proxy 请求不会写入 current_username，尝试一次非 proxy 请求触发解析
       const cookies = Taro.getStorageSync("cookies");
       if (cookies) {
-        getRecentTopics({ type: "default", page: 1 })
-          .then(() => setRefreshKey((k) => k + 1))
-          .catch(() => {});
+        getRecentTopics({ type: "default", page: 1 }).catch(() => {});
       }
       return;
     }
-    const { cached, refresh } = withCache<UserProfile>(
-      `user_profile_${username}`,
-      () => getUserProfile(username),
-    );
-    if (cached) setProfile(cached);
-    refresh.then(setProfile);
-  };
+    fetchProfile({ username });
+  }, [active]);
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  useEffect(() => {
-    if (active) fetchProfile();
-  }, [active, refreshKey]);
-
-  if (!getCachedUsername()) {
+  if (!username) {
     return (
       <View className="meProfile" style={{ height: "100%" }}>
         <LoginPrompt

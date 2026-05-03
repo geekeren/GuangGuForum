@@ -32,7 +32,6 @@ import Loading from "../../components/Loading";
 import Navbar from "../../components/Navbar";
 import { getFromLocalCache } from "../../utils/localAssets";
 import { rpxToPx } from "../../utils/dimension";
-import { withCache } from "../../utils/cacheRequest";
 import { isSkyline } from "../../utils/renderer";
 import { trimStrings } from "../../utils/trimStrings";
 import HtmlRender from "../../components/HtmlRender";
@@ -47,11 +46,10 @@ import RelatingTopics from "./relatingTopics";
 import PullDownRefresh, { PullDownRefreshRef } from "../../components/PullDownRefresh";
 import AddToDesktopGuide from "../../components/AddToDesktopGuide";
 import AdBanner from "../../components/AdBanner";
+import { useDataWithCache } from "../../hooks/useDataWithCache";
 
 const Index = () => {
-  const [id, setId] = useState<string>();
   const [refreshTime, setRefreshTime] = useState<number>(() => Date.now());
-  const [topicDetail, setTopicDetail] = useState<TopicDetail>();
   const [isCommenting, setIsCommenting] = useState(false);
   const [sending, setSending] = useState(false);
   const [commentContent, setCommentContent] = useState("");
@@ -63,6 +61,10 @@ const Index = () => {
   const scrollProgressSV = useRef<any>(null);
   const pullDownRef = useRef<PullDownRefreshRef>(null);
   const router = useRouter();
+
+  const tid = router.params.tid;
+
+  const { data: topicDetail, request: fetchTopicDetail, setData: setTopicDetail } = useDataWithCache(getTopicDetail);
 
   useReady(() => {
     const { page } = Taro.getCurrentInstance();
@@ -86,31 +88,22 @@ const Index = () => {
     }
   });
   useEffect(() => {
-    const { tid, commentMessage } = router.params;
     if (!tid) {
       Taro.navigateBack().then();
       return;
     }
-    setId(tid);
-    console.log("refreshTime", refreshTime);
-    const { cached, refresh } = withCache<TopicDetail>(
-      `topic_detail_${tid}`,
-      () => getTopicDetail(tid),
-    );
-    const applyData = (data: TopicDetail) => {
-      setTopicDetail(data);
+    fetchTopicDetail({ tid }).then((data) => {
+      const { commentMessage } = router.params;
       if (commentMessage) {
         const snippet = decodeURIComponent(commentMessage);
         const plainText = (html: string) => html.replace(/<[^>]+>/g, "").trim();
         const matched = data.comments.find((c) => plainText(c.content).startsWith(snippet));
         if (matched) {
           setHighlightFloor(matched.floor);
-          // Set scrollIntoView after DOM renders, then clear it to avoid re-triggering
           setTimeout(() => {
             setScrollIntoTarget(`comment-${matched.floor.replace("#", "")}`);
             setTimeout(() => setScrollIntoTarget(""), 300);
           }, 150);
-          // Flash highlight: blink 3 times then clear
           const flashTimers = [
             setTimeout(() => setHighlightFloor(null), 400),
             setTimeout(() => setHighlightFloor(matched.floor), 800),
@@ -122,16 +115,12 @@ const Index = () => {
           ];
         }
       }
-    };
-    if (cached) applyData(cached);
-    refresh.then(applyData);
+    });
   }, [router.params, refreshTime]);
 
   useDidShow(() => {
-    if (isSkyline() && id) {
-      getTopicDetail(id).then((data) => {
-        if (data) setTopicDetail(trimStrings(data));
-      });
+    if (isSkyline() && tid) {
+      fetchTopicDetail({ tid });
     }
   });
 
@@ -154,7 +143,7 @@ const Index = () => {
   if (!topicDetail) {
     return (
       <View className='topicDetail'>
-        <Navbar back home title='帖子详情' />
+        <Navbar back home shareKey="navbar" title='帖子详情' />
         <Loading fullscreen />
       </View>
     );
@@ -186,6 +175,7 @@ const Index = () => {
         <Navbar
           back
           home
+          shareKey="navbar"
           scrollProgress={navScrollProgress}
           title={navScrollProgress <= 0.3 ? '帖子详情' : topicDetail?.title}
           titleStyle={navScrollProgress <= 0.3 ? { opacity: 1 } : {
@@ -220,7 +210,7 @@ const Index = () => {
             <View className='main'>
               <View className='header'>
                 <View className='title'>
-                  <ShareElement mapkey={`topic_title_${id}`}>
+                  <ShareElement mapkey={`topic_title_${tid}`}>
                     <Text className='titleText'>{topicDetail.title}</Text>
                   </ShareElement>
                 </View>
@@ -451,9 +441,9 @@ const Index = () => {
                 }
                 setSending(true);
                 Taro.showLoading({ title: "发送中...", mask: true });
-                id &&
+                tid &&
                   createNewComment({
-                    tid: id,
+                    tid,
                     _xsrf: topicDetail?.createCommentXSRF,
                     content: commentContent,
                   }).then(() => {

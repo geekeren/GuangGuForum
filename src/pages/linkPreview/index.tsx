@@ -6,15 +6,15 @@ import type { LinkSummary } from "guanggu-forum-api";
 import Navbar from "../../components/Navbar";
 import Loading from "../../components/Loading";
 import LinkPreviewCard from "../../components/LinkPreviewCard";
-import { withCache } from "../../utils/cacheRequest";
 import { isSkyline } from "../../utils/renderer";
+import { useDataWithCache } from "../../hooks/useDataWithCache";
 import "./index.scss";
 
 export default function LinkPreview() {
   const router = useRouter();
   const url = decodeURIComponent(router.params.url || "");
-  const [summary, setSummary] = useState<LinkSummary | null>(null);
   const [scrollHeight, setScrollHeight] = useState("auto");
+  const { data: summary, request: fetchSummary } = useDataWithCache(fetchLinkSummary);
 
   useEffect(() => {
     const sys = Taro.getSystemInfoSync();
@@ -27,13 +27,7 @@ export default function LinkPreview() {
   }, []);
 
   useEffect(() => {
-    if (!url) return;
-    const { cached, refresh } = withCache<LinkSummary>(
-      `link_summary_${url}`,
-      () => fetchLinkSummary(url),
-    );
-    if (cached) setSummary(cached);
-    refresh.then(setSummary);
+    if (url) fetchSummary({ url });
   }, [url]);
 
   const copyLink = () => {

@@ -1,6 +1,7 @@
 import { request } from "../client";
 import { getDataFromHtml } from "../utils/getDataFromHtml";
 import { HotNodes, getHotNodes as getHotNodesOriginal } from "../node/getHotNodes";
+import { CacheAPIFunc } from "../types";
 
 export interface HotTopic {
   username: string;
@@ -29,7 +30,7 @@ export interface InterestNode {
 }
 
 export function getHotTopics(): Promise<HotTopic[]> {
-  return request("/").then(({ body }) => {
+  return request("/", { cache: true }).then(({ body }) => {
     if (!body) return [];
     const topics = getDataFromHtml(body, {
       _selector: ".hot-topics .cell",
@@ -58,6 +59,7 @@ export function getInterestTopics(
 ): Promise<{ topics: InterestTopic[]; nodes: InterestNode[] }> {
   const { page = 1 } = param || {};
   return request("/", {
+    cache: true,
     query: {
       tab: "interest",
       p: String(page),
@@ -104,16 +106,36 @@ export interface DiscoveryData {
   interestNodes: InterestNode[];
 }
 
-export async function getDiscoveryData(): Promise<DiscoveryData> {
+export const getDiscoveryData: CacheAPIFunc<void, DiscoveryData> = async (
+  _params?,
+  options?,
+) => {
   const [hotTopics, hotNodes, interestData] = await Promise.all([
     getHotTopics(),
     getHotNodesOriginal(),
     getInterestTopics({ page: 1 }),
   ]);
-  return {
+  const result = {
     hotTopics,
     hotNodes,
     interestTopics: interestData.topics,
     interestNodes: interestData.nodes,
   };
+
+  if (options?.onRefresh) {
+    Promise.all([
+      getHotTopics(),
+      getHotNodesOriginal(),
+      getInterestTopics({ page: 1 }),
+    ]).then(([ht, hn, id]) => {
+      options.onRefresh!({
+        hotTopics: ht,
+        hotNodes: hn,
+        interestTopics: id.topics,
+        interestNodes: id.nodes,
+      });
+    }).catch(() => {});
+  }
+
+  return result;
 }

@@ -1,4 +1,4 @@
-import { View, Text, Image } from "@tarojs/components";
+import { View, Text, Image, ShareElement } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { getNavInfo } from "../../utils/dimension";
 import ChevronLeftIcon from "../../assets/chevron-left.svg";
@@ -14,11 +14,12 @@ interface Props {
   workletDriven?: boolean;
   titleStyle?: React.CSSProperties;
   left?: boolean;
+  shareKey?: string;
   children?: React.ReactNode;
 }
 
 const Navbar = (props: Props) => {
-  const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, left = false, children } = props;
+  const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, left = false, shareKey, children } = props;
   const { capsulePaddingTop, capsuleHeight, capsuleWidth, capsuleLeft, screenWidth, statusBarHeight, marginSides } = getNavInfo();
   const paddingRight = screenWidth - capsuleLeft;
   const singleBtnWidth = (capsuleWidth - 0.5) / 2;
@@ -47,7 +48,7 @@ const Navbar = (props: Props) => {
 
   const navBarPaddingTop = inModal ? 16 : capsulePaddingTop;
 
-  return (
+  const content = (
     <View className="customNavbar" style={navBgStyle}>
       <View className="navBar" style={{ paddingTop: navBarPaddingTop + "px", paddingLeft: (back || home ? 0 : marginSides) + "px", paddingRight: paddingRight + "px" }}>
         {(back || home) && (
@@ -83,6 +84,11 @@ const Navbar = (props: Props) => {
       </View>
     </View>
   );
+
+  if (shareKey) {
+    return <ShareElement mapkey={shareKey}>{content}</ShareElement>;
+  }
+  return content;
 };
 
 export default Navbar;

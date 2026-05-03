@@ -16,3 +16,5 @@ export * from "./notification/getNotifications";
 export * from "./discovery/index";
 export * from "./utils/urls";
 export * from "./urls";
+export * from "./types";
+export { cleanupCache, shouldRunDailyCleanup } from "./client";

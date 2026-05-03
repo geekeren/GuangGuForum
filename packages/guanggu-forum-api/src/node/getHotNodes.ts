@@ -1,5 +1,6 @@
 import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
+import { CacheAPIFunc } from "../types";
 
 export interface HotNodes {
   title: string;
@@ -23,8 +24,17 @@ const domStructure: DataDom<HotNodes> = {
   },
 };
 
-export function getHotNodes(): Promise<HotNodes[]> {
-  return request("/").then(({ body }) => {
+export const getHotNodes: CacheAPIFunc<void, HotNodes[]> = (
+  _params?,
+  options?,
+) => {
+  const cache = options?.cache ?? true;
+  return request("/", {
+    cache,
+    onRefresh: options?.onRefresh
+      ? (body) => options.onRefresh!(getDataFromHtml(body, domStructure) as HotNodes[])
+      : undefined,
+  }).then(({ body }) => {
     return getDataFromHtml(body, domStructure) as HotNodes[];
   });
-}
+};

@@ -1,18 +1,13 @@
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   getDiscoveryData,
-  HotTopic,
-  HotNodes,
-  InterestTopic,
-  InterestNode,
 } from "guanggu-forum-api";
 import { getCachedUsername } from "../../../utils/currentUser";
-import { withCache } from "../../../utils/cacheRequest";
 import { getFromLocalCache } from "../../../utils/localAssets";
 import LoginPrompt from "../../../components/LoginPrompt";
-import { openLoginModal } from "../../../utils/auth";
+import { useDataWithCache } from "../../../hooks/useDataWithCache";
 import "./index.scss";
 
 interface DiscoveryProps {
@@ -20,40 +15,21 @@ interface DiscoveryProps {
 }
 
 const Discovery = ({ active }: DiscoveryProps) => {
-  const [hotTopics, setHotTopics] = useState<HotTopic[]>([]);
-  const [hotNodes, setHotNodes] = useState<HotNodes[]>([]);
-  const [interestTopics, setInterestTopics] = useState<InterestTopic[]>([]);
-  const [interestNodes, setInterestNodes] = useState<InterestNode[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0);
-
   const isLoggedIn = !!getCachedUsername();
+  const { data: discoveryData, request: fetchDiscovery } = useDataWithCache(getDiscoveryData);
 
-  const fetchData = () => {
-    const { cached, refresh } = withCache(
-      "discovery_data_v2",
-      getDiscoveryData,
-    );
-    if (cached) {
-      setHotTopics(cached.hotTopics || []);
-      setHotNodes(cached.hotNodes || []);
-      setInterestTopics(cached.interestTopics || []);
-      setInterestNodes(cached.interestNodes || []);
-    }
-    refresh.then((data) => {
-      setHotTopics(data.hotTopics || []);
-      setHotNodes(data.hotNodes || []);
-      setInterestTopics(data.interestTopics || []);
-      setInterestNodes(data.interestNodes || []);
-    });
-  };
+  const hotTopics = discoveryData?.hotTopics || [];
+  const hotNodes = discoveryData?.hotNodes || [];
+  const interestTopics = discoveryData?.interestTopics || [];
+  const interestNodes = discoveryData?.interestNodes || [];
 
   useEffect(() => {
-    fetchData();
+    fetchDiscovery();
   }, []);
 
   useEffect(() => {
-    if (active) fetchData();
-  }, [active, refreshKey]);
+    if (active) fetchDiscovery();
+  }, [active]);
 
   return (
     <View className="discoveryPage" style={{ height: "100%" }}>

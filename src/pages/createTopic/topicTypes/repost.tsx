@@ -139,7 +139,7 @@ const repostDef: TopicTypeDefinition = {
       const url = extractSummaryUrl(fields.sourceUrl) || (fields.sourceUrl.trim().startsWith("http") ? fields.sourceUrl.trim() : "");
       if (!url || fields.repostPreview) return;
       setField("clipLoading", true);
-      fetchLinkSummary(url).then((info: LinkSummary) => {
+      fetchLinkSummary({ url }).then((info: LinkSummary) => {
         setField("clipLoading", false);
         setField("repostPreview", { ...info, url });
       }).catch(() => {
@@ -302,7 +302,7 @@ const repostDef: TopicTypeDefinition = {
           const url = extractSummaryUrl((res.data || "").trim());
           if (url) {
             setField("clipLoading", true);
-            fetchLinkSummary(url).then((info: LinkSummary) => {
+            fetchLinkSummary({ url }).then((info: LinkSummary) => {
               setField("clipLoading", false);
               setField("repostPreview", { ...info, url });
             }).catch(() => {

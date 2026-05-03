@@ -8,11 +8,10 @@ import {
 import "./index.scss";
 
 import TopicList from "./topicList";
-import Taro, { useReady } from "@tarojs/taro";
+import Taro from "@tarojs/taro";
 import { ScrollView, View } from "@tarojs/components";
-import { rpxToPx } from "../../../utils/dimension";
-import { withCache } from "../../../utils/cacheRequest";
 import { fetchAndCacheNodeNavigation, getCachedNodeNavigation } from "../../../utils/nodeNavigation";
+import { useDataWithCache } from "../../../hooks/useDataWithCache";
 
 interface TabConfig {
   title: string;
@@ -29,32 +28,32 @@ const defaultTabs: TabConfig[] = [
 
 export default function Topics() {
   const [currentTabIndex, setCurrentTabIndex] = useState(0);
-  const [tabPaneHeight, setTabPaneHeight] = useState(400);
   const [tabs, setTabs] = useState<TabConfig[] | null>(null);
   const [loadedTabs, setLoadedTabs] = useState<Record<number, boolean>>({ 0: true });
   const [refreshKey, setRefreshKey] = useState(0);
   const [scrollIntoView, setScrollIntoView] = useState("tab_0");
   const listRefs = useRef<Record<number, any>>({});
   const lastTapTime = useRef(0);
+  const { data: hotNodesData, request: fetchHotNodes } = useDataWithCache(getHotNodes);
+
+  const toTabs = (nodes) =>
+    defaultTabs.concat(
+      nodes.map((node) => {
+        const nodeName = node.link?.replace("/node/", "") || "";
+        return { title: node.title, type: "node" as const, node: nodeName };
+      }),
+    );
 
   useEffect(() => {
-    const { cached, refresh } = withCache("hot_nodes", getHotNodes);
-    const toTabs = (nodes) =>
-      defaultTabs.concat(
-        nodes.map((node) => {
-          const nodeName = node.link?.replace("/node/", "") || "";
-          return { title: node.title, type: "node" as const, node: nodeName };
-        }),
-      );
-    if (cached) {
-      setTabs(toTabs(cached));
-    } else {
-      refresh.then((nodes) => setTabs(toTabs(nodes)));
-    }
+    fetchHotNodes();
     if (!getCachedNodeNavigation().length) {
       fetchAndCacheNodeNavigation();
     }
   }, []);
+
+  useEffect(() => {
+    if (hotNodesData) setTabs(toTabs(hotNodesData));
+  }, [hotNodesData]);
 
   useEffect(() => {
     const handler = () => {
@@ -64,18 +63,6 @@ export default function Topics() {
     Taro.eventCenter.on("refreshTopics", handler);
     return () => Taro.eventCenter.off("refreshTopics", handler);
   }, []);
-
-  useReady(() => {
-    Taro.nextTick(() => {
-      const query = Taro.createSelectorQuery();
-      query
-        .select(`#list_container`)
-        .boundingClientRect((res) => {
-          res?.height && setTabPaneHeight(res.height - rpxToPx(80));
-        })
-        .exec();
-    });
-  });
 
   const handleClick = (value: number) => {
     const now = Date.now();
@@ -122,7 +109,7 @@ export default function Topics() {
   return (
     <View
       id="list_container"
-      style={{ height: "100%" }}
+      className="topicsContainer"
     >
       <View className="tab-header">
         <ScrollView
@@ -146,7 +133,7 @@ export default function Topics() {
       {activeTabs.map((tab, index) => (
         <View
           key={`${tab.type}_${tab.node || ''}_${index}`}
-          style={{ display: index === currentTabIndex ? 'block' : 'none', height: '100%' }}
+          className={`tabPane${index === currentTabIndex ? ' tabPane--active' : ''}`}
         >
           {loadedTabs[index] && (
             <TopicList
@@ -157,7 +144,6 @@ export default function Topics() {
                   ? `node_topics_${tab.node}`
                   : `recent_topics_${tab.type}`
               }
-              height={tabPaneHeight}
               getTopics={(page: number) => {
                 if (tab.node) {
                   return getNodeTopics({ node: tab.node, page });
