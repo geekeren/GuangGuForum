@@ -48,7 +48,7 @@ export default function LinkPreview() {
 
   return (
     <View className="linkPreviewPage">
-      <Navbar back modal={isSkyline()} title={displayTitle} />
+      <Navbar back modal={isSkyline()} title="链接预览" />
       <ScrollView scrollY style={{ height: scrollHeight }} className="linkPreviewContent">
         {summary ? (
           <LinkPreviewCard summary={summary} url={url} />

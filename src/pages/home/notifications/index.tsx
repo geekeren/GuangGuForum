@@ -83,8 +83,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
             className="notificationItem"
             onClick={() => {
               if (item.topicLink) {
-                const tid = item.topicLink.replace("/t/", "");
-                Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
+                navigateToTopic(item.topicLink, item.content);
               }
             }}
           >
@@ -114,8 +113,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (item.topicLink) {
-                        const tid = item.topicLink.replace("/t/", "");
-                        Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
+                        navigateToTopic(item.topicLink, item.content);
                       }
                     }}
                   >
@@ -135,6 +133,18 @@ const Notifications = ({ active }: { active?: boolean }) => {
     </View>
   );
 };
+
+function navigateToTopic(topicLink: string, content?: string) {
+  const tid = topicLink.replace("/t/", "").split("#")[0];
+  const snippet = content ? stripHtml(content).slice(0, 10) : "";
+  Taro.navigateTo({
+    url: `/pages/topicDetail/index?tid=${tid}${snippet ? `&commentMessage=${encodeURIComponent(snippet)}` : ""}`,
+  });
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, "").trim();
+}
 
 function parseActionPrefix(titleHtml: string): string {
   // titleHtml format: <a>username</a> action text <a>topicTitle</a> ...

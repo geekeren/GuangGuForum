@@ -52,14 +52,13 @@ const Index = () => {
   const [id, setId] = useState<string>();
   const [refreshTime, setRefreshTime] = useState<number>(() => Date.now());
   const [topicDetail, setTopicDetail] = useState<TopicDetail>();
-  const [isActionSheetShown, showActionSheet] = useState(false);
   const [isCommenting, setIsCommenting] = useState(false);
   const [sending, setSending] = useState(false);
   const [commentContent, setCommentContent] = useState("");
-  const [selectedComment, setSelectedComment] =
-    useState<TopicDetail["comments"][0]>();
   const [commentAsc, setCommentAsc] = useState(() => getStorageSync("commentSortAsc") || false);
   const [navScrollProgress, setNavScrollProgress] = useState(0);
+  const [highlightFloor, setHighlightFloor] = useState<string | null>(null);
+  const [scrollIntoTarget, setScrollIntoTarget] = useState("");
   const workletReady = useRef(false);
   const scrollProgressSV = useRef<any>(null);
   const pullDownRef = useRef<PullDownRefreshRef>(null);
@@ -87,7 +86,7 @@ const Index = () => {
     }
   });
   useEffect(() => {
-    const { tid } = router.params;
+    const { tid, commentMessage } = router.params;
     if (!tid) {
       Taro.navigateBack().then();
       return;
@@ -98,8 +97,34 @@ const Index = () => {
       `topic_detail_${tid}`,
       () => getTopicDetail(tid),
     );
-    if (cached) setTopicDetail(cached);
-    refresh.then(setTopicDetail);
+    const applyData = (data: TopicDetail) => {
+      setTopicDetail(data);
+      if (commentMessage) {
+        const snippet = decodeURIComponent(commentMessage);
+        const plainText = (html: string) => html.replace(/<[^>]+>/g, "").trim();
+        const matched = data.comments.find((c) => plainText(c.content).startsWith(snippet));
+        if (matched) {
+          setHighlightFloor(matched.floor);
+          // Set scrollIntoView after DOM renders, then clear it to avoid re-triggering
+          setTimeout(() => {
+            setScrollIntoTarget(`comment-${matched.floor.replace("#", "")}`);
+            setTimeout(() => setScrollIntoTarget(""), 300);
+          }, 150);
+          // Flash highlight: blink 3 times then clear
+          const flashTimers = [
+            setTimeout(() => setHighlightFloor(null), 400),
+            setTimeout(() => setHighlightFloor(matched.floor), 800),
+            setTimeout(() => setHighlightFloor(null), 1200),
+            setTimeout(() => setHighlightFloor(matched.floor), 1600),
+            setTimeout(() => setHighlightFloor(null), 2000),
+            setTimeout(() => setHighlightFloor(matched.floor), 2400),
+            setTimeout(() => setHighlightFloor(null), 2800),
+          ];
+        }
+      }
+    };
+    if (cached) applyData(cached);
+    refresh.then(applyData);
   }, [router.params, refreshTime]);
 
   useDidShow(() => {
@@ -178,6 +203,7 @@ const Index = () => {
             scrollY
             bounces
             enhanced
+            scroll-into-view={scrollIntoTarget}
             className='scrollContent'
             onTouchStart={(e: any) => pullDownRef.current?.onTouchStart(e)}
             onTouchMove={(e: any) => pullDownRef.current?.onTouchMove(e)}
@@ -252,7 +278,7 @@ const Index = () => {
                 </View>
               </View>
             </View>
-            <View className='comments section'>
+            <View className='comments section' id='comments-section'>
               {hasComments ? (
                 <View className='header'>
                   {topicDetail.commentTotalCount}
@@ -283,7 +309,11 @@ const Index = () => {
                   : topicDetail.comments
                 ).map((comment, index) => {
                   const items: React.ReactNode[] = [
-                    <View className="comment-item" key={comment.floor}>
+                    <View
+                      id={`comment-${comment.floor.replace("#", "")}`}
+                      className={`comment-item${highlightFloor === comment.floor ? " comment-item--highlight" : ""}`}
+                      key={comment.floor}
+                    >
                       <View
                         className="comment-author-avatar"
                         onClick={(e) => {
@@ -307,8 +337,19 @@ const Index = () => {
                         <View
                           className="comment-content"
                           onClick={() => {
-                            showActionSheet(true);
-                            setSelectedComment(comment);
+                            Taro.showActionSheet({
+                              itemList: ["回复", "复制"],
+                              success: (res) => {
+                                if (res.tapIndex === 0) {
+                                  showCommentDialog({ content: `@${comment.author} ` });
+                                } else if (res.tapIndex === 1) {
+                                  Taro.setClipboardData({
+                                    data: comment.content.trim(),
+                                    success: () => Taro.showToast({ title: "评论已复制", icon: "success", duration: 2000 }),
+                                  });
+                                }
+                              },
+                            });
                           }}
                         >
                           <HtmlRender html={comment.content} />
@@ -376,7 +417,10 @@ const Index = () => {
             {hasLogin ? "说点什么..." : "请登录后再评论"}
           </View>
           <View className='right'>
-            <View className='badgeWrap'>
+            <View className='badgeWrap' onClick={() => {
+              setScrollIntoTarget('comments-section');
+              setTimeout(() => setScrollIntoTarget(""), 300);
+            }}>
               {topicDetail?.comments.length > 0 && (
                 <View className='badgeValue'>
                   {Math.min(topicDetail.comments.length, 99)}
@@ -390,87 +434,55 @@ const Index = () => {
             </Button>
           </View>
         </View>
-        {isCommenting && (
-          <View className='commentPopup'>
-            <View className='commentPopupMask' onClick={() => setIsCommenting(false)} />
-            <View className='commentPopupBody'>
-              <View className='commentPopupHeader'>
-                <View className='commentPopupCancel' onClick={() => setIsCommenting(false)}>取消</View>
-                <View className='commentPopupTitle'>评论</View>
-                <View
-                  className={`commentPopupSend ${sending ? 'commentPopupSend--disabled' : ''}`}
-                  onClick={() => {
-                    if (sending) return;
-                    if (commentContent.trim().length < 3) {
-                      Taro.showToast({ title: '评论内容至少3个字', icon: 'none' });
-                      return;
-                    }
-                    setSending(true);
-                    Taro.showLoading({ title: "发送中...", mask: true });
-                    id &&
-                      createNewComment({
-                        tid: id,
-                        _xsrf: topicDetail?.createCommentXSRF,
-                        content: commentContent,
-                      }).then(() => {
-                        setIsCommenting(false);
-                        setCommentContent("");
-                        setRefreshTime(Date.now());
-                      }).finally(() => {
-                        setSending(false);
-                        Taro.hideLoading();
-                      });
-                  }}
-                >
-                  {sending ? "发送中..." : "发送"}
-                </View>
-              </View>
-              <Textarea
-                className='commentPopupTextarea'
-                cursorSpacing={100}
-                adjustPosition
-                focus={isCommenting}
-                autoHeight
-                onInput={(event) => {
-                  setCommentContent(event.detail.value);
-                }}
-                value={commentContent}
-                showConfirmBar={false}
-                placeholder='说点什么'
-              />
+      </View>
+      <View className={`commentPopup${isCommenting ? " commentPopup--visible" : ""}`}>
+        <View className='commentPopupMask' onClick={() => setIsCommenting(false)} />
+        <View className='commentPopupBody'>
+          <View className='commentPopupHeader'>
+            <View className='commentPopupCancel' onClick={() => setIsCommenting(false)}>取消</View>
+            <View className='commentPopupTitle'>评论</View>
+            <View
+              className={`commentPopupSend ${sending ? 'commentPopupSend--disabled' : ''}`}
+              onClick={() => {
+                if (sending) return;
+                if (commentContent.trim().length < 3) {
+                  Taro.showToast({ title: '评论内容至少3个字', icon: 'none' });
+                  return;
+                }
+                setSending(true);
+                Taro.showLoading({ title: "发送中...", mask: true });
+                id &&
+                  createNewComment({
+                    tid: id,
+                    _xsrf: topicDetail?.createCommentXSRF,
+                    content: commentContent,
+                  }).then(() => {
+                    setIsCommenting(false);
+                    setCommentContent("");
+                    setRefreshTime(Date.now());
+                  }).finally(() => {
+                    setSending(false);
+                    Taro.hideLoading();
+                  });
+              }}
+            >
+              {sending ? "发送中..." : "发送"}
             </View>
           </View>
-        )}
-        {isActionSheetShown && (
-          <View className='actionSheet'>
-            <View className='actionSheetMask' onClick={() => showActionSheet(false)} />
-            <View className='actionSheetBody'>
-              <View className='actionSheetItem' onClick={() => {
-                showActionSheet(false);
-                showCommentDialog({ content: `@${selectedComment?.author} ` });
-              }}
-              >
-                <Text>回复</Text>
-              </View>
-              <View className='actionSheetItem' onClick={() => {
-                showActionSheet(false);
-                Taro.setClipboardData({
-                  data: selectedComment?.content.trim() || "",
-                  success: function () {
-                    Taro.showToast({ title: "评论已复制", icon: "success", duration: 2000 }).then();
-                  },
-                  fail: console.error,
-                }).catch(console.error).then();
-              }}
-              >
-                <Text>复制</Text>
-              </View>
-              <View className='actionSheetItem actionSheetItem--cancel' onClick={() => showActionSheet(false)}>
-                <Text>取消</Text>
-              </View>
-            </View>
-          </View>
-        )}
+          <Textarea
+            className='commentPopupTextarea'
+            cursorSpacing={100}
+            adjustPosition
+            focus={isCommenting}
+            autoHeight
+            onInput={(event) => {
+              setCommentContent(event.detail.value);
+            }}
+            value={commentContent}
+            showConfirmBar={false}
+            placeholder='说点什么'
+          />
+        </View>
       </View>
       <AddToDesktopGuide />
     </>

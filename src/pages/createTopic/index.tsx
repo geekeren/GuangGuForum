@@ -16,9 +16,15 @@ import type { TopicType } from "./topicTypes/registry";
 import "./index.scss";
 
 const LAST_NODE_KEY = "last_selected_node";
+const LAST_DRAFT_KEY = "topic_draft_last";
 
 function getDraftKey(type: TopicType, nodeSlug: string): string {
   return `topic_draft_${type}_${nodeSlug}`;
+}
+
+function hasContent(title: string, content: string, typeFields: Record<string, any>): boolean {
+  if (title || content) return true;
+  return Object.values(typeFields).some((v) => typeof v === "string" && v.trim());
 }
 
 const FROM_MINI = "\n\n---\n*本帖发自[小程序](https://www.guozaoke.com/t/91893)*";
@@ -141,17 +147,28 @@ export default function CreateTopic() {
     }
   }, [topicType, nodeGroups]);
 
-  // Restore draft — isolated by type + node
+  // Restore draft — read last active type first
   useEffect(() => {
     try {
-      const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
+      const lastMeta = Taro.getStorageSync(LAST_DRAFT_KEY);
+      let draftType: TopicType = "normal";
+      let draftNode = "water";
+      if (lastMeta) {
+        const meta = JSON.parse(lastMeta);
+        if (meta.topicType) draftType = meta.topicType;
+        if (meta.nodeSlug) draftNode = meta.nodeSlug;
+      }
+      const draftKey = getDraftKey(draftType, draftNode);
       const raw = Taro.getStorageSync(draftKey);
-      if (!raw) { setDraftRestored(true); return; }
-      const d = JSON.parse(raw);
-      if (d.savedAt) setDraftSavedAt(d.savedAt);
-      if (d.title) setTitle(d.title);
-      if (d.content) setContent(d.content);
-      if (d.typeFields) setTypeFields(d.typeFields);
+      if (raw) {
+        const d = JSON.parse(raw);
+        setTopicType(draftType);
+        if (draftType === "normal") setSelectedNodeSlug(draftNode);
+        if (d.savedAt) setDraftSavedAt(d.savedAt);
+        if (d.title) setTitle(d.title);
+        if (d.content) setContent(d.content);
+        if (d.typeFields) setTypeFields(d.typeFields);
+      }
     } catch {}
     setDraftRestored(true);
   }, []);
@@ -159,18 +176,13 @@ export default function CreateTopic() {
   // Auto-save draft — isolated by type + node
   useEffect(() => {
     if (!draftRestored) return;
-    const hasContent = title || content || Object.values(typeFields).some((v) => v && v !== false && typeof v !== "object");
-    if (!hasContent) { setDraftSavedAt(""); return; }
+    if (!hasContent(title, content, typeFields)) { setDraftSavedAt(""); return; }
     const timer = setTimeout(() => {
       const savedAt = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       try {
         const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
-        Taro.setStorageSync(draftKey, JSON.stringify({
-          savedAt,
-          title,
-          content,
-          typeFields,
-        }));
+        Taro.setStorageSync(draftKey, JSON.stringify({ savedAt, title, content, typeFields }));
+        Taro.setStorageSync(LAST_DRAFT_KEY, JSON.stringify({ topicType, nodeSlug: resolvedNodeSlug || "water" }));
         setDraftSavedAt(savedAt);
       } catch {}
     }, 800);
@@ -185,6 +197,7 @@ export default function CreateTopic() {
     try {
       const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
       Taro.removeStorageSync(draftKey);
+      Taro.removeStorageSync(LAST_DRAFT_KEY);
     } catch {}
   };
 
@@ -211,9 +224,56 @@ export default function CreateTopic() {
   };
 
   const handleTopicTypeChange = (type: TopicType) => {
-    setTopicType(type);
+    // Save current draft before switching
+    const currentDraftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
+    if (hasContent(title, content, typeFields)) {
+      try {
+        const savedAt = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        Taro.setStorageSync(currentDraftKey, JSON.stringify({ savedAt, title, content, typeFields }));
+      } catch {}
+    } else {
+      Taro.removeStorageSync(currentDraftKey);
+    }
+
+    // Compute new node slug
     const def = TOPIC_TYPE_REGISTRY[type];
-    const result = def.onActivate?.({ fields: typeFields, setField, getRef });
+    let newNodeSlug = type !== "normal" ? def.node! : selectedNodeSlug;
+    if (type === "normal" && nodeGroups.length > 0) {
+      const isValid = filteredGroups.some((g) => g.nodes.some((n) => n.slug === newNodeSlug));
+      if (!isValid) newNodeSlug = "water";
+    }
+
+    // Load new type's draft or reset to initialFields
+    const newDraftKey = getDraftKey(type, newNodeSlug || "water");
+    let newTitle = "";
+    let newContent = "";
+    let newFields = def.initialFields;
+    let newSavedAt = "";
+    try {
+      const raw = Taro.getStorageSync(newDraftKey);
+      if (raw) {
+        const d = JSON.parse(raw);
+        newTitle = d.title || "";
+        newContent = d.content || "";
+        newFields = d.typeFields || def.initialFields;
+        newSavedAt = d.savedAt || "";
+      }
+    } catch {}
+
+    // Update LAST_DRAFT_KEY immediately
+    try {
+      Taro.setStorageSync(LAST_DRAFT_KEY, JSON.stringify({ topicType: type, nodeSlug: newNodeSlug || "water" }));
+    } catch {}
+
+    // Update all state at once (batched)
+    setTopicType(type);
+    setTitle(newTitle);
+    setContent(newContent);
+    setTypeFields(newFields);
+    setDraftSavedAt(newSavedAt);
+
+    // Call onActivate with the new fields
+    const result = def.onActivate?.({ fields: newFields, setField, getRef });
     const contentRef = getRef("content");
     nextFocusRef.current = result?.current ?? contentRef.current;
   };
@@ -282,6 +342,7 @@ export default function CreateTopic() {
       try {
         const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
         Taro.removeStorageSync(draftKey);
+        Taro.removeStorageSync(LAST_DRAFT_KEY);
       } catch {}
       Taro.eventCenter.trigger("refreshTopics");
       Taro.navigateBack();
