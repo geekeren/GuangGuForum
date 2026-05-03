@@ -44,7 +44,7 @@ const NodeTopics = (props: NodeTopicsProps) => {
       <AutoHeight style={{ flex: 1 }}>
         {(height) => (
           <TopicList
-            height={height}
+            style={{ height }}
             cacheKey={`node_topics_${node}`}
             getTopics={(page: number) => {
               return getNodeTopics({
@@ -52,7 +52,6 @@ const NodeTopics = (props: NodeTopicsProps) => {
                 page,
               });
             }}
-            version={0}
           />
         )}
       </AutoHeight>

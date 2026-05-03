@@ -1,12 +1,14 @@
 import { Component } from "react";
 import "./app.scss";
 import { registerSkylineRoutes } from "./utils/skylineRoutes";
-import { setCacheService } from "guanggu-forum-api";
+import { setCacheService, setOnLoginRequired } from "guanggu-forum-api";
 import { cacheService } from "./utils/CacheService";
+import { openLoginModal } from "./utils/auth";
 
 class App extends Component {
   componentDidMount() {
     setCacheService(cacheService);
+    setOnLoginRequired(() => openLoginModal());
     if (cacheService.shouldRunDailyCleanup()) {
       cacheService.dailyCleanup();
     }

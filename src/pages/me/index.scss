@@ -3,16 +3,25 @@
 .meProfile {
   background: $bgColor;
   padding-bottom: 40rpx;
+  display: flex;
+  flex-direction: column;
+
+  &--notLoggedIn {
+    .loginPromptWrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
 }
 
-.meSettingsBar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 16rpx 28rpx 0;
+.navSettingsIcon {
+  width: 42rpx;
+  height: 42rpx;
 }
 
 .settingsIcon {
-  width: 44rpx;
-  height: 44rpx;
-  opacity: 0.6;
+  width: 42rpx;
+  height: 42rpx;
 }

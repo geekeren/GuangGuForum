@@ -3,6 +3,7 @@ export type CacheCategory = "topic" | "node" | "user" | "link" | "system" | "oth
 export interface ICacheService {
   get<T = any>(key: string): T | null;
   set(key: string, value: any, options: { category: CacheCategory; ttl?: number; priority?: "low" | "normal" | "high" }): boolean;
+  setAsync(key: string, value: any, options: { category: CacheCategory; ttl?: number; priority?: "low" | "normal" | "high" }): Promise<boolean>;
   remove(key: string, force?: boolean): void;
   isExpired(key: string): boolean;
 }

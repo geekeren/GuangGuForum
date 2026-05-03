@@ -45,12 +45,12 @@ Taro.options.html.transformElement = (
     taroEle.nodeName = "text";
   } else if (htmlEle.tagName === "a") {
     const href = taroEle.props.href || "";
-
     const isMention = isUserMentionLink(href);
+    const hasImg = htmlEle.children?.some?.((c: any) => c.tagName === "img") || false;
 
-    if (isMention) {
-      taroEle.tagName = "TEXT";
-      taroEle.nodeName = "text";
+    if (hasImg) {
+      taroEle.tagName = "VIEW";
+      taroEle.nodeName = "view";
     } else {
       taroEle.tagName = "TEXT";
       taroEle.nodeName = "text";

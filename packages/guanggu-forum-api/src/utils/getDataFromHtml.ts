@@ -62,7 +62,7 @@ export function getDataFromHtml<T = any>(
     if (_attribute) {
       data = dom?.getAttribute(_attribute) || "";
     } else {
-      data = dom?.text || "";
+      data = dom?.text?.trim() || "";
     }
   }
   return data;

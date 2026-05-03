@@ -1,0 +1,111 @@
+@import "../../vars.scss";
+
+.searchPage {
+  min-height: 100vh;
+  background: $bgColor;
+}
+
+.searchBody {
+  padding: 16rpx 22rpx;
+}
+
+.searchBar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: $surface;
+  border-radius: 40rpx;
+  padding: 16rpx 24rpx;
+  gap: 12rpx;
+  box-shadow: $shadow-sm;
+  margin-bottom: 20rpx;
+}
+
+.searchBarIcon {
+  width: 32rpx;
+  height: 32rpx;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.searchBarInput {
+  flex: 1;
+  font-size: 28rpx;
+  color: $text-primary;
+  min-height: 40rpx;
+}
+
+.searchBarClear {
+  font-size: 24rpx;
+  color: $color-brand;
+  flex-shrink: 0;
+  padding: 4rpx 8rpx;
+}
+
+.searchResults {
+  background: $surface;
+  border-radius: $radius-md;
+  box-shadow: $shadow-sm;
+  overflow: hidden;
+}
+
+.searchEmpty {
+  padding: 80rpx 0;
+  text-align: center;
+}
+
+.searchEmptyText {
+  font-size: 28rpx;
+  color: $text-faint;
+}
+
+.searchItem {
+  padding: 24rpx 28rpx;
+  border-bottom: 1rpx solid $border-color;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: $surfaceAlt;
+  }
+}
+
+.searchItemTitle {
+  font-size: 28rpx;
+  color: $text-primary;
+  line-height: 1.5;
+  margin-bottom: 12rpx;
+}
+
+.searchItemMeta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.searchItemCategory {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4rpx;
+  font-size: 22rpx;
+  color: $text-muted;
+}
+
+.searchItemCategoryIcon {
+  width: 24rpx;
+  height: 24rpx;
+}
+
+.searchItemUser {
+  font-size: 22rpx;
+  color: $text-muted;
+}
+
+.searchItemComments {
+  font-size: 22rpx;
+  color: $text-faint;
+}

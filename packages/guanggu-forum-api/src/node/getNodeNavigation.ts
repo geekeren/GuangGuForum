@@ -1,5 +1,6 @@
 import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
+import { CacheAPIFunc } from "../types";
 
 export interface NodeGroup {
   category: string;
@@ -39,15 +40,26 @@ const nodeGroupDom: DataDom<NodeGroup> = {
   },
 };
 
-export function getNodeNavigation(): Promise<NodeGroup[]> {
-  return request("/").then(({ body }) => {
-    const groups = getDataFromHtml(body, nodeGroupDom) as NodeGroup[];
-    return groups.map((g) => ({
-      category: g.category,
-      nodes: g.nodes.map((n) => ({
-        name: n.name,
-        slug: n.slug.replace("/node/", ""),
-      })),
-    }));
-  });
+function parseGroups(body: any): NodeGroup[] {
+  const groups = getDataFromHtml(body, nodeGroupDom) as NodeGroup[];
+  return groups.map((g) => ({
+    category: g.category,
+    nodes: g.nodes.map((n) => ({
+      name: n.name,
+      slug: n.slug.replace("/node/", ""),
+    })),
+  }));
 }
+
+export const getNodeNavigation: CacheAPIFunc<void, NodeGroup[]> = (
+  _params?,
+  options?,
+) => {
+  const cache = options?.cache ?? true;
+  return request("/", {
+    cache,
+    onRefresh: options?.onRefresh
+      ? (body) => options.onRefresh!(parseGroups(body))
+      : undefined,
+  }).then(({ body }) => parseGroups(body));
+};

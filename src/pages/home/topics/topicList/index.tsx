@@ -3,6 +3,7 @@ import { Image, OpenContainer, ScrollView, ShareElement, Text, View } from "@tar
 import Taro from "@tarojs/taro";
 import { TopicSummary, URLS } from "guanggu-forum-api";
 import Loading from "../../../../components/Loading";
+import { cacheService, CacheCategory } from "../../../../utils/CacheService";
 import "./index.scss";
 import { getFromLocalCache } from "../../../../utils/localAssets";
 import NodeIcon from "../../../../assets/topic_node.svg";
@@ -25,18 +26,24 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
   return (
     <OpenContainer
       key={tid}
-      closedBorderRadius={12}
+      closeBorderRadius={12}
       openBorderRadius={0}
       transitionDuration={350}
+      openColor='transparent'
       onClick={async () => {
         await Taro.navigateTo({
           url: `/pages/topicDetail/index?tid=${tid}`,
         });
       }}
+      transitionType='fade'
+      closedColor='transparent'
+      closedElevation={0}
+      middleColor='transparent'
+      openElevation={0}
     >
       <View className='topicItem'>
         <View className='titleRow'>
-          <View className='title' userSelect selectable>
+          <View className='title'>
             <ShareElement mapkey={`topic_title_${tid}`}>
               <Text>{title}</Text>
             </ShareElement>
@@ -44,16 +51,17 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
         </View>
         <View className='meta'>
           <View className='left'>
-            <View className='categoryTag'><Image src={NodeIcon} svg className='categoryIcon' /><Text>{category}</Text></View>
+            <View className='categoryTag'>
+              <Image src={NodeIcon} svg className='categoryIcon' />
+              <Text>{category}</Text>
+            </View>
             <View className='user'>
               <View className='avatar'>
                 <Image src={getFromLocalCache(userAvatarUrl)} />
               </View>
               <View className='userName'>{username}</View>
             </View>
-            <Text className='lastUpdateTime'>
-              {lastUpdated}更新
-            </Text>
+            <Text className='lastUpdateTime'>{lastUpdated}更新</Text>
           </View>
           <View className='right'>
             <Image src={CommentIcon} svg className='commentIcon' />
@@ -95,6 +103,7 @@ export default class TopicList extends Component<TopicListProps, State> {
   }
 
   componentDidMount() {
+    console.time("[TopicList] request -> render");
     this.refreshTopics();
   }
 
@@ -104,13 +113,27 @@ export default class TopicList extends Component<TopicListProps, State> {
     }
   }
 
+  updateTopicIndex(topics: TopicSummary[]) {
+    try {
+      const existing = cacheService.get<TopicSummary[]>("topic_index") || [];
+      const map = new Map(existing.map((t) => [t.link, t]));
+      for (const t of topics) map.set(t.link, t);
+      const all = Array.from(map.values());
+      cacheService.set("topic_index", all, { category: CacheCategory.Topic, priority: "low" });
+    } catch {}
+  }
+
   refreshTopics() {
     this.loading = true;
     Taro.showNavigationBarLoading();
+    console.time("[TopicList] request only");
     this.getRecentTopics(1).then((topics) => {
+      console.timeEnd("[TopicList] request only");
       this.loading = false;
-      Taro.hideNavigationBarLoading();
-      this.setState({ topics, loadingPage: 1 });
+      this.updateTopicIndex(topics);
+      this.setState({ topics, loadingPage: 1 }, () => {
+        console.timeEnd("[TopicList] request -> render");
+      });
     });
   }
 
@@ -118,7 +141,7 @@ export default class TopicList extends Component<TopicListProps, State> {
     this.refreshTopics();
   }
 
-  loading = false;
+  loading = true;
 
   listReachBottom() {
     if (this.state.topics.length >= 200) return;
@@ -126,6 +149,7 @@ export default class TopicList extends Component<TopicListProps, State> {
     this.loading = true;
     this.props.getTopics(page).then((newTopics) => {
       this.loading = false;
+      this.updateTopicIndex(newTopics);
       this.setState((prev) => ({
         topics: prev.topics.concat(newTopics),
         loadingPage: page,
@@ -135,6 +159,7 @@ export default class TopicList extends Component<TopicListProps, State> {
 
   render() {
     const { topics } = this.state;
+    const scrollViewHeight = this.props.style?.height;
     return (
       <PullDownRefresh
         ref={this.pullDownRef}
@@ -149,6 +174,7 @@ export default class TopicList extends Component<TopicListProps, State> {
             showScrollbar
             scrollbarFadingEnabled={false}
             bounces
+            style={scrollViewHeight ? { height: scrollViewHeight + "px" } : undefined}
             onScrollToLower={() => this.listReachBottom()}
             lowerThreshold={300}
             onScroll={(e: any) => {

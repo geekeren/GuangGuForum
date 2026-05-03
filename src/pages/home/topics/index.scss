@@ -16,17 +16,6 @@
   white-space: nowrap;
 }
 
-.tabPane {
-  flex: 1;
-  min-height: 0;
-  display: none;
-
-  &--active {
-    display: flex;
-    flex-direction: column;
-  }
-}
-
 .tab-item {
   display: inline-block;
   color: $text-muted;

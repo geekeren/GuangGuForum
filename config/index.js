@@ -17,8 +17,15 @@ const config = {
   },
   framework: "react",
   compiler: "vite",
+  modifyViteConfig(config) {
+    config.build = config.build || {};
+    config.build.assetsInlineLimit = 0;
+  },
   mini: {
     postcss: {
+      autoprefixer: {
+        enable: false,
+      },
       pxtransform: {
         enable: true,
         config: {},

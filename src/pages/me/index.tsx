@@ -6,6 +6,7 @@ import Loading from "../../components/Loading";
 import "./index.scss";
 import UserProfileDetail from "../../components/UserProfileDetail";
 import LoginPrompt from "../../components/LoginPrompt";
+import Navbar from "../../components/Navbar";
 import { getCachedUsername } from "../../utils/currentUser";
 import { cacheService } from "../../utils/CacheService";
 import { getNavInfo } from "../../utils/dimension";
@@ -37,17 +38,25 @@ const Me = ({ active }: { active?: boolean }) => {
   );
 
   if (!username) {
-    const navTopPadding = getNavInfo().appHeaderHeight;
     return (
-      <View className="meProfile" style={{ height: "100%" }}>
-        <View className="meSettingsBar" style={{ paddingTop: navTopPadding + "px" }}>
-          {settingsAction}
-        </View>
-        <LoginPrompt
-          icon="早"
-          title="登录后查看个人信息"
-          desc="武汉本地生活社区，欢迎回来"
+      <View className="meProfile meProfile--notLoggedIn" style={{ height: "100%" }}>
+        <Navbar
+          leftAction={
+            <Image
+              className="navSettingsIcon"
+              src={SettingsIcon}
+              svg
+              onClick={() => Taro.navigateTo({ url: "/pages/settings/index" })}
+            />
+          }
         />
+        <View className="loginPromptWrap">
+          <LoginPrompt
+            icon="早"
+            title="登录后查看个人信息"
+            desc="武汉本地生活社区，欢迎回来"
+          />
+        </View>
       </View>
     );
   }

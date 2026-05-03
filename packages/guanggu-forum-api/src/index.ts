@@ -17,4 +17,4 @@ export * from "./discovery/index";
 export * from "./utils/urls";
 export * from "./urls";
 export * from "./types";
-export { setCacheService, getCacheService } from "./client";
+export { setCacheService, getCacheService, setOnLoginRequired } from "./client";

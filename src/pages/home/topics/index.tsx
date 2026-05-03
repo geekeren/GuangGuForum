@@ -8,8 +8,9 @@ import {
 import "./index.scss";
 
 import TopicList from "./topicList";
-import Taro from "@tarojs/taro";
+import Taro, { useReady } from "@tarojs/taro";
 import { ScrollView, View } from "@tarojs/components";
+import { rpxToPx } from "../../../utils/dimension";
 import { fetchAndCacheNodeNavigation, getCachedNodeNavigation } from "../../../utils/nodeNavigation";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
 
@@ -28,6 +29,7 @@ const defaultTabs: TabConfig[] = [
 
 export default function Topics() {
   const [currentTabIndex, setCurrentTabIndex] = useState(0);
+  const [tabPaneHeight, setTabPaneHeight] = useState(400);
   const [tabs, setTabs] = useState<TabConfig[] | null>(null);
   const [loadedTabs, setLoadedTabs] = useState<Record<number, boolean>>({ 0: true });
   const [refreshKey, setRefreshKey] = useState(0);
@@ -54,6 +56,17 @@ export default function Topics() {
   useEffect(() => {
     if (hotNodesData) setTabs(toTabs(hotNodesData));
   }, [hotNodesData]);
+
+  useReady(() => {
+    Taro.nextTick(() => {
+      Taro.createSelectorQuery()
+        .select(`#list_container`)
+        .boundingClientRect((res) => {
+          res?.height && setTabPaneHeight(res.height - rpxToPx(80));
+        })
+        .exec();
+    });
+  });
 
   useEffect(() => {
     const handler = () => {
@@ -133,7 +146,7 @@ export default function Topics() {
       {activeTabs.map((tab, index) => (
         <View
           key={`${tab.type}_${tab.node || ''}_${index}`}
-          className={`tabPane${index === currentTabIndex ? ' tabPane--active' : ''}`}
+          style={{ display: index === currentTabIndex ? 'block' : 'none', height: '100%' }}
         >
           {loadedTabs[index] && (
             <TopicList
@@ -144,6 +157,7 @@ export default function Topics() {
                   ? `node_topics_${tab.node}`
                   : `recent_topics_${tab.type}`
               }
+              style={{ height: tabPaneHeight }}
               getTopics={(page: number) => {
                 if (tab.node) {
                   return getNodeTopics({ node: tab.node, page });

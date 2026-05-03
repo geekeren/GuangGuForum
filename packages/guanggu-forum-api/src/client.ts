@@ -19,21 +19,47 @@ export interface RequestConfig extends Omit<TaroRequestConfig, "url" | "data"> {
 
 const HTML_CACHE_PREFIX = "html_";
 
+const STRIP_TAGS = /<(script|style|noscript|iframe)[^>]*>[\s\S]*?<\/\1>/gi;
+const STRIP_BODY_FOOTER = /<footer[^>]*class="footer"[^>]*>[\s\S]*?<\/footer>/gi;
+const COLLAPSE_BLANK_LINES = /\n\s*\n/g;
+const COMPRESS_WHITESPACE = />\s+</g;
+
+function cleanHtmlForCache(html: string): string {
+  return html
+    .replace(STRIP_TAGS, "")
+    .replace(STRIP_BODY_FOOTER, "")
+    .replace(COLLAPSE_BLANK_LINES, "\n")
+    .replace(COMPRESS_WHITESPACE, "><")
+    .trim();
+}
+
 function categorizeUrl(relativeUrl: string): CacheCategory {
+  if (relativeUrl === "/") return "node";
   if (/\/t\//.test(relativeUrl)) return "topic";
   if (/\/node\//.test(relativeUrl)) return "node";
   if (/\/u\//.test(relativeUrl)) return "user";
-  return "topic";
+  if (/^https?:\/\//.test(relativeUrl)) return "link";
+  return "other";
 }
 
 let _cacheService: ICacheService | null = null;
+let _onLoginRequired: (() => void) | null = null;
+
+// In-memory cache for parsed HTML to avoid re-parsing on every cache hit
+const parsedCache = new Map<string, { body: HTMLElement; timestamp: number }>();
+const PARSED_CACHE_TTL = 10 * 60 * 1000; // 10 min
 
 export function setCacheService(cs: ICacheService) {
   _cacheService = cs;
 }
 
+export function setOnLoginRequired(callback: () => void) {
+  _onLoginRequired = callback;
+}
+
 export function getCacheService(): ICacheService {
-  return _cacheService!;
+  if (!_cacheService) throw new Error("CacheService not initialized. Call setCacheService() first.");
+  return _cacheService;
 }
 
 function parseHtmlResponse(resData: string, relativeUrl: string) {
@@ -50,9 +76,7 @@ function parseHtmlResponse(resData: string, relativeUrl: string) {
         duration: 2000,
         title: "请先登录",
       });
-      Taro.reLaunch({
-        url: "/pages/login/index",
-      });
+      _onLoginRequired?.();
     }
     const body = parse(bodyStr);
     const userLink = body.querySelector("#navbar5 .navbar-right a.avatar");
@@ -103,27 +127,7 @@ export function request(
 
   const getCookies = () => cs.get<Record<string, string>>("cookies") || {};
 
-  const handleResponse = (res: any) => {
-    if (res.cookies) {
-      cs.set("cookies", { ...getCookies(), ...parseCookie(res.cookies) }, { category: "system" });
-    }
-    const resData = res.data;
-    if (!useProxy) {
-      const parsedBody = parseHtmlResponse(resData, relativeUrl);
-      if (parsedBody) {
-        if (cache) {
-          cs.set(cacheKey, resData, { category: categorizeUrl(relativeUrl), priority: "low" });
-        }
-        return { body: parsedBody, rawRes: res, fromCache: false };
-      }
-    }
-    return { rawRes: res, data: res.data, fromCache: false };
-  };
-
-  if (cache && cachedHtml) {
-    const body = parseHtmlResponse(cachedHtml, relativeUrl);
-
-    // Background refresh
+  const doBackgroundRefresh = () => {
     Taro.request({
       url: newUrl,
       method,
@@ -140,11 +144,46 @@ export function request(
       if (!useProxy) {
         const parsedBody = parseHtmlResponse(resData, relativeUrl);
         if (parsedBody) {
-          cs.set(cacheKey, resData, { category: categorizeUrl(relativeUrl), priority: "low" });
+          cs.setAsync(cacheKey, cleanHtmlForCache(resData), { category: categorizeUrl(relativeUrl), priority: "low" });
+          parsedCache.set(cacheKey, { body: parsedBody, timestamp: Date.now() });
           onRefresh?.(parsedBody);
         }
       }
     }).catch(() => {});
+  };
+
+  const handleResponse = (res: any) => {
+    if (res.cookies) {
+      cs.set("cookies", { ...getCookies(), ...parseCookie(res.cookies) }, { category: "system" });
+    }
+    const resData = res.data;
+    if (!useProxy) {
+      const parsedBody = parseHtmlResponse(resData, relativeUrl);
+      if (parsedBody) {
+        if (cache) {
+          cs.setAsync(cacheKey, cleanHtmlForCache(resData), { category: categorizeUrl(relativeUrl), priority: "low" });
+          parsedCache.set(cacheKey, { body: parsedBody, timestamp: Date.now() });
+        }
+        return { body: parsedBody, rawRes: res, fromCache: false };
+      }
+    }
+    return { rawRes: res, data: res.data, fromCache: false };
+  };
+
+  if (cache && cachedHtml) {
+    // Check in-memory parsed cache first to skip HTML parsing
+    const cached = parsedCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < PARSED_CACHE_TTL) {
+      doBackgroundRefresh();
+      return Promise.resolve({ body: cached.body, rawRes: null, fromCache: true });
+    }
+
+    const body = parseHtmlResponse(cachedHtml, relativeUrl);
+    if (body) {
+      parsedCache.set(cacheKey, { body, timestamp: Date.now() });
+    }
+
+    doBackgroundRefresh();
 
     if (body) {
       return Promise.resolve({ body, rawRes: null, fromCache: true });
