@@ -106,7 +106,7 @@ export default function Settings() {
   const [cacheStats, setCacheStats] = useState<CategoryStats[]>([]);
 
   const refreshCacheStats = () => {
-    setCacheStats(cacheService.getAllCategoryStats());
+    setCacheStats(cacheService.getAllCategoryStats().filter((s) => s.category !== CacheCategory.System));
   };
 
   Taro.useDidShow(() => {
