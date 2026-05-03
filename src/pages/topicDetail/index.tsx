@@ -9,8 +9,6 @@ import {
   View,
 } from "@tarojs/components";
 import Taro, {
-  getStorageSync,
-  setStorageSync,
   useRouter,
   useShareAppMessage,
   useShareTimeline,
@@ -31,6 +29,7 @@ import "./index.scss";
 import Loading from "../../components/Loading";
 import Navbar from "../../components/Navbar";
 import { getFromLocalCache } from "../../utils/localAssets";
+import { cacheService, CacheCategory } from "../../utils/CacheService";
 import { rpxToPx } from "../../utils/dimension";
 import { isSkyline } from "../../utils/renderer";
 import { trimStrings } from "../../utils/trimStrings";
@@ -53,7 +52,7 @@ const Index = () => {
   const [isCommenting, setIsCommenting] = useState(false);
   const [sending, setSending] = useState(false);
   const [commentContent, setCommentContent] = useState("");
-  const [commentAsc, setCommentAsc] = useState(() => getStorageSync("commentSortAsc") || false);
+  const [commentAsc, setCommentAsc] = useState(() => cacheService.get<boolean>("commentSortAsc") || false);
   const [navScrollProgress, setNavScrollProgress] = useState(0);
   const [highlightFloor, setHighlightFloor] = useState<string | null>(null);
   const [scrollIntoTarget, setScrollIntoTarget] = useState("");
@@ -277,7 +276,7 @@ const Index = () => {
                     onClick={() => {
                       const next = !commentAsc;
                       setCommentAsc(next);
-                      setStorageSync("commentSortAsc", next);
+                      cacheService.set("commentSortAsc", next, { category: CacheCategory.Other });
                     }}
                   >
                     <Image src={commentAsc ? SortDescIcon : SortAscIcon} svg className='sortIcon' />

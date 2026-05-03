@@ -5,6 +5,8 @@ import Navbar from "../../components/Navbar";
 import { logout } from "guanggu-forum-api";
 import ArrowRightIcon from "../../assets/arrow-right.svg";
 import { linkHandler } from "../../utils/linkHandler";
+import { getCachedUsername } from "../../utils/currentUser";
+import { cacheService, CacheCategory, type CategoryStats } from "../../utils/CacheService";
 import AddToDesktopGuide from "../../components/AddToDesktopGuide";
 import "./index.scss";
 
@@ -28,9 +30,7 @@ type MenuItem = {
 };
 
 function isAdDisabled(): boolean {
-  const disableUntil = Taro.getStorageSync(AD_DISABLE_KEY);
-  if (!disableUntil) return false;
-  return Date.now() < disableUntil;
+  return cacheService.get<number>(AD_DISABLE_KEY) != null && Date.now() < cacheService.get<number>(AD_DISABLE_KEY)!;
 }
 
 export default function Settings() {
@@ -64,7 +64,7 @@ export default function Settings() {
         if (res && res.isEnded) {
           // 用户看完了广告，设置1个月后过期
           const oneMonthLater = Date.now() + 30 * 24 * 60 * 60 * 1000;
-          Taro.setStorageSync(AD_DISABLE_KEY, oneMonthLater);
+          cacheService.set(AD_DISABLE_KEY, oneMonthLater, { category: CacheCategory.Other });
           setAdEnabled(false);
           Taro.showToast({ title: "广告已关闭1个月", icon: "success" });
         } else {
@@ -103,19 +103,44 @@ export default function Settings() {
     }
   };
 
-  const handleClearCache = async () => {
+  const [cacheStats, setCacheStats] = useState<CategoryStats[]>([]);
+
+  const refreshCacheStats = () => {
+    setCacheStats(cacheService.getAllCategoryStats());
+  };
+
+  Taro.useDidShow(() => {
+    refreshCacheStats();
+  });
+
+  const formatSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const totalSize = cacheStats.reduce((sum, s) => sum + s.size, 0);
+
+  const handleClearCategory = async (cat: CacheCategory, label: string) => {
     const { confirm } = await Taro.showModal({
-      title: "清除缓存",
-      content: "确定要清除本地缓存吗？",
+      title: `清除${label}`,
+      content: `确定要清除所有${label}吗？`,
     });
     if (confirm) {
-      const res = Taro.getStorageInfoSync();
-      const KEEP_KEYS = new Set(["cookies", "current_username", "saved_accounts", AD_DISABLE_KEY]);
-      res.keys.forEach((key) => {
-        if (!KEEP_KEYS.has(key) && !key.startsWith("ggf_auth")) {
-          Taro.removeStorage({ key });
-        }
-      });
+      cacheService.category(cat).clear();
+      refreshCacheStats();
+      Taro.showToast({ title: `${label}已清除`, icon: "success" });
+    }
+  };
+
+  const handleClearAll = async () => {
+    const { confirm } = await Taro.showModal({
+      title: "清除缓存",
+      content: "确定要清除所有可清除的缓存吗？登录状态等数据将保留。",
+    });
+    if (confirm) {
+      cacheService.clearAll(true);
+      refreshCacheStats();
       Taro.showToast({ title: "缓存已清除", icon: "success" });
     }
   };
@@ -169,21 +194,22 @@ export default function Settings() {
       }
     } else {
       // 开启广告
-      Taro.removeStorageSync(AD_DISABLE_KEY);
+      cacheService.remove(AD_DISABLE_KEY, true);
       setAdEnabled(true);
       Taro.showToast({ title: "广告已开启", icon: "success" });
     }
   };
 
-  // 计算广告关闭剩余时间描述
   const getAdSwitchDesc = () => {
     if (adEnabled) return "";
-    const disableUntil = Taro.getStorageSync(AD_DISABLE_KEY);
+    const disableUntil = cacheService.get<number>(AD_DISABLE_KEY);
     if (!disableUntil) return "";
     const remainDays = Math.ceil((disableUntil - Date.now()) / (24 * 60 * 60 * 1000));
     if (remainDays <= 0) return "";
     return `已关闭 ${remainDays} 天`;
   };
+
+  const isLoggedIn = !!getCachedUsername();
 
   const sections: MenuItem[][] = [
     [
@@ -194,10 +220,6 @@ export default function Settings() {
       // { label: "广告管理", switchControl: true, switchValue: adEnabled, onSwitchChange: handleAdSwitchChange, switchDesc: getAdSwitchDesc(), noArrow: true },
       { label: "推荐给朋友", shareButton: true, noArrow: true },
       { label: "添加到桌面", action: handleAddToDesktop, noArrow: true },
-      { label: "清除缓存", action: handleClearCache, noArrow: true },
-    ],
-    [
-      { label: "退出登录", action: handleLogout, danger: true, noArrow: true },
     ],
   ];
 
@@ -247,6 +269,43 @@ export default function Settings() {
             ))}
           </View>
         ))}
+
+        <View className="cacheCard">
+          <View className="cacheHeader">
+            <Text className="cacheHeaderLabel">本地缓存</Text>
+            <Text className="cacheHeaderSize">{formatSize(totalSize)}</Text>
+          </View>
+          {cacheStats.length > 0 ? (
+            cacheStats.map((stat) => (
+              <View
+                key={stat.category}
+                className="cacheRow"
+                onClick={() => handleClearCategory(stat.category, stat.label)}
+              >
+                <Text className="cacheRowLabel">{stat.label}</Text>
+                <View className="cacheRowRight">
+                  <Text className="cacheRowSize">{formatSize(stat.size)}</Text>
+                  <Text className="cacheRowCount">{stat.count} 项</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View className="cacheRow cacheRow--empty">
+              <Text className="cacheRowLabel" style={{ color: "var(--text-faint, #a0a8b8)" }}>暂无缓存</Text>
+            </View>
+          )}
+          <View className="cacheRow cacheRow--action" onClick={handleClearAll}>
+            <Text className="cacheActionText">清除可清除缓存</Text>
+          </View>
+        </View>
+
+        {isLoggedIn && (
+          <View className="settingsGroup">
+            <View className="settingsItem settingsItem--danger" onClick={handleLogout}>
+              <Text className="settingsItemLabel">退出登录</Text>
+            </View>
+          </View>
+        )}
 
         <View className="settingsFooter">
           <Text className="settingsFooterText">过早客 · 武汉本地生活社区</Text>

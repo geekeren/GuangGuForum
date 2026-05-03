@@ -1,20 +1,14 @@
-import Taro from "@tarojs/taro";
 import { getNodeNavigation, NodeGroup } from "guanggu-forum-api";
+import { cacheService, CacheCategory } from "./CacheService";
 
 const CACHE_KEY = "node_navigation";
 
 export function getCachedNodeNavigation(): NodeGroup[] {
-  try {
-    const stored = Taro.getStorageSync(CACHE_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return [];
+  return cacheService.get<NodeGroup[]>(CACHE_KEY) || [];
 }
 
 export function cacheNodeNavigation(groups: NodeGroup[]) {
-  try {
-    Taro.setStorageSync(CACHE_KEY, JSON.stringify(groups));
-  } catch {}
+  cacheService.set(CACHE_KEY, groups, { category: CacheCategory.Node });
 }
 
 export function fetchAndCacheNodeNavigation(): Promise<NodeGroup[]> {

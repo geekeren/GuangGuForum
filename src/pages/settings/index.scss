@@ -106,3 +106,94 @@
   font-size: 22rpx;
   color: $text-faint;
 }
+
+.cacheCard {
+  background: $surface;
+  border-radius: $radius-md;
+  box-shadow: $shadow-sm;
+  margin-bottom: 20rpx;
+  overflow: hidden;
+}
+
+.cacheHeader {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx;
+  border-bottom: 1rpx solid $border-color;
+}
+
+.cacheHeaderLabel {
+  font-size: 28rpx;
+  color: $text-primary;
+  font-weight: 600;
+}
+
+.cacheHeaderSize {
+  font-size: 26rpx;
+  color: $text-muted;
+}
+
+.cacheRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 28rpx;
+  border-bottom: 1rpx solid $border-color;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: $surfaceAlt;
+  }
+
+  &--empty {
+    &:active {
+      background: transparent;
+    }
+  }
+
+  &--action {
+    justify-content: center;
+    padding: 28rpx;
+
+    &:active {
+      background: $color-brand-soft;
+    }
+  }
+}
+
+.cacheRowLabel {
+  font-size: 28rpx;
+  color: $text-sub;
+}
+
+.cacheRowRight {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.cacheRowSize {
+  font-size: 24rpx;
+  color: $text-faint;
+}
+
+.cacheRowCount {
+  font-size: 22rpx;
+  color: $text-faint;
+  background: $surfaceAlt;
+  padding: 2rpx 12rpx;
+  border-radius: $radius-sm;
+}
+
+.cacheActionText {
+  font-size: 28rpx;
+  color: $color-brand;
+  font-weight: 500;
+}

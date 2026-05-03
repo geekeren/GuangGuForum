@@ -2,6 +2,7 @@ import Taro from "@tarojs/taro";
 import { parse, HTMLElement } from "node-html-parser";
 import { matchContentRule } from "./linkContentRules";
 import { CacheAPIFunc } from "../types";
+import { getCacheService } from "../client";
 
 export interface LinkSummary {
   title: string;
@@ -14,13 +15,8 @@ export interface LinkSummary {
   url: string;
 }
 
-const HTML_CACHE_PREFIX = "link_html_";
+const LINK_CACHE_PREFIX = "link_html_";
 const HTML_CACHE_TTL = 30 * 60 * 1000;
-
-interface CachedHtml {
-  html: string;
-  timestamp: number;
-}
 
 function metaContent(doc: HTMLElement, property: string): string {
   const el =
@@ -140,9 +136,7 @@ async function fetchHtml(url: string): Promise<string> {
     });
     const html = typeof res.data === "string" ? res.data : "";
     if (html) {
-      try {
-        Taro.setStorageSync(HTML_CACHE_PREFIX + url, JSON.stringify({ html, timestamp: Date.now() }));
-      } catch {}
+      getCacheService().set(LINK_CACHE_PREFIX + url, html, { category: "link", ttl: HTML_CACHE_TTL, priority: "low" });
     }
     return html;
   } catch {
@@ -151,16 +145,12 @@ async function fetchHtml(url: string): Promise<string> {
 }
 
 function getCachedHtml(url: string): string {
-  try {
-    const stored = Taro.getStorageSync(HTML_CACHE_PREFIX + url);
-    if (stored) {
-      const cached: CachedHtml = JSON.parse(stored);
-      if (Date.now() - cached.timestamp < HTML_CACHE_TTL) {
-        return cached.html;
-      }
-    }
-  } catch {}
-  return "";
+  const cs = getCacheService();
+  if (cs.isExpired(LINK_CACHE_PREFIX + url)) {
+    cs.remove(LINK_CACHE_PREFIX + url);
+    return "";
+  }
+  return cs.get<string>(LINK_CACHE_PREFIX + url) || "";
 }
 
 export interface FetchLinkSummaryParam {

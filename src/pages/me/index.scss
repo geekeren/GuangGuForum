@@ -4,3 +4,15 @@
   background: $bgColor;
   padding-bottom: 40rpx;
 }
+
+.meSettingsBar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16rpx 28rpx 0;
+}
+
+.settingsIcon {
+  width: 44rpx;
+  height: 44rpx;
+  opacity: 0.6;
+}

@@ -6,20 +6,19 @@ import Taro, { useRouter } from "@tarojs/taro";
 import Navbar from "../../components/Navbar";
 import { BRAND_COLOR } from "../../utils/theme";
 import { linkHandler } from "../../utils/linkHandler";
+import { cacheService, CacheCategory } from "../../utils/CacheService";
 
 const SAVED_ACCOUNTS_KEY = "saved_accounts";
 
 function getSavedAccounts(): string[] {
-  try {
-    return JSON.parse(Taro.getStorageSync(SAVED_ACCOUNTS_KEY) || "[]");
-  } catch { return []; }
+  return cacheService.get<string[]>(SAVED_ACCOUNTS_KEY) || [];
 }
 
 function saveAccount(email: string) {
   if (!email) return;
   const list = getSavedAccounts().filter((a) => a !== email);
   list.unshift(email);
-  try { Taro.setStorageSync(SAVED_ACCOUNTS_KEY, JSON.stringify(list.slice(0, 5))); } catch {}
+  cacheService.set(SAVED_ACCOUNTS_KEY, list.slice(0, 5), { category: CacheCategory.System });
 }
 
 interface LoginParams {

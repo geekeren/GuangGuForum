@@ -1,12 +1,11 @@
-import Taro from "@tarojs/taro";
-import { request } from "../client";
-import { URLS } from "../urls";
+import { request, getCacheService } from "../client";
 
 export async function logout() {
   return request("/logout", {
     method: "GET",
   }).then(() => {
-    Taro.removeStorageSync("cookies");
-    Taro.removeStorageSync("current_username");
+    const cs = getCacheService();
+    cs.remove("cookies", true);
+    cs.remove("current_username", true);
   });
 }

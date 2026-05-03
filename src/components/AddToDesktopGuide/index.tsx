@@ -1,8 +1,8 @@
 import { View, Text, Image } from "@tarojs/components";
-import Taro from "@tarojs/taro";
 import { useEffect, useState, useRef } from "react";
 import MoreDotsIcon from "../../assets/more-dots.svg";
 import { getNavInfo } from "../../utils/dimension";
+import { cacheService, CacheCategory } from "../../utils/CacheService";
 import "./index.scss";
 
 const STORAGE_KEY = "add_to_desktop_dismissed";
@@ -23,7 +23,7 @@ export default function AddToDesktopGuide({ force, onClose }: Props = {}) {
       setVisible(true);
       return;
     }
-    const dismissed = Taro.getStorageSync(STORAGE_KEY);
+    const dismissed = cacheService.get<boolean>(STORAGE_KEY);
     if (dismissed) return;
 
     const timer = setTimeout(() => {
@@ -40,7 +40,7 @@ export default function AddToDesktopGuide({ force, onClose }: Props = {}) {
     setTimeout(() => {
       setVisible(false);
       if (!force) {
-        Taro.setStorageSync(STORAGE_KEY, true);
+        cacheService.set(STORAGE_KEY, true, { category: CacheCategory.Other, priority: "low" });
       }
       onClose?.();
       closingRef.current = false;

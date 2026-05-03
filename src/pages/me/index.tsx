@@ -7,6 +7,7 @@ import "./index.scss";
 import UserProfileDetail from "../../components/UserProfileDetail";
 import LoginPrompt from "../../components/LoginPrompt";
 import { getCachedUsername } from "../../utils/currentUser";
+import { cacheService } from "../../utils/CacheService";
 import { getNavInfo } from "../../utils/dimension";
 import SettingsIcon from "../../assets/settings.svg";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
@@ -17,7 +18,7 @@ const Me = ({ active }: { active?: boolean }) => {
 
   useEffect(() => {
     if (!username) {
-      const cookies = Taro.getStorageSync("cookies");
+      const cookies = cacheService.get<Record<string, string>>("cookies");
       if (cookies) {
         getRecentTopics({ type: "default", page: 1 }).catch(() => {});
       }
@@ -26,9 +27,22 @@ const Me = ({ active }: { active?: boolean }) => {
     fetchProfile({ username });
   }, [active]);
 
+  const settingsAction = (
+    <Image
+      className="settingsIcon"
+      src={SettingsIcon}
+      svg
+      onClick={() => Taro.navigateTo({ url: "/pages/settings/index" })}
+    />
+  );
+
   if (!username) {
+    const navTopPadding = getNavInfo().appHeaderHeight;
     return (
       <View className="meProfile" style={{ height: "100%" }}>
+        <View className="meSettingsBar" style={{ paddingTop: navTopPadding + "px" }}>
+          {settingsAction}
+        </View>
         <LoginPrompt
           icon="早"
           title="登录后查看个人信息"
@@ -42,20 +56,11 @@ const Me = ({ active }: { active?: boolean }) => {
     return <Loading />;
   }
 
-  const actions = (
-    <Image
-      className="settingsIcon"
-      src={SettingsIcon}
-      svg
-      onClick={() => Taro.navigateTo({ url: "/pages/settings/index" })}
-    />
-  );
-
   const navTopPadding = getNavInfo().appHeaderHeight;
 
   return (
     <ScrollView scrollY className="meProfile" style={{ height: "100%" }}>
-      <UserProfileDetail profile={profile} actions={actions} navPaddingTop={navTopPadding} />
+      <UserProfileDetail profile={profile} actions={settingsAction} navPaddingTop={navTopPadding} />
     </ScrollView>
   );
 };

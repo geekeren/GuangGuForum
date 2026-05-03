@@ -1,13 +1,14 @@
 import { Component } from "react";
 import "./app.scss";
 import { registerSkylineRoutes } from "./utils/skylineRoutes";
-import { cleanupCache, shouldRunDailyCleanup } from "guanggu-forum-api";
+import { setCacheService } from "guanggu-forum-api";
+import { cacheService } from "./utils/CacheService";
 
 class App extends Component {
   componentDidMount() {
-    registerSkylineRoutes();
-    if (shouldRunDailyCleanup()) {
-      cleanupCache();
+    setCacheService(cacheService);
+    if (cacheService.shouldRunDailyCleanup()) {
+      cacheService.dailyCleanup();
     }
   }
 

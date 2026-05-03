@@ -1,5 +1,5 @@
-import Taro from "@tarojs/taro";
+import { cacheService } from "./CacheService";
 
 export function getCachedUsername(): string {
-  return Taro.getStorageSync("current_username") || "";
+  return cacheService.get<string>("current_username") || "";
 }
