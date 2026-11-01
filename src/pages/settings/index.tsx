@@ -12,11 +12,11 @@ import Navbar from "../../components/Navbar";
 import { isSkyline } from "../../utils/renderer";
 import { useTheme } from "../../hooks/useTheme";
 import { setThemePreference, THEME_LABELS, type ThemePreference } from "../../utils/themePreferences";
+import { AD_DISABLE_KEY, disableAd, isAdDisabled, getAdDisabledDays } from "../../utils/ad";
 import "./index.scss";
 
 const FEEDBACK_URL = "https://www.guozaoke.com/t/91893";
 const GITHUB_URL = "https://github.com/geekeren/GuangGuForum";
-const AD_DISABLE_KEY = "ad_disable_until";
 const REWARDED_AD_UNIT_ID = "adunit-d0ac20b3f633671e";
 
 type MenuItem = {
@@ -33,10 +33,6 @@ type MenuItem = {
   switchDesc?: string;
   statusTag?: string;
 };
-
-function isAdDisabled(): boolean {
-  return cacheService.get<number>(AD_DISABLE_KEY) != null && Date.now() < cacheService.get<number>(AD_DISABLE_KEY)!;
-}
 
 export default function Settings() {
   const skyline = isSkyline();
@@ -58,7 +54,7 @@ export default function Settings() {
   const videoAdRef = useRef<Taro.RewardedVideoAd | null>(null);
 
   useEffect(() => {
-    // setAdEnabled(!isAdDisabled());
+    setAdEnabled(!isAdDisabled());
 
     // 创建激励视频广告实例
     if (Taro.createRewardedVideoAd) {
@@ -74,17 +70,19 @@ export default function Settings() {
         console.error("激励视频广告加载失败", err);
         setAdLoading(false);
         Taro.showToast({ title: "广告加载失败，请稍后重试", icon: "none" });
-        setAdEnabled(true);
+        setAdEnabled(!isAdDisabled());
       });
 
       videoAdRef.current.onClose((res: { isEnded: boolean }) => {
         setAdLoading(false);
         if (res && res.isEnded) {
-          // 用户看完了广告，设置1个月后过期
-          const oneMonthLater = Date.now() + 30 * 24 * 60 * 60 * 1000;
-          cacheService.set(AD_DISABLE_KEY, oneMonthLater, { category: CacheCategory.Other });
-          setAdEnabled(false);
-          Taro.showToast({ title: "广告已关闭1个月", icon: "success" });
+          if (disableAd(30)) {
+            setAdEnabled(false);
+            Taro.showToast({ title: "广告已关闭30天", icon: "success" });
+          } else {
+            setAdEnabled(!isAdDisabled());
+            Taro.showToast({ title: "免广告设置保存失败，请重试", icon: "none" });
+          }
         } else {
           Taro.showToast({ title: "需看完广告才能关闭", icon: "none" });
           setAdEnabled(true);
@@ -127,11 +125,22 @@ export default function Settings() {
 
   const [cacheStats, setCacheStats] = useState<CategoryStats[]>([]);
 
-  const refreshCacheStats = () => {
-    setCacheStats(cacheService.getAllCategoryStats());
+  const statsRevision = useRef(0);
+  const statsVisible = useRef(true);
+  useEffect(() => () => { statsVisible.current = false; statsRevision.current++; }, []);
+  Taro.useDidHide(() => { statsVisible.current = false; statsRevision.current++; });
+
+  const refreshCacheStats = async () => {
+    const revision = ++statsRevision.current;
+    try {
+      const stats = await cacheService.getAllCategoryStatsAsync();
+      if (statsVisible.current && revision === statsRevision.current) setCacheStats(stats);
+    } catch { /* Keep the previous snapshot if the filesystem is temporarily unavailable. */ }
   };
 
   Taro.useDidShow(() => {
+    statsVisible.current = true;
+    setAdEnabled(!isAdDisabled());
     checkMiniProgramAdded().then(setMiniProgramAdded);
     refreshCacheStats();
   });
@@ -155,7 +164,7 @@ export default function Settings() {
     });
     if (confirm) {
       try {
-        cacheService.category(cat).clear();
+        await cacheService.clearCategoryAsync(cat);
         Taro.showToast({ title: `${label}已清除`, icon: "success" });
       } catch {
         Taro.showToast({ title: "部分缓存清理失败，请重试", icon: "none" });
@@ -170,7 +179,7 @@ export default function Settings() {
     });
     if (confirm) {
       try {
-        cacheService.clearAll(true);
+        await cacheService.clearAllAsync(true);
         Taro.showToast({ title: "缓存已清除", icon: "success" });
       } catch {
         Taro.showToast({ title: "部分缓存清理失败，请重试", icon: "none" });
@@ -186,7 +195,7 @@ export default function Settings() {
     });
     if (confirm) {
       try {
-        cacheService.clearAll(false);
+        await cacheService.clearAllAsync(false);
         Taro.showToast({ title: "所有数据已清除", icon: "success" });
       } catch {
         Taro.showToast({ title: "数据清理失败，请重试", icon: "none" });
@@ -211,11 +220,12 @@ export default function Settings() {
   };
 
   const handleAdSwitchChange = async (value: boolean) => {
+    if (adLoading) return;
     if (!value) {
       // 关闭广告需要看激励广告
       const { confirm } = await Taro.showModal({
         title: "关闭广告",
-        content: "观看激励视频广告后可关闭广告1个月",
+        content: "完整观看激励视频后，可关闭广告30天",
         confirmText: "观看广告",
         cancelText: "取消",
       });
@@ -243,19 +253,20 @@ export default function Settings() {
       }
     } else {
       // 开启广告
-      cacheService.remove(AD_DISABLE_KEY, true);
-      setAdEnabled(true);
-      Taro.showToast({ title: "广告已开启", icon: "success" });
+      if (await cacheService.removeAsync(AD_DISABLE_KEY, true)) {
+        setAdEnabled(true);
+        Taro.showToast({ title: "广告已开启", icon: "success" });
+      } else {
+        setAdEnabled(!isAdDisabled());
+        Taro.showToast({ title: "广告设置保存失败，请重试", icon: "none" });
+      }
     }
   };
 
   const getAdSwitchDesc = () => {
     if (adEnabled) return "";
-    const disableUntil = cacheService.get<number>(AD_DISABLE_KEY);
-    if (!disableUntil) return "";
-    const remainDays = Math.ceil((disableUntil - Date.now()) / (24 * 60 * 60 * 1000));
-    if (remainDays <= 0) return "";
-    return `已关闭 ${remainDays} 天`;
+    const remainDays = getAdDisabledDays();
+    return remainDays > 0 ? `免广告剩余 ${remainDays} 天` : "";
   };
 
   const isLoggedIn = !!getCachedUsername();
@@ -267,7 +278,7 @@ export default function Settings() {
       { label: "开源地址", desc: "GitHub", action: () => handleExternalUrl(GITHUB_URL) },
     ],
     [
-      // { label: "广告管理", switchControl: true, switchValue: adEnabled, onSwitchChange: handleAdSwitchChange, switchDesc: getAdSwitchDesc(), noArrow: true },
+      { label: "广告管理", switchControl: true, switchValue: adEnabled, onSwitchChange: handleAdSwitchChange, switchDesc: getAdSwitchDesc(), noArrow: true },
       { label: "推荐给朋友", shareButton: true },
       { label: "添加到桌面", action: handleAddToDesktop },
       { label: "添加到我的小程序", action: handleAddToMiniProgram, statusTag: miniProgramAdded ? "已添加" : "未添加" },
@@ -288,8 +299,12 @@ export default function Settings() {
               >
                 {item.shareButton ? (
                   <Button className='settingsItemBtn' open-type='share'>
-                    <Text className='settingsItemLabel'>{item.label}</Text>
-                    <ThemedIcon src={ArrowRightIcon} tone='muted' lightColor='#8a8a8a' className='settingsItemArrow' />
+                    <View className='settingsItemBtnContent'>
+                      <View className='settingsItemLeft'>
+                        <Text className='settingsItemLabel'>{item.label}</Text>
+                      </View>
+                      <ThemedIcon src={ArrowRightIcon} tone='muted' lightColor='#8a8a8a' className='settingsItemArrow' />
+                    </View>
                   </Button>
                 ) : item.switchControl ? (
                   <>

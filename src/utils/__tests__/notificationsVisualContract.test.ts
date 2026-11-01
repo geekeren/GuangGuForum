@@ -257,7 +257,7 @@ describe("notification reference layout and real-data contracts", () => {
     expect(css).not.toMatch(/notificationShortcut/);
     expect(css).not.toMatch(/::after/);
     expect(css).toContain("background: #f0f5fd;");
-    expect(css).toContain(".html-link--mention { background: var(--theme-accent-muted, #e8efff); padding: 0 6rpx; border-radius: 6rpx;");
+    expect(css).toContain(".html-link--mention { background: var(--theme-accent-muted, #e8efff); }");
     expect(css).not.toMatch(/display: flex;\s*align-items:/);
     expect(css).not.toMatch(/position: sticky|display: grid|overflow: auto/);
     expect(source).not.toMatch(/\d+\s*分钟前|notificationTime/);

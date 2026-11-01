@@ -48,11 +48,13 @@ const blockTags = new Set(["div", "p", "ul", "ol", "li", "blockquote", "pre", "h
 
 // The HTML parser calls this bottom-up, after attaching transformed children.
 function normalizeSkylineElement(element: TaroElement, tagName: string) {
-  // Span is an inline text-flow container, not a flex box. A link occupies one
-  // inline slot; its single View child owns the flex layout and chip background.
-  if (element.className.split(" ").includes("html-link--external")) return;
+  // Span is an inline text-flow container, not a flex box. A link/mention
+  // occupies one inline slot; its single View child owns the chip box styles.
+  const classes = element.className.split(" ");
+  if (classes.includes("html-link--external") || classes.includes("html-mentionHost")) return;
   const originalChildren = [...element.childNodes];
-  const isBlock = (child: TaroElement) => child.nodeName === "view" || blockTags.has((child as ParsedHtmlElement).h5tagName || "");
+  type HtmlChild = (typeof originalChildren)[number];
+  const isBlock = (child: HtmlChild) => child.nodeName === "view" || blockTags.has((child as ParsedHtmlElement).h5tagName || "");
   const hasBlocks = originalChildren.some(isBlock);
   if (hasBlocks && tagName !== "pre" && tagName !== "code") {
     // HTML indentation between blocks is not an authored blank line. A native
@@ -87,20 +89,39 @@ function normalizeSkylineElement(element: TaroElement, tagName: string) {
   }
 
   if (element.nodeName === "view") {
-    // Keep each contiguous text run together so strong/mention/br remain inline,
-    // without converting the block itself to Text or placing raw text in View.
-    let run: TaroElement | null = null;
+    // View siblings have independent block layout in Skyline. A chip and its
+    // surrounding text must share one Span formatting context, not just put a
+    // Span around the chip itself. Real blocks/images still end the inline run.
+    let fragments: HtmlChild[] = [];
+    const flush = () => {
+      if (!fragments.length) return;
+      const mixed = fragments.some(child => child.nodeName === "span");
+      const run = element.ownerDocument.createElement(mixed ? "span" : "text");
+      if (mixed) run.className = "htmlInlineFlow";
+      element.insertBefore(run, fragments[0]);
+      let textRun: TaroElement | null = null;
+      for (const child of fragments) {
+        if (!mixed || child.nodeName === "span") {
+          run.appendChild(child);
+          textRun = null;
+        } else {
+          if (!textRun) {
+            textRun = element.ownerDocument.createElement("text");
+            run.appendChild(textRun);
+          }
+          textRun.appendChild(child);
+        }
+      }
+      fragments = [];
+    };
     for (const child of children) {
-      if (child.nodeName !== "text" && child.nodeName !== "#text") {
-        run = null;
-        continue;
+      if (["text", "#text", "span"].includes(child.nodeName) && !isBlock(child)) {
+        fragments.push(child);
+      } else {
+        flush();
       }
-      if (!run) {
-        run = element.ownerDocument.createElement("text");
-        element.insertBefore(run, child);
-      }
-      run.appendChild(child);
     }
+    flush();
   } else if (element.nodeName === "span") {
     for (const child of children) {
       if (child.nodeName !== "#text") continue;
@@ -124,9 +145,24 @@ Taro.options.html.transformElement = (
     const hasImg = hasImage(taroEle);
 
     if (isMention) {
-      taroEle.tagName = "TEXT";
-      taroEle.nodeName = "text";
-      taroEle.setAttribute("class", "html-link html-link--mention");
+      if (skyline) {
+        // Nested Text paints a text-run background, not a rounded/padded box.
+        // Use one inline Span slot with a View chip, as with external links.
+        const label = taroEle.textContent || "";
+        setNodeName(taroEle, "span");
+        taroEle.setAttribute("class", "html-mentionHost");
+        while (taroEle.firstChild) taroEle.removeChild(taroEle.firstChild);
+        const chip = taroEle.ownerDocument.createElement("view");
+        chip.setAttribute("class", "html-link html-link--mention");
+        const text = taroEle.ownerDocument.createElement("text");
+        text.setAttribute("class", "html-mentionLabel");
+        text.appendChild(taroEle.ownerDocument.createTextNode(label));
+        chip.appendChild(text);
+        taroEle.appendChild(chip);
+      } else {
+        setNodeName(taroEle, "text");
+        taroEle.setAttribute("class", "html-link html-link--mention");
+      }
     } else if (hasImg) {
       // 图片链接本身就是“内容”，不加图标也不改文案。
       setNodeName(taroEle, skyline ? "span" : "view");

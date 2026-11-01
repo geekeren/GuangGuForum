@@ -12,9 +12,10 @@ export function isAdDisabled(): boolean {
   return true;
 }
 
-export function disableAd(days: number = 30): void {
-  const disableUntil = Date.now() + days * 24 * 60 * 60 * 1000;
-  cacheService.set(AD_DISABLE_KEY, disableUntil, { category: CacheCategory.Other });
+export function disableAd(days: number = 30): boolean {
+  const ttl = days * 24 * 60 * 60 * 1000;
+  const disableUntil = Date.now() + ttl;
+  return cacheService.set(AD_DISABLE_KEY, disableUntil, { category: CacheCategory.Other, ttl });
 }
 
 export function enableAd(): void {

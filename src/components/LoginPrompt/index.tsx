@@ -9,8 +9,6 @@ interface LoginPromptProps {
   desc: string;
 }
 
-const isEmoji = (s: string) => /\p{Emoji_Presentation}/u.test(s);
-
 const LoginPrompt = ({ icon, iconSrc, title, desc }: LoginPromptProps) => {
   return (
     <View className="loginPrompt">
@@ -18,8 +16,6 @@ const LoginPrompt = ({ icon, iconSrc, title, desc }: LoginPromptProps) => {
         <View className="loginPromptBadge">
           <Image src={iconSrc} svg className="loginPromptBadgeIcon" />
         </View>
-      ) : isEmoji(icon) ? (
-        <Text className="loginPromptIcon">{icon}</Text>
       ) : (
         <View className="loginPromptBadge"><Text>{icon}</Text></View>
       )}

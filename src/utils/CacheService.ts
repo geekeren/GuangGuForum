@@ -7,6 +7,11 @@ const INDEX_KEY = "__cache_index__";
 const LAST_CLEANUP_KEY = "__cache_cleanup_date__";
 const DEFAULT_MAX_ENTRIES = 1000;
 const DEFAULT_TTL = 30 * 60 * 1000; // 30 min
+const FILE_AND_TOPIC_INDEX_TTL = 3 * 24 * 60 * 60 * 1000;
+
+function cacheTTL(key: string, ttl?: number): number {
+  return ttl ?? (isTopicFileKey(key) || key === "topic_index" ? FILE_AND_TOPIC_INDEX_TTL : DEFAULT_TTL);
+}
 
 type CachePriority = "low" | "normal" | "high";
 
@@ -91,10 +96,37 @@ class CategoryAccessor {
 class CacheService implements ICacheService {
   private maxEntries: number;
   private topicFiles: TopicFileCache;
+  private fileReads = new Map<string, { revision: string; promise: Promise<any> }>();
+  private indexTrim: Promise<void> | null = null;
+  private deferredRemovals = new Map<string, "missing" | "deleted">();
+  private confirmedMissing = new Map<string, string>();
 
   constructor(maxEntries = DEFAULT_MAX_ENTRIES) {
     this.maxEntries = maxEntries;
-    this.topicFiles = new TopicFileCache(maxEntries);
+    this.topicFiles = new TopicFileCache(maxEntries, undefined, (key, reason) => {
+      this.onFileRemoved(key, reason);
+    }, key => {
+      // Commit storage references with file publication, not an await-later callback.
+      this.deferredRemovals.delete(key);
+      this.confirmedMissing.delete(key);
+      this.removeLegacyTopicKey(key);
+      this.trackKey(key);
+    });
+  }
+
+  private onFileRemoved(key: string, reason: "missing" | "deleted") {
+    if (reason === "missing") this.confirmedMissing.set(key, this.topicFiles.getRevision(key));
+    else this.confirmedMissing.delete(key);
+    try {
+      // Missing legacy payloads may still be migrated. Never erase their only source.
+      if (reason === "missing" && this.getStorageMeta(key, true)) return;
+      if (reason === "deleted") this.removeLegacyTopicKey(key, true);
+      this.untrackKey(key, true);
+      this.deferredRemovals.delete(key);
+    } catch {
+      this.deferredRemovals.set(key, reason);
+      console.warn("[CacheService] file index removal deferred");
+    }
   }
 
   // ─── Category Access ───
@@ -104,9 +136,23 @@ class CacheService implements ICacheService {
   }
 
   getAllCategoryStats(): CategoryStats[] {
-    return Object.values(CacheCategory)
-      .map((cat) => this.category(cat).getStats())
-      .filter((s) => s.count > 0);
+    return this.categoryStats(this.getAllMeta());
+  }
+
+  async getAllCategoryStatsAsync(): Promise<CategoryStats[]> {
+    return this.categoryStats(await this.getAllMetaAsync());
+  }
+
+  private categoryStats(metas: CacheMeta[]): CategoryStats[] {
+    const stats = new Map(Object.values(CacheCategory).map(category => [category, {
+      category, label: CATEGORY_LABELS[category], count: 0, size: 0,
+    }]));
+    for (const meta of metas) {
+      const stat = stats.get(meta.category)!;
+      stat.count++;
+      stat.size += meta.size;
+    }
+    return [...stats.values()].filter(stat => stat.count > 0);
   }
 
   // ─── Core ───
@@ -143,6 +189,54 @@ class CacheService implements ICacheService {
     return null;
   }
 
+  getAsync<T = any>(key: string): Promise<T | null> {
+    if (!isTopicFileKey(key)) return Promise.resolve(this.get<T>(key));
+    const revision = this.topicFiles.getRevision(key);
+    const pending = this.fileReads.get(key);
+    if (pending?.revision === revision) return pending.promise;
+    const promise = this.readAndMigrateFile<T>(key, revision).catch(() => {
+      console.warn("[CacheService] file cache read deferred");
+      return null;
+    });
+    this.fileReads.set(key, { revision, promise });
+    void promise.finally(() => {
+      if (this.fileReads.get(key)?.promise === promise) this.fileReads.delete(key);
+    });
+    return promise;
+  }
+
+  private async readAndMigrateFile<T>(key: string, revision: string): Promise<T | null> {
+    let entry = await this.topicFiles.getAsync(key);
+    if (this.topicFiles.getRevision(key) !== revision) return null;
+    if (!entry && this.confirmedMissing.get(key) === revision && !this.topicFiles.hasPending(key)) {
+      const meta = this.getStorageMeta(key);
+      if (meta && meta.category !== CacheCategory.System) {
+        if (Date.now() > meta.expiresAt) {
+          // Discard only the expired storage source, not an unreadable destination.
+          this.removeLegacyTopicKey(key);
+        } else {
+          const raw = Taro.getStorageSync(key);
+          if (raw) {
+            const payload = typeof raw === "string" ? raw : JSON.stringify(raw);
+            const published = await this.topicFiles.setAsync(key, payload, meta, revision);
+            if (published) {
+              revision = this.topicFiles.getRevision(key);
+              entry = await this.topicFiles.getAsync(key);
+            }
+          }
+        }
+      }
+    }
+    if (!entry || this.topicFiles.getRevision(key) !== revision) return null;
+    this.confirmedMissing.delete(key);
+    // No awaits between checking current metadata and updating the storage index.
+    const current = this.topicFiles.getMetaCached(key);
+    if (!current || current.createdAt !== entry.meta.createdAt || this.topicFiles.hasPending(key)) return null;
+    this.removeLegacyTopicKey(key);
+    this.trackKey(key);
+    try { return JSON.parse(entry.payload) as T; } catch { return entry.payload as T; }
+  }
+
   set(
     key: string,
     value: any,
@@ -152,7 +246,7 @@ class CacheService implements ICacheService {
       priority?: CachePriority;
     },
   ): boolean {
-    const ttl = options.ttl ?? DEFAULT_TTL;
+    const ttl = cacheTTL(key, options.ttl);
     const priority = options.priority ?? "normal";
     const category = isSystemKey(key) ? CacheCategory.System : options.category;
     const clearable = !NON_CLEARABLE_CATEGORIES.has(category);
@@ -163,7 +257,7 @@ class CacheService implements ICacheService {
         key, size: 0, createdAt: Date.now(), expiresAt: Date.now() + ttl,
         priority, category: options.category,
       });
-      if (success && this.topicFiles.getMeta(key)) {
+      if (success && this.topicFiles.getMetaCached(key)) {
         this.removeLegacyTopicKey(key);
         this.trackKey(key);
         this.reconcileFileIndex();
@@ -205,23 +299,18 @@ class CacheService implements ICacheService {
       priority?: CachePriority;
     },
   ): Promise<boolean> {
-    const ttl = options.ttl ?? DEFAULT_TTL;
+    const ttl = cacheTTL(key, options.ttl);
     const priority = options.priority ?? "normal";
     const category = isSystemKey(key) ? CacheCategory.System : options.category;
     const clearable = !NON_CLEARABLE_CATEGORIES.has(category);
     const stored = typeof value === "string" ? value : JSON.stringify(value);
 
     if (isTopicFileKey(key)) {
-      const success = await this.topicFiles.setAsync(key, stored, {
+      const write = this.topicFiles.setAsync(key, stored, {
         key, size: 0, createdAt: Date.now(), expiresAt: Date.now() + ttl,
         priority, category: options.category,
       });
-      if (success && this.topicFiles.getMeta(key)) {
-        this.removeLegacyTopicKey(key);
-        this.trackKey(key);
-        this.reconcileFileIndex();
-      }
-      return success;
+      return await write;
     }
 
     try {
@@ -256,8 +345,7 @@ class CacheService implements ICacheService {
         console.warn("[CacheService] topic invalidation deferred");
         return;
       }
-      this.removeLegacyTopicKey(key, false, true);
-      return;
+      return; // The backend callback cleaned the index at the deletion commit.
     }
     if (!force) {
       if (isSystemKey(key)) return;
@@ -267,6 +355,22 @@ class CacheService implements ICacheService {
     try { Taro.removeStorageSync(key); } catch (e) { console.warn("[CacheService] remove failed", key, e); }
     try { Taro.removeStorageSync(META_PREFIX + key); } catch {}
     this.untrackKey(key);
+  }
+
+  async removeAsync(key: string, force = false): Promise<boolean> {
+    if (!isTopicFileKey(key)) {
+      if (!force && (isSystemKey(key) || this.getStorageMeta(key)?.category === CacheCategory.System)) return false;
+      try {
+        Taro.removeStorageSync(key);
+        Taro.removeStorageSync(META_PREFIX + key);
+        this.untrackKey(key, true);
+        return true;
+      } catch { console.warn("[CacheService] storage deletion deferred"); return false; }
+    }
+    // Backend callback untracks in the same commit as deletion, before a new write.
+    const success = await this.topicFiles.removeAsync(key);
+    if (!success) console.warn("[CacheService] file invalidation deferred");
+    return success && !this.deferredRemovals.has(key);
   }
 
   // ─── Meta ───
@@ -317,6 +421,23 @@ class CacheService implements ICacheService {
     return [...byKey.values()];
   }
 
+  async getAllMetaAsync(): Promise<CacheMeta[]> {
+    const files = await this.topicFiles.getAllMetaAsync();
+    const metas = new Map(this.storageMetas().map(meta => [meta.key, meta]));
+    for (const meta of files) metas.set(meta.key, meta);
+    return [...metas.values()];
+  }
+
+  private storageMetas(): CacheMeta[] {
+    const keys = new Set([...this.getIndex().keys, ...this.legacyTopicKeys()]);
+    const metas: CacheMeta[] = [];
+    for (const key of keys) {
+      const meta = this.getStorageMeta(key);
+      if (meta) metas.push(meta);
+    }
+    return metas;
+  }
+
   // ─── Expiration ───
 
   isExpired(key: string): boolean {
@@ -339,15 +460,25 @@ class CacheService implements ICacheService {
     return removed;
   }
 
+  async removeExpiredAsync(): Promise<number> {
+    const metas = await this.getAllMetaAsync();
+    let removed = 0;
+    for (const meta of metas) {
+      if (NON_CLEARABLE_CATEGORIES.has(meta.category) || Date.now() <= meta.expiresAt) continue;
+      if (isTopicFileKey(meta.key) && this.topicFiles.hasPending(meta.key)) continue;
+      // Any earlier deletion may yield while another file OR storage key refreshes.
+      const current = (isTopicFileKey(meta.key) ? this.topicFiles.getMetaCached(meta.key) : null) || this.getStorageMeta(meta.key);
+      if (current && (NON_CLEARABLE_CATEGORIES.has(current.category) || Date.now() <= current.expiresAt)) continue;
+      if (await this.removeAsync(meta.key)) removed++;
+    }
+    return removed;
+  }
+
   // ─── Eviction ───
 
   evict(ratio = 0.2): number {
-    const storageMetas = this.getAllMeta().filter(m => !isTopicFileKey(m.key));
-    // Unmigrated legacy copies still occupy storage and are disposable there.
-    for (const key of new Set(this.legacyTopicKeys())) {
-      const meta = this.getStorageMeta(key);
-      if (meta) storageMetas.push(meta);
-    }
+    // Storage pressure must not initialize/scan the file backend.
+    const storageMetas = this.storageMetas();
     const metas = storageMetas
       .filter((m) => !NON_CLEARABLE_CATEGORIES.has(m.category))
       .sort((a, b) => {
@@ -401,6 +532,48 @@ class CacheService implements ICacheService {
     }
     Taro.clearStorageSync();
     this.saveIndex({ keys: [] });
+    return removed;
+  }
+
+  async clearCategoryAsync(category: CacheCategory): Promise<number> {
+    if (NON_CLEARABLE_CATEGORIES.has(category)) return 0;
+    return this.clearAsync(category, true);
+  }
+
+  async clearAllAsync(onlyClearable = true): Promise<number> {
+    return this.clearAsync(undefined, onlyClearable);
+  }
+
+  private async clearAsync(category: CacheCategory | undefined, onlyClearable: boolean): Promise<number> {
+    // Invalidate pending file work before the first await, including cold preparation.
+    const clearing = this.topicFiles.clearAsync(category);
+    const storage = this.storageMetas();
+    const fileKeys = [...new Set([...this.getIndex().keys, ...this.legacyTopicKeys()])].filter(isTopicFileKey);
+    const revisions = new Map(fileKeys.map(key => [key, this.topicFiles.getRevision(key)]));
+    let removed = await clearing; // Failure must not erase account storage.
+    for (const key of fileKeys) {
+      if (this.topicFiles.getRevision(key) !== revisions.get(key) || this.topicFiles.hasPending(key)) continue;
+      if (!this.getIndex().keys.includes(key) && !this.getStorageMeta(key)) continue;
+      const meta = this.topicFiles.getMetaCached(key) || this.getStorageMeta(key);
+      if (category !== undefined && meta?.category !== category) continue;
+      if (onlyClearable && meta?.category === CacheCategory.System) continue;
+      if (!await this.removeAsync(key)) throw new Error("文件缓存清理失败");
+    }
+    await this.reconcileFileIndexAsync();
+    if (this.deferredRemovals.size) throw new Error("文件缓存索引清理失败");
+    if (!onlyClearable) {
+      Taro.clearStorageSync();
+      this.saveIndex({ keys: [] }, true);
+      // New writes begun after the clear epoch are not old pending work.
+      await this.reconcileFileIndexAsync();
+      return removed;
+    }
+    for (const meta of storage) {
+      if (isTopicFileKey(meta.key) || NON_CLEARABLE_CATEGORIES.has(meta.category)) continue;
+      if (category !== undefined && meta.category !== category) continue;
+      if (await this.removeAsync(meta.key)) removed++;
+      else throw new Error("Storage 缓存清理失败");
+    }
     return removed;
   }
 
@@ -480,6 +653,17 @@ class CacheService implements ICacheService {
     setTimeout(batch, 0);
   }
 
+  async migrateTopicCachesAsync(): Promise<void> {
+    try {
+      const keys = [...new Set([...this.legacyTopicKeys(), ...this.getIndex(true).keys])].filter(isTopicFileKey);
+      for (let offset = 0; offset < keys.length; offset += 10) {
+        await Promise.all(keys.slice(offset, offset + 10).map(key => this.getAsync(key)));
+        if (offset + 10 < keys.length) await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      await this.reconcileFileIndexAsync();
+    } catch { console.warn("[CacheService] file migration deferred"); }
+  }
+
   private legacyTopicKeys(): string[] {
     try {
       return Taro.getStorageInfoSync().keys
@@ -532,11 +716,39 @@ class CacheService implements ICacheService {
       const fileKeys = this.topicFiles.getAllMeta().map(meta => meta.key);
       const index = this.getIndex(true);
       index.keys = [...new Set([
-        ...index.keys.filter(key => !isTopicFileKey(key) || fileKeys.includes(key) || this.getStorageMeta(key, true)),
+        ...index.keys, // Only confirmed missing/deletion callbacks may remove file references.
         ...fileKeys,
       ])];
       this.saveIndex(index);
     } catch { console.warn("[CacheService] file index reconciliation deferred"); }
+  }
+
+  private async reconcileFileIndexAsync(): Promise<void> {
+    const files = await this.topicFiles.getAllMetaAsync();
+    // Retry failed index commits only if a new file/write has not replaced the key.
+    for (const [key, reason] of [...this.deferredRemovals]) {
+      if (this.topicFiles.getMetaCached(key) || this.topicFiles.hasPending(key)) this.deferredRemovals.delete(key);
+      else this.onFileRemoved(key, reason);
+    }
+    try {
+      const index = this.getIndex(true); // Never commit an await-old storage snapshot.
+      for (const meta of files) {
+        if (this.topicFiles.getMetaCached(meta.key) && !index.keys.includes(meta.key)) index.keys.push(meta.key);
+      }
+      // Absence from an in-memory scan is not proof of missing (EIO/corruption).
+      this.saveIndex(index, true);
+    } catch { console.warn("[CacheService] file index reconciliation deferred"); }
+  }
+
+  async dailyCleanupAsync(): Promise<void> {
+    try {
+      await this.topicFiles.cleanupAsync();
+      await this.removeExpiredAsync();
+      // Validate file references through actual reads; failures preserve references.
+      for (const key of this.getIndex(true).keys.filter(isTopicFileKey)) await this.getAsync(key);
+      await this.reconcileFileIndexAsync();
+      await this.trimIndexAsync();
+    } catch { console.warn("[CacheService] cleanup incomplete; will retry"); }
   }
 
   // ─── Daily cleanup ───
@@ -561,24 +773,19 @@ class CacheService implements ICacheService {
       const validKeys: string[] = [];
       for (const key of index.keys) {
         const meta = this.getMeta(key);
-        if (!meta) continue;
+        if (!meta) { if (isTopicFileKey(key)) validKeys.push(key); continue; }
         if (NON_CLEARABLE_CATEGORIES.has(meta.category)) { validKeys.push(key); continue; }
         try {
           if (isTopicFileKey(key)) {
-            if (this.topicFiles.getMeta(key) || this.getStorageMeta(key)) validKeys.push(key);
+            validKeys.push(key); // Keep until actual missing/deletion is confirmed.
           } else if (Taro.getStorageSync(key)) validKeys.push(key);
         } catch (e) {
           console.warn("[CacheService] dailyCleanup check failed", key, e);
         }
       }
       index.keys = validKeys;
-      while (index.keys.length > this.maxEntries) {
-        const oldest = index.keys.shift()!;
-        const meta = this.getMeta(oldest);
-        if (meta && NON_CLEARABLE_CATEGORIES.has(meta.category)) { index.keys.push(oldest); continue; }
-        this.remove(oldest);
-      }
       this.saveIndex(index);
+      void this.trimIndexAsync();
       console.log(`[CacheService] dailyCleanup: ${validKeys.length} valid entries`);
     }, 0);
   }
@@ -622,10 +829,11 @@ class CacheService implements ICacheService {
     return { keys: [] };
   }
 
-  private saveIndex(index: CacheIndex) {
+  private saveIndex(index: CacheIndex, strict = false) {
     try {
       Taro.setStorageSync(INDEX_KEY, JSON.stringify(index));
     } catch (e) {
+      if (strict) throw e;
       console.warn("[CacheService] saveIndex failed", e);
     }
   }
@@ -637,21 +845,51 @@ class CacheService implements ICacheService {
     const idx = index.keys.indexOf(key);
     if (idx !== -1) index.keys.splice(idx, 1);
     index.keys.push(key);
-    while (index.keys.length > this.maxEntries) {
-      const oldest = index.keys.shift()!;
+    this.saveIndex(index);
+    // Keep references until deletion succeeds; never shift before file removal.
+    const attempted = new Set<string>();
+    while (this.getIndex().keys.length > this.maxEntries) {
+      const oldest = this.getIndex().keys.find(candidate => !attempted.has(candidate) &&
+        !isSystemKey(candidate) && this.getStorageMeta(candidate)?.category !== CacheCategory.System);
+      if (!oldest) break;
+      attempted.add(oldest);
+      if (isTopicFileKey(oldest)) {
+        void this.trimIndexAsync();
+        break;
+      }
       this.remove(oldest);
     }
-    this.saveIndex(index);
   }
 
-  private untrackKey(key: string) {
+  private trimIndexAsync(): Promise<void> {
+    if (this.indexTrim) return this.indexTrim;
+    const run = async () => {
+      const attempted = new Set<string>();
+      while (this.getIndex(true).keys.length > this.maxEntries) {
+        const oldest = this.getIndex(true).keys.find(key => !attempted.has(key) &&
+          !isSystemKey(key) && (this.getStorageMeta(key) || this.topicFiles.getMetaCached(key))?.category !== CacheCategory.System);
+        if (!oldest) break;
+        attempted.add(oldest);
+        if (isTopicFileKey(oldest) && this.topicFiles.hasPending(oldest)) continue;
+        await this.removeAsync(oldest);
+      }
+    };
+    this.indexTrim = run().catch(() => { console.warn("[CacheService] index eviction deferred"); })
+      .finally(() => { this.indexTrim = null; });
+    return this.indexTrim;
+  }
+
+  private untrackKey(key: string, strict = false) {
     let index: CacheIndex;
     try { index = this.getIndex(true); }
-    catch { console.warn("[CacheService] index removal deferred"); return; }
+    catch (error) {
+      if (strict) throw error;
+      console.warn("[CacheService] index removal deferred"); return;
+    }
     const idx = index.keys.indexOf(key);
     if (idx !== -1) {
       index.keys.splice(idx, 1);
-      this.saveIndex(index);
+      this.saveIndex(index, strict);
     }
   }
 

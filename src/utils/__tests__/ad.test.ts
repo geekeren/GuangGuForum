@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // In-memory store to simulate Taro.getStorageSync/setStorageSync/removeStorageSync
 let store: Map<string, any>;
@@ -17,7 +17,10 @@ import { isAdDisabled, disableAd, enableAd, getAdDisabledDays, AD_DISABLE_KEY } 
 describe("ad utilities", () => {
   beforeEach(() => {
     store = new Map();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-01T00:00:00Z"));
   });
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 
   describe("isAdDisabled", () => {
     it("returns false when no disable timestamp is set", () => {
@@ -50,6 +53,22 @@ describe("ad utilities", () => {
       const expectedMax = after + 30 * 24 * 60 * 60 * 1000;
       expect(stored!).toBeGreaterThanOrEqual(expectedMin);
       expect(stored!).toBeLessThanOrEqual(expectedMax);
+    });
+
+    it("keeps the reward beyond the ordinary 30-minute cache TTL and expires after 30 days", () => {
+      expect(disableAd()).toBe(true);
+      vi.setSystemTime(new Date("2026-11-02T00:00:00Z"));
+      expect(isAdDisabled()).toBe(true);
+      expect(getAdDisabledDays()).toBe(29);
+      vi.setSystemTime(new Date("2026-12-01T00:00:00Z"));
+      expect(isAdDisabled()).toBe(false);
+      expect(cacheService.get(AD_DISABLE_KEY)).toBeNull();
+    });
+
+    it("reports failure rather than claiming the reward was saved", () => {
+      vi.spyOn(cacheService, "set").mockReturnValue(false);
+      expect(disableAd()).toBe(false);
+      expect(isAdDisabled()).toBe(false);
     });
 
     it("disables ad for specified number of days", () => {

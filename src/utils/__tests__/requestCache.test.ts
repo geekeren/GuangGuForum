@@ -34,6 +34,18 @@ function htmlKey(path: string, env = "develop", user = "test-user") {
 const settle = async () => { await Promise.resolve(); await Promise.resolve(); };
 
 describe("HTML cache authentication", () => {
+  it("ignores old-account background responses after account switching", async () => {
+    store.set(htmlKey("/node/city"), loggedIn);
+    let respond!: (value: any) => void;
+    vi.mocked(Taro.request).mockImplementationOnce(() => new Promise(resolve => { respond = resolve; }) as any);
+    expect((await request("/node/city", { cache: true })).fromCache).toBe(true);
+    store.set("current_username", "other-user");
+    store.set("cookies", { sid: "other-session" });
+    respond({ statusCode: 200, data: loggedIn.replace("新数据", "旧账号刷新") });
+    await settle();
+    expect(store.get("current_username")).toBe("other-user");
+    expect(store.get(htmlKey("/node/city"))).toBe(loggedIn);
+  });
   it("ignores legacy login-required cache and uses live data", async () => {
     store.set(`html_${URLS.ROOT_URL.replace(/\/$/, "")}/node/house`, loginRequired);
     const result = await request("/node/house", { cache: true });

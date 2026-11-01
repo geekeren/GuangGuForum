@@ -34,11 +34,11 @@ class App extends Component<{ children?: ReactNode }> {
   componentDidMount() {
     this.stopThemeListener = startThemeListener();
     setCacheService(cacheService);
-    cacheService.migrateTopicCaches();
+    void cacheService.migrateTopicCachesAsync();
     setOnUnreadNotifications(updateUnreadNotifications);
     setOnLoginRequired(() => openLoginModal());
     if (cacheService.shouldRunDailyCleanup()) {
-      cacheService.dailyCleanup();
+      void cacheService.dailyCleanupAsync();
     }
   }
 

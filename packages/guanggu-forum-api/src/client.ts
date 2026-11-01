@@ -121,7 +121,7 @@ function parseHtmlResponse(resData: string, relativeUrl: string, live = false, s
   return null;
 }
 
-export function request(
+export async function request(
   relativeUrl: string = "",
   config?: RequestConfig,
 ): Promise<{
@@ -155,22 +155,29 @@ export function request(
 
   const cs = getCacheService();
   const username = useCookie ? cs.get<string>("current_username") : null;
+  const getCookies = () => cs.get<Record<string, Cookie | string>>("cookies") || {};
+  const requestCookie = useCookie ? stringifyCookie(getCookies()) : "";
+  const scopeCurrent = () => !useCookie || (cs.get<string>("current_username") === username &&
+    stringifyCookie(getCookies()) === requestCookie);
   const cacheKey = `${HTML_CACHE_PREFIX}${getCacheEnvironment()}_${username ? encodeURIComponent(username) : "guest"}_${newUrl}`;
   const cachedHtml = cache && (relativeUrl !== "/notifications" || username)
-    ? cs.get<string>(cacheKey) : null;
+    ? await (cs.getAsync ? cs.getAsync<string>(cacheKey) : cs.get<string>(cacheKey)) : null;
 
-  const getCookies = () => cs.get<Record<string, Cookie | string>>("cookies") || {};
+  // Async disk lookup may yield across account switching: restart with its new scope.
+  if (!scopeCurrent()) return request(relativeUrl, config);
 
   const doBackgroundRefresh = () => {
+    if (!scopeCurrent()) return;
     Taro.request({
       url: newUrl,
       method,
       ...rest,
       header: {
         ...rest.header,
-        cookie: useCookie ? stringifyCookie(getCookies()) : "",
+        cookie: requestCookie,
       },
     }).then((res: any) => {
+      if (!scopeCurrent()) return;
       if (res.cookies) {
         cs.set("cookies", { ...getCookies(), ...parseCookie(res.cookies) }, { category: "system" });
       }
@@ -188,6 +195,7 @@ export function request(
   };
 
   const handleResponse = (res: any) => {
+    if (!scopeCurrent()) throw new Error("账号已切换，请重试");
     if (res.cookies) {
       cs.set("cookies", { ...getCookies(), ...parseCookie(res.cookies) }, { category: "system" });
     }
@@ -222,7 +230,8 @@ export function request(
       doBackgroundRefresh();
       return Promise.resolve({ body, rawRes: null, fromCache: true });
     }
-    cs.remove(cacheKey);
+    if (cs.removeAsync) await cs.removeAsync(cacheKey);
+    else cs.remove(cacheKey);
     parsedCache.delete(cacheKey);
   }
 
@@ -232,7 +241,7 @@ export function request(
     ...rest,
     header: {
       ...rest.header,
-      cookie: useCookie ? stringifyCookie(getCookies()) : "",
+      cookie: requestCookie,
     },
   }).then(handleResponse);
 }

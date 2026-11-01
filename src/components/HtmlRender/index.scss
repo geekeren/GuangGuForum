@@ -319,10 +319,10 @@
       display: inline-block;
       font-weight: 500;
       background: $color-brand-soft;
-      padding: 2rpx 16rpx;
-      border-radius: 6rpx;
+      padding: 0 12rpx;
+      border-radius: 10rpx;
       font-size: 26rpx;
-      line-height: 1.5;
+      line-height: 1.4;
       vertical-align: middle;
       color: var(--theme-accent-text, #0754d7);
 
@@ -347,6 +347,18 @@
     }
   }
 
+  .html-mentionHost {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .html-mentionLabel {
+    font-size: 26rpx;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--theme-accent-text, #0754d7);
+  }
+
   // Native Span lays out inline fragments independently. Only this View owns
   // the rounded background, padding and horizontal image/text alignment.
   .html-linkChip {
@@ -355,9 +367,11 @@
     align-items: center;
     gap: 6rpx;
     max-width: 100%;
-    padding: 2rpx 14rpx 2rpx 10rpx;
+    padding: 0 10rpx;
+    margin: 0 6rpx;
+    line-height: 1;
     box-sizing: border-box;
-    border-radius: 8rpx;
+    border-radius: 20rpx;
     background: $color-brand-soft;
     font-style: normal;
     vertical-align: middle;
@@ -374,7 +388,7 @@
     display: block;
     min-width: 0;
     font-size: 26rpx;
-    line-height: 1.5;
+    line-height: 1;
     color: var(--theme-accent-text, #0754d7);
     white-space: nowrap;
     overflow: hidden;
@@ -391,6 +405,14 @@
     min-width: 0;
     // Preserve ordinary word boundaries; links already have their own break-all.
     word-break: normal;
+
+    // One Span owns the paragraph's mixed text/chip flow; View siblings would
+    // otherwise put each fragment on a separate line.
+    .htmlInlineFlow {
+      display: block;
+      min-width: 0;
+      max-width: 100%;
+    }
 
     // Native block margins do not collapse: use one bottom gap per paragraph.
     .h5-p {

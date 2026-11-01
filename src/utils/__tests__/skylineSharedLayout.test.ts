@@ -244,15 +244,67 @@ describe("shared dual-renderer layout", () => {
 });
 
 describe("Skyline HTML parser normalization", () => {
-  it("preserves block paragraphs and groups styled text, mentions and br into one Text run", () => {
+  it("preserves styled text and br while rendering mentions as rounded inline boxes", () => {
     const root = parse("<p>正文<strong>加粗<span>内联</span></strong><br>换行<a href='/u/alice'>@alice</a></p><p>第二段</p>");
     const paragraph = root.firstChild!;
     expect(root.childNodes.map(n => n.nodeName)).toEqual(["view", "view"]);
-    expect(paragraph.childNodes).toHaveLength(1);
-    expect(paragraph.firstChild!.nodeName).toBe("text");
-    for (const node of nodes(paragraph.firstChild)) expect(["text", "#text"]).toContain(node.nodeName);
+    expect(paragraph.childNodes.map(n => n.nodeName)).toEqual(["span"]);
+    expect((paragraph.firstChild as any).className).toBe("htmlInlineFlow");
+    for (const node of nodes(paragraph.firstChild!.firstChild)) expect(["text", "#text"]).toContain(node.nodeName);
+    const mention = nodes(paragraph).find(n => n.className === "html-mentionHost")!;
+    expect(mention.className).toBe("html-mentionHost");
+    expect(mention.firstChild!.nodeName).toBe("view");
+    expect(mention.firstChild!.className).toBe("html-link html-link--mention");
+    expect(mention.firstChild!.firstChild!.nodeName).toBe("text");
     expect(paragraph.textContent).toBe("正文加粗内联\n换行@alice");
     expect(root.lastChild!.textContent).toBe("第二段");
+  });
+  it("keeps adjacent and emphasized mention chips inline without placing View inside Text", () => {
+    const root = parse("<p>前<strong><a href='/u/alice'>@alice</a><a href='/u/bob'>@bob</a></strong> 后<br>末尾</p>");
+    const mentions = nodes(root).filter(n => n.className === "html-mentionHost");
+    expect(mentions).toHaveLength(2);
+    expect(root.textContent).toBe("前@alice@bob 后\n末尾");
+    for (const node of nodes(root)) {
+      if (node.nodeName === "text") expect(node.childNodes.every((child: any) => ["text", "#text"].includes(child.nodeName))).toBe(true);
+      if (node.nodeName === "#text") expect(node.parentNode.nodeName).toBe("text");
+    }
+    const calls = vi.mocked(linkHandler).mock.calls.length;
+    // Taro dispatchEvent invokes this node's handlers; native bubbling is
+    // checked separately in the WeChat simulator.
+    mentions[0].dispatchEvent(new TaroEvent("tap", { bubbles: true, cancelable: true }));
+    expect(linkHandler).toHaveBeenCalledTimes(calls + 1);
+    expect(linkHandler).toHaveBeenLastCalledWith("/u/alice");
+  });
+  it("puts leading, trailing and middle comment mentions in one native text-flow context", () => {
+    for (const html of [
+      "<span class='content'><p><a href='/u/alice'>@alice</a> 回复内容</p></span>",
+      "<p>前文 <a href='/u/alice'>@alice</a> 后文</p>",
+      "<p>前文 <a href='/u/alice'>@alice</a></p>",
+      "<div>前<a href='/u/alice'>@alice</a>后<br>下一行</div>",
+    ]) {
+      const root = parse(html);
+      const mention = nodes(root).find(n => n.className === "html-mentionHost");
+      const flow = mention.parentNode;
+      expect(flow.nodeName).toBe("span");
+      expect(flow.className).toBe("htmlInlineFlow");
+      expect(flow.parentNode.childNodes).toHaveLength(1);
+      expect(flow.childNodes.every((n: any) => ["text", "span"].includes(n.nodeName))).toBe(true);
+    }
+    const separated = parse("<div>前<a href='/u/alice'>@alice</a><p>独立段落</p>后<a href='/u/bob'>@bob</a></div>");
+    expect(separated.firstChild!.childNodes.map((n: any) => n.nodeName)).toEqual(["span", "view", "span"]);
+    expect(separated.textContent).toBe("前@alice独立段落后@bob");
+  });
+  it("uses compact link box height and horizontal margins without changing its label", () => {
+    const css = source("components/HtmlRender/index.scss");
+    const chip = css.split(".html-linkChip {")[1].split("&:active")[0];
+    expect(chip).toContain("padding: 0 10rpx;");
+    expect(chip).toContain("margin: 0 6rpx;");
+    expect(chip).toContain("line-height: 1;");
+    expect(chip).toContain("border-radius: 20rpx;");
+    expect(css.split(".html-linkLabel {")[1]).toContain("line-height: 1;");
+    const mention = css.split("&--mention {")[1].split("&:active")[0];
+    expect(mention).toContain("padding: 0 12rpx;");
+    expect(mention).toContain("border-radius: 10rpx;");
   });
   it("drops server indentation around paragraphs without creating blank native Text lines", () => {
     const root = parse("<div>\n      <p>第一段</p>\n      <p>第二段</p>\n    </div>");

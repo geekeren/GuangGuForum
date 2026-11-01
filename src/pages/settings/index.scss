@@ -104,6 +104,9 @@
 
 .settingsItemBtn {
   flex: 1;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
   text-align: left;
   background: transparent;
   border: none;
@@ -250,12 +253,14 @@
   font-weight: 500;
 }
 
-.settingsPage--skyline .settingsItemBtn {
-  line-height: 1.4;
-  font-size: 28rpx;
+// The native Button owns sharing; a full-width View lays out both renderers.
+.settingsItemBtnContent {
+  width: 100%;
   min-width: 0;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
+  line-height: 1.4;
+  font-size: 28rpx;
 }

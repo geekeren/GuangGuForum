@@ -18,19 +18,20 @@ describe("notification and HTML accent consistency", () => {
     expect(rule(notifications, ".notificationBadge")).toContain("background: var(--theme-accent-muted, #e8efff);");
   });
 
-  it("keeps notification excerpt links and mentions accented with a compact 6rpx mention radius", () => {
+  it("keeps notification excerpt colors without overriding shared mention geometry", () => {
     expect(rule(notifications, ".h5-a, .html-link")).toContain(accent);
     const mention = rule(notifications, ".html-link--mention");
     expect(mention).toContain("background: var(--theme-accent-muted, #e8efff);");
-    expect(mention).toContain("padding: 0 6rpx;");
-    expect(mention).toContain("border-radius: 6rpx;");
+    expect(mention).not.toMatch(/padding:|border-radius:/);
   });
 
-  it("keeps shared HTML links and mention labels on that same accent with a 6rpx radius", () => {
+  it("keeps shared links and rounded padded mention labels on the same accent", () => {
     expect(rule(html, ".h5-a")).toContain(accent);
     expect(rule(html, ".html-link")).toContain(accent);
     const mention = html.split(".html-link {")[1].split("&--mention {")[1].split("&:active")[0];
     expect(mention).toContain(accent);
-    expect(mention).toContain("border-radius: 6rpx;");
+    expect(mention).toContain("border-radius: 10rpx;");
+    expect(mention).toContain("padding: 0 12rpx;");
+    expect(rule(html, ".html-mentionLabel")).toContain(accent);
   });
 });
