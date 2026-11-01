@@ -1,5 +1,6 @@
 import { View, Text, Image } from "@tarojs/components";
 import type { LinkSummary } from "guanggu-forum-api";
+import { isSkyline } from "../../utils/renderer";
 import "./index.scss";
 
 function getHostname(url: string): string {
@@ -16,10 +17,11 @@ interface LinkPreviewHeaderProps {
 }
 
 export const LinkPreviewHeader = ({ summary, url }: LinkPreviewHeaderProps) => {
+  const skyline = isSkyline();
   const displayUrl = url || summary.url;
 
   return (
-    <View className="linkPreviewCard">
+    <View className={`linkPreviewCard${skyline ? " linkPreviewCard--skyline" : ""}`}>
       {summary.image ? (
         <View className="previewBanner">
           <Image className="previewBannerImg" src={summary.image} mode="aspectFill" />
@@ -29,7 +31,7 @@ export const LinkPreviewHeader = ({ summary, url }: LinkPreviewHeaderProps) => {
                 <Image className="previewFavicon" src={summary.favicon} />
               ) : (
                 <View className="previewFaviconPlaceholder">
-                  <Text className="previewFaviconText">{(summary.siteName || getHostname(displayUrl))[0]}</Text>
+                  <Text className="previewFaviconText">{(summary.siteName || getHostname(displayUrl))[0]?.toUpperCase()}</Text>
                 </View>
               )}
               <Text className="previewSiteName">
@@ -37,7 +39,7 @@ export const LinkPreviewHeader = ({ summary, url }: LinkPreviewHeaderProps) => {
               </Text>
             </View>
             {summary.title && (
-              <Text className="previewTitle">{summary.title}</Text>
+              <Text className="previewTitle" {...(skyline ? { overflow: "ellipsis", maxLines: 2 } as const : {})}>{summary.title}</Text>
             )}
           </View>
         </View>
@@ -48,7 +50,7 @@ export const LinkPreviewHeader = ({ summary, url }: LinkPreviewHeaderProps) => {
               <Image className="previewFavicon" src={summary.favicon} />
             ) : (
               <View className="previewFaviconPlaceholder">
-                <Text className="previewFaviconText">{(summary.siteName || getHostname(displayUrl))[0]}</Text>
+                <Text className="previewFaviconText">{(summary.siteName || getHostname(displayUrl))[0]?.toUpperCase()}</Text>
               </View>
             )}
             <Text className="previewSiteName">
@@ -56,7 +58,7 @@ export const LinkPreviewHeader = ({ summary, url }: LinkPreviewHeaderProps) => {
             </Text>
           </View>
           {summary.title && (
-            <Text className="previewTitle">{summary.title}</Text>
+            <Text className="previewTitle" {...(skyline ? { overflow: "ellipsis", maxLines: 2 } as const : {})}>{summary.title}</Text>
           )}
         </View>
       )}

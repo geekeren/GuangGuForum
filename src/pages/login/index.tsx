@@ -1,4 +1,4 @@
-import { Input, View, Text } from "@tarojs/components";
+import { Input, View, Text, ScrollView } from "@tarojs/components";
 import "./index.scss";
 import { useState, useEffect, useRef } from "react";
 import { login } from "guanggu-forum-api";
@@ -6,6 +6,7 @@ import Taro, { useRouter } from "@tarojs/taro";
 import Navbar from "../../components/Navbar";
 import { BRAND_COLOR } from "../../utils/theme";
 import { linkHandler } from "../../utils/linkHandler";
+import { isSkyline } from "../../utils/renderer";
 import { cacheService, CacheCategory } from "../../utils/CacheService";
 
 const SAVED_ACCOUNTS_KEY = "saved_accounts";
@@ -27,6 +28,8 @@ interface LoginParams {
 }
 
 export default function Login() {
+  const skyline = isSkyline();
+  const LoginBody = skyline ? ScrollView : View;
   const [input, setInput] = useState<LoginParams>({});
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -76,6 +79,8 @@ export default function Login() {
           : "/pages/home/index";
         Taro.reLaunch({ url: redirectUrl });
       }, 1000);
+    }).catch(() => {
+      Taro.showToast({ title: "登录失败，请检查账号和网络", icon: "none" });
     });
   };
 
@@ -98,12 +103,13 @@ export default function Login() {
   };
 
   return (
-    <View className='loginPage'>
+    <View className={`loginPage${skyline ? " loginPage--skyline" : ""}`}>
       <Navbar back />
+      <LoginBody className='loginBody' {...(skyline ? { type: "custom", scrollY: true } as const : {})}>
       <View className='loginHeader'>
-        <View className='logoBadge'>早</View>
+        <View className='logoBadge'><Text>早</Text></View>
         <Text className='loginTitle'>登录过早客</Text>
-        <View className='loginSubtitle'>武汉本地生活社区，欢迎回来</View>
+        <Text className='loginSubtitle'>武汉本地生活社区，欢迎回来</Text>
       </View>
 
       <View className='loginCard'>
@@ -181,8 +187,9 @@ export default function Login() {
       </View>
 
       <View className='loginFooter'>
-        <View className='webTip'>更多操作如注册，请前往网页端 <Text className='webLink' onClick={() => linkHandler("https://www.guozaoke.com/")}>https://www.guozaoke.com/</Text> 进行</View>
+        <Text className='webTip'>更多操作如注册，请前往网页端 <Text className='webLink' onClick={() => linkHandler("https://www.guozaoke.com/")}>https://www.guozaoke.com/</Text> 进行</Text>
       </View>
+      </LoginBody>
     </View>
   );
 }

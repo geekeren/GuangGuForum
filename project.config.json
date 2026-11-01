@@ -39,6 +39,7 @@
     "showES6CompileOption": false,
     "minifyWXML": true,
     "compileWorklet": true,
+    "skylineRenderEnable": true,
     "localPlugins": false,
     "disableUseStrict": false,
     "useCompilerPlugins": false,

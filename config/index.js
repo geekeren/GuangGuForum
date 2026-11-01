@@ -9,7 +9,7 @@ const config = {
   },
   sourceRoot: "src",
   outputRoot: "dist",
-  plugins: [],
+  plugins: [require.resolve("./viteHooks")],
   defineConstants: {},
   copy: {
     patterns: [{ from: "sitemap.json", to: "dist/sitemap.json" }],

@@ -6,7 +6,7 @@ interface LoadingInterface {
   fullscreen?: boolean;
 }
 const Loading = (props: LoadingInterface) => {
-  const { size = 60, fullscreen = false } = props;
+  const { size = 32, fullscreen = false } = props;
   const spinnerSize = size + "px";
   return (
     <View className={`loading ${fullscreen ? "loading--fullscreen" : ""}`}>

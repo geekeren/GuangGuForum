@@ -1,7 +1,7 @@
-import Taro from "@tarojs/taro";
 import { isSkyline } from "./renderer";
 
 export function openLoginModal(fromUrl?: string) {
+  if (getCurrentPages().some((page) => page.route === "pages/login/index")) return;
   let redirect = fromUrl;
   if (!redirect) {
     const pages = getCurrentPages();

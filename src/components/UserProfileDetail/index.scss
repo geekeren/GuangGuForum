@@ -1,41 +1,12 @@
 @import "../../vars.scss";
 
 .userProfileDetail {
-  .navSpacer {
-    background: linear-gradient(180deg, #b8dcfa 0%, #d6e8f8 100%);
-  }
-
-  // ────────────────────────────────────────────────────────────
-  // 顶部：天蓝色渐变 + 头像 + 名 + ID + stats
-  // ────────────────────────────────────────────────────────────
+  // 保留蓝色个人页头，以更轻的渐变衬托资料。
   .profileCard {
     position: relative;
-    background: linear-gradient(180deg, #b8dcfa 0%, #d6e8f8 50%, $bgColor 100%);
-    padding: 60rpx 36rpx 40rpx;
+    background: linear-gradient(180deg, #e0eaff 0%, #edf3ff 60%, $bgColor 100%);
+    padding: 60rpx 32rpx 32rpx;
     overflow: hidden;
-
-    &::before {
-      content: "";
-      position: absolute;
-      top: 50rpx;
-      right: 80rpx;
-      width: 140rpx;
-      height: 56rpx;
-      border-radius: 28rpx;
-      background: rgba(255, 255, 255, 0.45);
-      filter: blur(12rpx);
-    }
-    &::after {
-      content: "";
-      position: absolute;
-      top: 110rpx;
-      left: 60rpx;
-      width: 100rpx;
-      height: 44rpx;
-      border-radius: 22rpx;
-      background: rgba(255, 255, 255, 0.4);
-      filter: blur(10rpx);
-    }
 
     .topRow {
       display: flex;
@@ -76,6 +47,7 @@
       }
 
       .username {
+        min-width: 0;
         font-size: 38rpx;
         font-weight: 700;
         color: $text-primary;
@@ -97,15 +69,21 @@
       }
 
       .nickname {
-        font-size: 24rpx;
+        display: block;
+        font-size: 26rpx;
         color: $text-muted;
         margin-top: 8rpx;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .memberInfo {
+        display: block;
         font-size: 22rpx;
-        color: $text-faint;
-        margin-top: 6rpx;
+        color: $text-muted;
+        line-height: 1.6;
+        margin-top: 8rpx;
       }
     }
 
@@ -160,16 +138,18 @@
 
   .detailCard {
     background: $surface;
-    margin: 16rpx 22rpx 0;
-    padding: 24rpx 28rpx;
-    border-radius: $radius-md;
+    margin: 20rpx 24rpx 0;
+    padding: 28rpx;
+    border: 1rpx solid $border-color;
+    border-radius: $radius-lg;
     box-shadow: $shadow-sm;
 
     .cardTitle {
-      font-size: 26rpx;
-      font-weight: 700;
+      display: block;
+      font-size: 30rpx;
+      font-weight: 600;
       color: $text-primary;
-      margin-bottom: 12rpx;
+      margin-bottom: 16rpx;
     }
 
     .detailRow {
@@ -201,8 +181,9 @@
   .tabCard {
     position: relative;
     z-index: 1;
-    margin: 16rpx 22rpx 0;
+    margin: 20rpx 24rpx 0;
     background: $surface;
+    border: 1rpx solid $border-color;
     border-radius: $radius-lg;
     box-shadow: $shadow-sm;
     overflow: hidden;
@@ -220,7 +201,7 @@
       position: relative;
 
       .tabLabel {
-        font-size: 26rpx;
+        font-size: 28rpx;
         font-weight: 500;
         color: $text-muted;
       }
@@ -230,7 +211,7 @@
         bottom: 0;
         left: 50%;
         transform: translateX(-50%);
-        width: 56rpx;
+        width: 32rpx;
         height: 6rpx;
         border-radius: 3rpx;
         background: $color-brand;
@@ -249,7 +230,7 @@
   }
 
   .topicItem {
-    padding: 20rpx 28rpx;
+    padding: 28rpx;
     border-bottom: 1rpx solid $border-color;
 
     &:last-child {
@@ -257,7 +238,7 @@
     }
 
     &:active {
-      background: #f8f9fc;
+      background: $surfaceAlt;
     }
 
     .topicTitle {
@@ -290,6 +271,9 @@
 
       .topicTime {
         flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
         white-space: nowrap;
       }
 
@@ -311,7 +295,7 @@
   }
 
   .replyItem {
-    padding: 20rpx 28rpx;
+    padding: 28rpx;
     border-bottom: 1rpx solid $border-color;
 
     &:last-child {
@@ -319,10 +303,11 @@
     }
 
     &:active {
-      background: #f8f9fc;
+      background: $surfaceAlt;
     }
 
     .replyTitle {
+      display: block;
       font-size: 22rpx;
       color: $text-faint;
       margin-bottom: 8rpx;
@@ -348,9 +333,19 @@
   }
 
   .emptyTip {
+    display: block;
     text-align: center;
-    padding: 60rpx 0;
+    padding: 80rpx 32rpx;
     font-size: 26rpx;
-    color: $text-faint;
+    line-height: 1.6;
+    color: $text-muted;
   }
+}
+
+.userProfileDetail--skyline {
+  .profileCard .stats { box-sizing: border-box; }
+  .profileCard .nameBlock .username { flex: 0 1 auto; }
+  .detailCard .detailRow .detailValue { min-width: 0; }
+  .topicItem .topicTitle,
+  .replyItem .replyContent { display: block; }
 }

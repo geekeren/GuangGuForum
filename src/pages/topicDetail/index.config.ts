@@ -1,6 +1,7 @@
 export default definePageConfig({
   navigationStyle: "custom",
   renderer: "skyline",
+  disableScroll: true,
   componentFramework: "glass-easel",
   enableShareAppMessage: true,
   enableShareTimeline: true,

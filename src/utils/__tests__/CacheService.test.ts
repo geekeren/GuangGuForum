@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import Taro from "@tarojs/taro";
 
 // In-memory store to simulate Taro.getStorageSync/setStorageSync/removeStorageSync
 let store: Map<string, any>;
@@ -8,6 +9,8 @@ vi.mock("@tarojs/taro", () => ({
     getStorageSync: (key: string) => store.get(key) ?? "",
     setStorageSync: (key: string, value: any) => { store.set(key, value); },
     removeStorageSync: (key: string) => { store.delete(key); },
+    getStorageInfoSync: () => ({ keys: Array.from(store.keys()) }),
+    clearStorageSync: () => { store.clear(); },
   },
 }));
 
@@ -53,6 +56,209 @@ describe("CacheService", () => {
     it("stores string values directly", () => {
       cs.set("k4", "plain", { category: CacheCategory.Other });
       expect(store.get("k4")).toBe("plain");
+    });
+  });
+
+  describe("legacy storage and upgrade cleanup", () => {
+    it("migrates raw legacy login keys without deleting their values", () => {
+      const cookies = { sid: { value: "test-session" } };
+      store.set("cookies", cookies);
+      store.set("current_username", "test-user");
+      store.set("saved_accounts", ["test-account"]);
+      expect(cs.get("cookies")).toEqual(cookies);
+      expect(cs.get("current_username")).toBe("test-user");
+      expect(cs.get("saved_accounts")).toEqual(["test-account"]);
+      expect(cs.getMeta("cookies")?.category).toBe(CacheCategory.System);
+      expect(store.get("cookies")).toBe(cookies);
+      cs.clearAll(true);
+      expect(cs.get("cookies")).toEqual(cookies);
+    });
+
+    it("clears old HTML and tracked caches once while preserving login", () => {
+      store.set("cookies", { sid: { value: "test-session" } });
+      store.set("current_username", "test-user");
+      store.set("html_old-notifications", "old HTML");
+      store.set("legacy_node_navigation", [{ name: "旧板块" }]);
+      cs.set("topic", "old topic", { category: CacheCategory.Topic });
+      expect(cs.clearForUpgradeOnce("v2")).toBe(true);
+      expect(store.has("html_old-notifications")).toBe(false);
+      expect(store.has("legacy_node_navigation")).toBe(false);
+      expect(cs.get("topic")).toBeNull();
+      expect(cs.get("cookies")).toEqual({ sid: { value: "test-session" } });
+      expect(cs.get("current_username")).toBe("test-user");
+      cs.set("topic", "new topic", { category: CacheCategory.Topic });
+      expect(cs.clearForUpgradeOnce("v2")).toBe(false);
+      expect(cs.get("topic")).toBe("new topic");
+    });
+
+    it("preserves legacy string Cookie values and login data across service restarts", () => {
+      store.set("cookies", { sid: "legacy-session" });
+      store.set("current_username", "test-user");
+      store.set("saved_accounts", ["test-account"]);
+      expect(cs.clearForUpgradeOnce("v2")).toBe(true);
+      const restarted = createService();
+      expect(restarted.clearForUpgradeOnce("v2")).toBe(false);
+      expect(restarted.get("cookies")).toEqual({ sid: "legacy-session" });
+      expect(restarted.get("current_username")).toBe("test-user");
+      expect(restarted.get("saved_accounts")).toEqual(["test-account"]);
+    });
+
+    it("preserves raw preferences, unknown data and authentication keys without rewriting them", () => {
+      const preferences = { scope: "reply", sort: "newest" };
+      const history = ["真实查询"];
+      store.set("search_preferences", preferences);
+      store.set("search_history", history);
+      store.set("password", "fixture-only");
+      store.set("access_token", "fixture-only");
+      store.set("custom_state", { keep: true });
+      cs.set("refresh_token", "fixture-only", { category: CacheCategory.Other });
+      const writes = vi.spyOn(store, "set");
+      expect(cs.clearForUpgradeOnce("v3")).toBe(true);
+      expect(store.get("search_preferences")).toBe(preferences);
+      expect(store.get("search_history")).toBe(history);
+      expect(store.has("password")).toBe(true);
+      expect(store.has("access_token")).toBe(true);
+      expect(store.has("refresh_token")).toBe(true);
+      expect(store.get("custom_state")).toEqual({ keep: true });
+      expect(writes.mock.calls.some(([key]) => ["search_preferences", "search_history", "password", "access_token", "refresh_token"].includes(key))).toBe(false);
+      writes.mockRestore();
+      expect(cs.get("search_preferences")).toEqual(preferences);
+      expect(cs.get("search_history")).toEqual(history);
+    });
+
+    it("recognizes the original URL-only HTML keys and drops orphan metadata", () => {
+      cs.set("html_https://www.guozaoke.com/notifications", "old HTML", { category: CacheCategory.Other });
+      store.delete("__cache_index__");
+      store.set("html_https://www.guozaoke.com/t/42?p=2", "raw old HTML");
+      store.set("link_html_https://example.com", "raw preview");
+      expect(cs.clearForUpgradeOnce("v3")).toBe(true);
+      expect(store.has("html_https://www.guozaoke.com/notifications")).toBe(false);
+      expect(store.has("__cache_meta_html_https://www.guozaoke.com/notifications")).toBe(false);
+      expect(store.has("html_https://www.guozaoke.com/t/42?p=2")).toBe(false);
+      expect(store.has("link_html_https://example.com")).toBe(false);
+    });
+
+    it.each(["broken", JSON.stringify({ keys: 3 }), JSON.stringify(["wrong"])])("handles malformed cache indexes %s", (index) => {
+      store.set("__cache_index__", index);
+      store.set("html_https://www.guozaoke.com/", "old HTML");
+      expect(cs.clearForUpgradeOnce("v3")).toBe(true);
+      expect(store.has("html_https://www.guozaoke.com/")).toBe(false);
+      expect(cs.getEntryCount()).toBe(1);
+    });
+
+    it("accepts native metadata/index objects and protects system entries", () => {
+      cs.set("custom_setting", { keep: true }, { category: CacheCategory.System });
+      store.set("__cache_meta_custom_setting", JSON.parse(store.get("__cache_meta_custom_setting")));
+      store.set("__cache_index__", { keys: ["custom_setting", "custom_setting", 3] });
+      cs.set("topic", "old", { category: CacheCategory.Topic });
+      expect(cs.clearForUpgradeOnce("v3")).toBe(true);
+      expect(cs.get("custom_setting")).toEqual({ keep: true });
+      expect(cs.get("topic")).toBeNull();
+    });
+
+    it("does not trust malformed business metadata to classify unknown data", () => {
+      store.set("custom_state", { keep: true });
+      store.set("__cache_meta_custom_state", JSON.stringify({ category: "topic" }));
+      store.set("html_https://www.guozaoke.com/", "old HTML");
+      store.set("__cache_meta_html_https://www.guozaoke.com/", "broken");
+      expect(cs.clearForUpgradeOnce("v3")).toBe(true);
+      expect(store.get("custom_state")).toEqual({ keep: true });
+      expect(store.has("html_https://www.guozaoke.com/")).toBe(false);
+    });
+
+    it("keeps a completion marker even when its metadata and index are lost", () => {
+      store.set("cache_upgrade_v3", "true");
+      cs.set("topic", "fresh", { category: CacheCategory.Topic });
+      expect(createService().clearForUpgradeOnce("v3")).toBe(false);
+      expect(cs.get("topic")).toBe("fresh");
+    });
+
+    it("runs a new version once without erasing older version markers", () => {
+      cs.clearForUpgradeOnce("v2");
+      cs.set("topic", "between versions", { category: CacheCategory.Topic });
+      expect(cs.clearForUpgradeOnce("v3")).toBe(true);
+      expect(store.get("cache_upgrade_v2")).toBe("true");
+      cs.set("topic", "fresh", { category: CacheCategory.Topic });
+      expect(createService().clearForUpgradeOnce("v3")).toBe(false);
+      expect(cs.get("topic")).toBe("fresh");
+    });
+
+    it("leaves storage untouched if enumeration fails, allowing a later retry", () => {
+      cs.set("topic", "old", { category: CacheCategory.Topic });
+      const read = vi.spyOn(Taro, "getStorageInfoSync").mockImplementationOnce(() => { throw new Error("unavailable"); });
+      const removes = vi.spyOn(store, "delete");
+      expect(cs.clearForUpgradeOnce("v3")).toBe(false);
+      expect(removes).not.toHaveBeenCalled();
+      expect(store.has("cache_upgrade_v3")).toBe(false);
+      read.mockRestore(); removes.mockRestore();
+      expect(cs.clearForUpgradeOnce("v3")).toBe(true);
+    });
+
+    it.each(["cache_upgrade_v3", "__cache_index__", "__cache_meta_html_https://www.guozaoke.com/"])("aborts before deletion when %s cannot be read", (failedKey) => {
+      cs.set("html_https://www.guozaoke.com/", "old HTML", { category: CacheCategory.Node });
+      const read = vi.spyOn(Taro, "getStorageSync").mockImplementation((key: string) => {
+        if (key === failedKey) throw new Error("unavailable");
+        return store.get(key) ?? "";
+      });
+      const removes = vi.spyOn(store, "delete");
+      expect(cs.clearForUpgradeOnce("v3")).toBe(false);
+      expect(removes).not.toHaveBeenCalled();
+      expect(store.has("cache_upgrade_v3")).toBe(false);
+      read.mockRestore(); removes.mockRestore();
+      expect(createService().clearForUpgradeOnce("v3")).toBe(true);
+    });
+
+    it("does not mark a partially failed deletion complete and retries after restart", () => {
+      cs.set("topic", "old", { category: CacheCategory.Topic });
+      const remove = vi.spyOn(store, "delete").mockImplementationOnce(() => { throw new Error("unavailable"); });
+      expect(cs.clearForUpgradeOnce("v3")).toBe(false);
+      expect(store.has("cache_upgrade_v3")).toBe(false);
+      expect(store.has("topic")).toBe(true);
+      remove.mockRestore();
+      expect(createService().clearForUpgradeOnce("v3")).toBe(true);
+      expect(store.has("topic")).toBe(false);
+    });
+
+    it("retries orphan metadata removal when deleting metadata fails", () => {
+      cs.set("topic", "old", { category: CacheCategory.Topic });
+      const original = Map.prototype.delete;
+      const remove = vi.spyOn(store, "delete").mockImplementation((key: string) => {
+        if (key === "__cache_meta_topic") throw new Error("unavailable");
+        return original.call(store, key);
+      });
+      expect(cs.clearForUpgradeOnce("v3")).toBe(false);
+      expect(store.has("cache_upgrade_v3")).toBe(false);
+      expect(store.has("topic")).toBe(false);
+      expect(store.has("__cache_meta_topic")).toBe(true);
+      remove.mockRestore();
+      expect(createService().clearForUpgradeOnce("v3")).toBe(true);
+      expect(store.has("__cache_meta_topic")).toBe(false);
+    });
+
+    it.each(["__cache_index__", "cache_upgrade_v3"])("does not commit completion when %s cannot be persisted", (failedKey) => {
+      cs.set("topic", "old", { category: CacheCategory.Topic });
+      const original = Map.prototype.set;
+      const write = vi.spyOn(store, "set").mockImplementation((key: string, value: any) => {
+        if (key === failedKey) throw new Error("unavailable");
+        return original.call(store, key, value);
+      });
+      expect(cs.clearForUpgradeOnce("v3")).toBe(false);
+      expect(store.has("cache_upgrade_v3")).toBe(false);
+      write.mockRestore();
+      expect(createService().clearForUpgradeOnce("v3")).toBe(true);
+    });
+
+    it("does not repeat cleanup after the marker's normal TTL", () => {
+      vi.useFakeTimers();
+      try {
+        cs.clearForUpgradeOnce("v2");
+        vi.advanceTimersByTime(60 * 60 * 1000);
+        cs.set("topic", "fresh", { category: CacheCategory.Topic });
+        expect(cs.clearForUpgradeOnce("v2")).toBe(false);
+        expect(cs.get("topic")).toBe("fresh");
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
@@ -251,8 +457,7 @@ describe("CacheService", () => {
     it("clears all entries including System when onlyClearable=false", () => {
       cs.set("cookies", { sid: "abc" }, { category: CacheCategory.System });
       cs.set("topic1", "v", { category: CacheCategory.Topic });
-      const removed = cs.clearAll(false);
-      expect(removed).toBe(2);
+      cs.clearAll(false);
       expect(cs.get("cookies")).toBeNull();
     });
   });

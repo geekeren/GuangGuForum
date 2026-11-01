@@ -28,6 +28,22 @@ const CATEGORY_LABELS: Record<CacheCategory, string> = {
 };
 
 const NON_CLEARABLE_CATEGORIES = new Set<CacheCategory>([CacheCategory.System]);
+export const CACHE_UPGRADE_VERSION = "2026-11-01-v3";
+
+const SYSTEM_STORAGE_KEYS = new Set([
+  "cookies", "current_username", "saved_accounts", "search_preferences", "search_history",
+  "add_to_desktop_already_added",
+]);
+const AUTH_STORAGE_KEY = /(?:^|[_-])(?:cookies?|password|passwd|pwd|tokens?|session|credentials?|secret|private[_-]?key)(?:$|[_-])/i;
+const LEGACY_BUSINESS_KEYS = new Set(["node_navigation", "legacy_node_navigation", "topic_index"]);
+
+function isSystemKey(key: string): boolean {
+  return SYSTEM_STORAGE_KEYS.has(key) || key.startsWith("cache_upgrade_") || AUTH_STORAGE_KEY.test(key);
+}
+
+function isLegacyBusinessKey(key: string): boolean {
+  return key.startsWith("html_") || key.startsWith("link_html_") || LEGACY_BUSINESS_KEYS.has(key);
+}
 
 export interface CacheMeta {
   key: string;
@@ -104,10 +120,18 @@ class CacheService implements ICacheService {
     try {
       const raw = Taro.getStorageSync(key);
       if (!raw) return null;
+      let value = raw;
       if (typeof raw === "string") {
-        try { return JSON.parse(raw) as T; } catch { return raw as T; }
+        try { value = JSON.parse(raw); } catch {}
       }
-      return raw as T;
+      if (isSystemKey(key) && this.getMeta(key)?.category !== CacheCategory.System) {
+        this.saveMeta(key, {
+          key, size: this.approxSize(raw), createdAt: Date.now(),
+          expiresAt: Date.now() + DEFAULT_TTL, priority: "normal", category: CacheCategory.System,
+        });
+        this.trackKey(key);
+      }
+      return value as T;
     } catch (e) {
       console.warn("[CacheService] get failed", key, e);
     }
@@ -125,7 +149,7 @@ class CacheService implements ICacheService {
   ): boolean {
     const ttl = options.ttl ?? DEFAULT_TTL;
     const priority = options.priority ?? "normal";
-    const category = options.category;
+    const category = isSystemKey(key) ? CacheCategory.System : options.category;
     const clearable = !NON_CLEARABLE_CATEGORIES.has(category);
     const stored = typeof value === "string" ? value : JSON.stringify(value);
 
@@ -165,7 +189,7 @@ class CacheService implements ICacheService {
   ): Promise<boolean> {
     const ttl = options.ttl ?? DEFAULT_TTL;
     const priority = options.priority ?? "normal";
-    const category = options.category;
+    const category = isSystemKey(key) ? CacheCategory.System : options.category;
     const clearable = !NON_CLEARABLE_CATEGORIES.has(category);
     const stored = typeof value === "string" ? value : JSON.stringify(value);
 
@@ -196,6 +220,7 @@ class CacheService implements ICacheService {
 
   remove(key: string, force = false) {
     if (!force) {
+      if (isSystemKey(key)) return;
       const meta = this.getMeta(key);
       if (meta && NON_CLEARABLE_CATEGORIES.has(meta.category)) return;
     }
@@ -206,10 +231,22 @@ class CacheService implements ICacheService {
 
   // ─── Meta ───
 
-  getMeta(key: string): CacheMeta | null {
+  getMeta(key: string, strict = false): CacheMeta | null {
+    let raw: any;
     try {
-      const raw = Taro.getStorageSync(META_PREFIX + key);
-      if (raw) return JSON.parse(raw) as CacheMeta;
+      raw = Taro.getStorageSync(META_PREFIX + key);
+    } catch (e) {
+      if (strict) throw e;
+      console.warn("[CacheService] getMeta failed", key, e);
+      return null;
+    }
+    try {
+      if (!raw) return null;
+      const meta = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (meta && meta.key === key && typeof meta.createdAt === "number" &&
+          typeof meta.expiresAt === "number" && typeof meta.size === "number" &&
+          Object.values(CacheCategory).includes(meta.category) &&
+          ["low", "normal", "high"].includes(meta.priority)) return meta as CacheMeta;
     } catch (e) {
       console.warn("[CacheService] getMeta failed", key, e);
     }
@@ -280,6 +317,41 @@ class CacheService implements ICacheService {
     Taro.clearStorageSync();
     this.saveIndex({ keys: [] });
     return 0;
+  }
+
+  clearForUpgradeOnce(version: string): boolean {
+    const marker = `cache_upgrade_${version}`;
+    try {
+      // Read the marker directly: missing metadata must not trigger another upgrade.
+      const completed = Taro.getStorageSync(marker);
+      if (completed === true || completed === "true") return false;
+      const keys = Taro.getStorageInfoSync().keys;
+      const index = this.getIndex(true);
+      const candidates = new Set([
+        ...index.keys,
+        ...keys.map((key) => key.startsWith(META_PREFIX) ? key.slice(META_PREFIX.length) : key),
+      ]);
+      const removed = new Set<string>();
+      const disposable: string[] = [];
+      for (const key of candidates) {
+        if (key === INDEX_KEY || key === LAST_CLEANUP_KEY || isSystemKey(key)) continue;
+        const meta = this.getMeta(key, true);
+        if (meta?.category === CacheCategory.System) continue;
+        // Untracked, unknown storage is not evidence that a value is disposable.
+        if (meta || isLegacyBusinessKey(key)) disposable.push(key);
+      }
+      for (const key of disposable) {
+        Taro.removeStorageSync(key);
+        Taro.removeStorageSync(META_PREFIX + key);
+        removed.add(key);
+      }
+      // Persist the cleaned index before committing the durable completion marker.
+      Taro.setStorageSync(INDEX_KEY, JSON.stringify({ keys: index.keys.filter((key) => !removed.has(key)) }));
+      return this.set(marker, true, { category: CacheCategory.System });
+    } catch {
+      console.warn("[CacheService] upgrade incomplete; will retry on next launch");
+      return false;
+    }
   }
 
   // ─── Stats ───
@@ -357,15 +429,28 @@ class CacheService implements ICacheService {
   }
 
   private ensureNotExpired(key: string) {
-    if (this.isExpired(key)) {
+    if (!isSystemKey(key) && this.isExpired(key)) {
       this.remove(key);
     }
   }
 
-  private getIndex(): CacheIndex {
+  private getIndex(strict = false): CacheIndex {
+    let raw: any;
     try {
-      const raw = Taro.getStorageSync(INDEX_KEY);
-      if (raw) return JSON.parse(raw);
+      raw = Taro.getStorageSync(INDEX_KEY);
+    } catch (e) {
+      if (strict) throw e;
+      console.warn("[CacheService] getIndex failed", e);
+      return { keys: [] };
+    }
+    try {
+      if (raw) {
+        const index = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (Array.isArray(index?.keys)) {
+          const keys: string[] = index.keys.filter((key: unknown): key is string => typeof key === "string");
+          return { keys: [...new Set(keys)] };
+        }
+      }
     } catch (e) {
       console.warn("[CacheService] getIndex failed", e);
     }

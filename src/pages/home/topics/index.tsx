@@ -9,7 +9,7 @@ import "./index.scss";
 
 import TopicList from "./topicList";
 import Taro, { useReady } from "@tarojs/taro";
-import { ScrollView, View } from "@tarojs/components";
+import { ScrollView, Text, View } from "@tarojs/components";
 import { rpxToPx } from "../../../utils/dimension";
 import { fetchAndCacheNodeNavigation, getCachedNodeNavigation } from "../../../utils/nodeNavigation";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
@@ -24,10 +24,10 @@ const defaultTabs: TabConfig[] = [
   { title: "最近更新", type: "default" },
   { title: "最近发布", type: "latest" },
   { title: "精华", type: "elite" },
-  { title: "我的关注", type: "follows" },
+  { title: "我的关注", type: "interest" },
 ];
 
-export default function Topics() {
+export default function Topics({ initialTab }: { initialTab?: string }) {
   const [currentTabIndex, setCurrentTabIndex] = useState(0);
   const [tabPaneHeight, setTabPaneHeight] = useState(400);
   const [tabs, setTabs] = useState<TabConfig[] | null>(null);
@@ -62,7 +62,7 @@ export default function Topics() {
       Taro.createSelectorQuery()
         .select(`#list_container`)
         .boundingClientRect((res) => {
-          res?.height && setTabPaneHeight(res.height - rpxToPx(80));
+          res?.height && setTabPaneHeight(Math.max(0, res.height - rpxToPx(64)));
         })
         .exec();
     });
@@ -117,6 +117,11 @@ export default function Topics() {
     }
   };
 
+  useEffect(() => {
+    if (initialTab !== "interest") return;
+    handleClick(3);
+  }, [initialTab]);
+
   const activeTabs = tabs ?? defaultTabs;
 
   return (
@@ -126,7 +131,10 @@ export default function Topics() {
     >
       <View className="tab-header">
         <ScrollView
+          type='custom'
           scrollX
+          enableFlex
+          style={{ flexDirection: 'row' }}
           className="tab-scroll"
           scrollWithAnimation
           scrollIntoView={scrollIntoView}
@@ -138,7 +146,7 @@ export default function Topics() {
               className={`tab-item ${index === currentTabIndex ? 'tab-item--active' : ''}`}
               onClick={() => handleClick(index)}
             >
-              {tab.title}
+              <Text>{tab.title}</Text>
             </View>
           ))}
         </ScrollView>
@@ -146,7 +154,8 @@ export default function Topics() {
       {activeTabs.map((tab, index) => (
         <View
           key={`${tab.type}_${tab.node || ''}_${index}`}
-          style={{ display: index === currentTabIndex ? 'block' : 'none', height: '100%' }}
+          className='topicPane'
+          style={{ display: index === currentTabIndex ? 'block' : 'none' }}
         >
           {loadedTabs[index] && (
             <TopicList

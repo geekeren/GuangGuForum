@@ -25,8 +25,9 @@ export const parseCookie = (cookies?: string[]): Record<string, Cookie> => {
   return cookieItems;
 };
 
-export function stringifyCookie(cookies: Record<string, Cookie>): string {
+export function stringifyCookie(cookies: Record<string, Cookie | string>): string {
   return Object.entries(cookies)
-    .map(([k, v]) => `${k}=${v.value}`)
+    .filter(([, v]) => typeof v === "string" || typeof v?.value === "string")
+    .map(([k, v]) => `${k}=${typeof v === "string" ? v : v.value}`)
     .join("; ");
 }

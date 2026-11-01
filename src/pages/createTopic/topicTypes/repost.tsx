@@ -8,6 +8,7 @@ import { LinkPreviewHeader } from "../../../components/LinkPreviewCard/Header";
 import MarkdownRender from "../../../components/MarkdownRender";
 import { htmlToMarkdown } from "../../../utils/htmlToMarkdown";
 import { extractSummaryUrl } from "../../../utils/linkHandler";
+import { isSkyline } from "../../../utils/renderer";
 import { BRAND_COLOR } from "../../../utils/theme";
 import type { TopicTypeDefinition, RenderFormContext, OnActivateContext } from "./registry";
 
@@ -247,7 +248,7 @@ const repostDef: TopicTypeDefinition = {
         />
 
         {fields.repostPreview && (
-          <View className={`repostMask${fields.repostClosing ? " repostMask--closing" : ""}`} onClick={cancelRepost}>
+          <View className={`repostMask${isSkyline() ? " repostMask--skyline" : ""}${fields.repostClosing ? " repostMask--closing" : ""}`} onClick={cancelRepost}>
             <View className={`repostSheet${fields.repostClosing ? " repostSheet--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
               <View className="repostSheetHeader">
                 <Text className="repostSheetTitle">转载确认</Text>
@@ -265,7 +266,7 @@ const repostDef: TopicTypeDefinition = {
                 </View>
                 <Text className="repostCheckboxDesc">{fields.fullRepost ? "转载完整正文内容" : "仅转载文章摘要"}</Text>
               </View>
-              <ScrollView scrollY className="repostSheetScroll">
+              <ScrollView type='custom' scrollY className="repostSheetScroll">
                 {fields.fullRepost ? (
                   <LinkPreviewCard summary={fields.repostPreview} url={fields.sourceUrl} />
                 ) : (

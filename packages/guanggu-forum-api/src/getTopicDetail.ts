@@ -1,3 +1,4 @@
+import type { HTMLElement } from "node-html-parser";
 import { request } from "./client";
 import { getUrl } from "./utils/urls";
 import { URLS } from "./urls";
@@ -6,6 +7,7 @@ import { CacheAPIFunc } from "./types";
 
 export interface TopicDetail {
   author: string;
+  authorLevel?: string;
   authorAvatarUrl: string;
   createTime: string;
   lastReplyTime: string;
@@ -18,7 +20,9 @@ export interface TopicDetail {
   upVoteCount: string;
   favoriteCount: string;
   comments: {
+    id?: string;
     author: string;
+    authorLevel?: string;
     authorAvatarUrl: string;
     content: string;
     floor: string;
@@ -114,6 +118,11 @@ const domStructure: DataDom<TopicDetail> = {
     _type: "array",
     _item: "object",
     _attribute: "",
+    id: {
+      _type: "string",
+      _attribute: "id",
+      _selector: "",
+    },
     authorAvatarUrl: {
       _type: "string",
       _attribute: "src",
@@ -174,23 +183,55 @@ const domStructure: DataDom<TopicDetail> = {
   },
 };
 
-function parseTopicDetail(body: any): TopicDetail {
-  return getDataFromHtml(body, domStructure) as TopicDetail;
+function parseAuthor(node: HTMLElement | null | undefined, fallback: string) {
+  const anchor = node?.tagName === "A" && node.getAttribute("href")?.startsWith("/u/")
+    ? node : node?.querySelector('a[href^="/u/"]');
+  const author = anchor?.textContent.trim();
+  if (!author) return { author: fallback };
+  // Inspect distinct sibling nodes, never split a username that happens to contain Lv.
+  let current = anchor!;
+  while (current !== node && current.parentNode) {
+    const parent = current.parentNode;
+    const level = parent.childNodes
+      .filter((child) => child !== current)
+      .map((child) => child.textContent.trim())
+      .find((text) => /^Lv\.?\s*\d+$/i.test(text));
+    if (level) return { author, authorLevel: level };
+    current = parent;
+  }
+  return { author };
+}
+
+function parseTopicDetail(body: HTMLElement | undefined): TopicDetail {
+  const detail = getDataFromHtml<TopicDetail>(body, domStructure);
+  if (!detail) return detail;
+  const root = body?.querySelector(".container .row");
+  Object.assign(detail, parseAuthor(root?.querySelector(".topic-detail .main .meta .username"), detail.author));
+  const replies = root?.querySelectorAll(".topic-reply .reply-item") || [];
+  detail.comments.forEach((comment, index) => {
+    Object.assign(comment, parseAuthor(replies[index]?.querySelector(".meta .reply-username .username"), comment.author));
+  });
+  return detail;
 }
 
 export interface GetTopicDetailParam {
   tid: string;
+  page?: string;
+  replyId?: string;
 }
 
 export const getTopicDetail: CacheAPIFunc<GetTopicDetailParam, TopicDetail> = (
-  { tid },
+  { tid, page, replyId },
   options?,
 ) => {
   const cache = options?.cache ?? true;
   return request(
-    getUrl(URLS.TOPIC_DETAIL, { tid }),
+    replyId && /^\d+$/.test(replyId)
+      ? `/search/reply/${replyId}`
+      : getUrl(URLS.TOPIC_DETAIL, { tid }),
     {
       cache,
+      query: page && /^\d+$/.test(page) && !replyId ? { p: page } : {},
       onRefresh: options?.onRefresh
         ? (body) => options.onRefresh!(parseTopicDetail(body))
         : undefined,

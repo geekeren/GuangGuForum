@@ -1,8 +1,7 @@
 import { Image, View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { TopicDetail, URLS } from "guanggu-forum-api";
+import { TopicDetail, URLS, urlPathVaiable } from "guanggu-forum-api";
 import styles from "./index.module.scss";
-import { urlPathVaiable } from "guanggu-forum-api";
 
 interface Props {
   topicDetail: TopicDetail;
@@ -23,7 +22,7 @@ const RelatingTopics = ({ topicDetail }: Props) => {
           <View className={styles.left}>
             <Image src={topic.authorAvatarUrl} className={styles.avatar} />
           </View>
-          <View className={styles.right}>{topic.title}</View>
+          <Text className={styles.right}>{topic.title}</Text>
         </View>
       ))}
     </View>

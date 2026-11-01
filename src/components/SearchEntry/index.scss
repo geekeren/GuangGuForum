@@ -1,0 +1,33 @@
+@import "../../vars.scss";
+
+.searchEntry {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 0 20rpx;
+  min-width: 0;
+  box-sizing: border-box;
+  background: $surface;
+  border: 1rpx solid $border-color;
+  border-radius: 40rpx;
+  color: $text-muted;
+  font-size: 26rpx;
+
+  &:active { background: $surfaceAlt; }
+
+  .searchIcon {
+    width: 28rpx;
+    height: 28rpx;
+    flex-shrink: 0;
+  }
+
+  .searchText {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    margin-left: 10rpx;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}

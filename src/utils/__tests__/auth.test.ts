@@ -75,6 +75,12 @@ describe("openLoginModal", () => {
     expect(call.url).not.toContain("&modal=true");
   });
 
+  it("does not stack another login page when one is already open", () => {
+    mockGetCurrentPages.mockReturnValue([{ route: "pages/login/index" }]);
+    openLoginModal();
+    expect(wxNavigateToMock).not.toHaveBeenCalled();
+  });
+
   it("sets routeOptions with semi-transparent background", () => {
     openLoginModal();
     expect(wxNavigateToMock).toHaveBeenCalledWith(

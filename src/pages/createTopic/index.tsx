@@ -12,8 +12,10 @@ import { openLoginModal } from "../../utils/auth";
 import { cacheService, CacheCategory } from "../../utils/CacheService";
 import Navbar from "../../components/Navbar";
 import MarkdownRender from "../../components/MarkdownRender";
+import NodePicker from "../../components/NodePicker";
 import { TOPIC_TYPE_REGISTRY, ALL_TYPES, ALL_HIDDEN_NODES } from "./topicTypes/registry";
 import type { TopicType } from "./topicTypes/registry";
+import { isSkyline } from "../../utils/renderer";
 import "./index.scss";
 
 const LAST_NODE_KEY = "last_selected_node";
@@ -31,10 +33,10 @@ function hasContent(title: string, content: string, typeFields: Record<string, a
 const FROM_MINI = "\n\n---\n*本帖发自[小程序](https://www.guozaoke.com/t/91893)*";
 
 export default function CreateTopic() {
+  const skyline = isSkyline();
   const [nodeGroups, setNodeGroups] = useState<NodeGroup[]>([]);
   const [selectedNodeSlug, setSelectedNodeSlug] = useState("water");
   const [showNodePicker, setShowNodePicker] = useState(false);
-  const [nodePickerClosing, setNodePickerClosing] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -97,6 +99,7 @@ export default function CreateTopic() {
 
   // Body height
   useEffect(() => {
+    if (skyline) return;
     const sys = Taro.getSystemInfoSync();
     const navH = 44 + (sys.statusBarHeight || 0);
     const safeBottom = sys.safeArea ? sys.screenHeight - sys.safeArea.bottom : 0;
@@ -189,17 +192,10 @@ export default function CreateTopic() {
 
   const openNodePicker = () => {
     if (nodeLocked) return;
-    setNodePickerClosing(false);
     setShowNodePicker(true);
   };
 
-  const closeNodePicker = () => {
-    setNodePickerClosing(true);
-    setTimeout(() => {
-      setShowNodePicker(false);
-      setNodePickerClosing(false);
-    }, 250);
-  };
+  const closeNodePicker = () => setShowNodePicker(false);
 
   const selectNode = (slug: string) => {
     setSelectedNodeSlug(slug);
@@ -330,9 +326,9 @@ export default function CreateTopic() {
   };
 
   return (
-    <View className="createTopic">
+    <View className={`createTopic${skyline ? " createTopic--skyline" : ""}`}>
       <Navbar title="发帖" back home titleStyle={{ opacity: 1 }} />
-      <ScrollView scrollY style={{ height: bodyHeight }} className="createTopicBody" enhanced showScrollbar={false}>
+      <ScrollView type='custom' scrollY style={skyline ? undefined : { height: bodyHeight }} className="createTopicBody" enhanced showScrollbar={false}>
         <View className="section typeSection">
         <Text className="typeLabel">发布类型</Text>
         <View className="typeRow">
@@ -351,7 +347,7 @@ export default function CreateTopic() {
       <View className="section nodeSection">
         <View className="pickerItem" onClick={openNodePicker}>
           <Text className="pickerLabel">发布到</Text>
-          <Text className={`pickerValue ${nodeLocked ? "pickerValue--locked" : ""}`}>
+          <Text className={`pickerValue ${nodeLocked ? "pickerValue--locked" : ""}`} {...(skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {})}>
             {resolvedNodeName}
           </Text>
           {!nodeLocked && <Text className="arrow">▼</Text>}
@@ -397,7 +393,7 @@ export default function CreateTopic() {
                 <Text className="repostSheetCloseText">✕</Text>
               </View>
             </View>
-            <ScrollView scrollY className="repostSheetScroll" style={{ height: "calc(80vh - 200rpx - env(safe-area-inset-bottom))" }}>
+            <ScrollView type='custom' scrollY className="repostSheetScroll" style={skyline ? undefined : { height: "calc(80vh - 200rpx - env(safe-area-inset-bottom))" }}>
               <View className="previewContentWrap">
                 <Text className="previewContentTitle">{title.trim()}</Text>
                 <MarkdownRender content={previewContent} />
@@ -415,36 +411,13 @@ export default function CreateTopic() {
         </View>
       )}
 
-      {showNodePicker && (
-        <View className={`nodePickerMask${nodePickerClosing ? " nodePickerMask--closing" : ""}`} onClick={closeNodePicker}>
-          <View className={`nodePickerSheet${nodePickerClosing ? " nodePickerSheet--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
-            <View className="nodePickerHeader">
-              <Text className="nodePickerTitle">选择板块</Text>
-              <View className="nodePickerClose" onClick={closeNodePicker}>
-                <Text className="nodePickerCloseText">✕</Text>
-              </View>
-            </View>
-            <ScrollView scrollY className="nodePickerScroll">
-              {filteredGroups.map((group) => (
-                <View className="nodeGroup" key={group.category}>
-                  <Text className="nodeGroupLabel">{group.category}</Text>
-                  <View className="nodeGroupTags">
-                    {group.nodes.map((node) => (
-                      <View
-                        key={node.slug}
-                        className={`nodeTag ${selectedNodeSlug === node.slug ? "nodeTag--active" : ""}`}
-                        onClick={() => selectNode(node.slug)}
-                      >
-                        <Text className="nodeTagText">{node.name}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      )}
+      <NodePicker
+        visible={showNodePicker}
+        groups={filteredGroups}
+        selectedSlug={selectedNodeSlug}
+        onSelect={selectNode}
+        onClose={closeNodePicker}
+      />
     </View>
   );
 }

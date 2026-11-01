@@ -45,6 +45,11 @@ export const getNavInfo = () => {
   return navInfo;
 };
 
+export const getBottomSafeAreaInset = () => {
+  const { screenHeight, safeArea } = Taro.getWindowInfo();
+  return safeArea ? Math.max(0, screenHeight - safeArea.bottom) : 0;
+};
+
 export const rpxToPx = (rpx: number) => {
   const { windowWidth } = Taro.getWindowInfo();
   const pixelRatio = 750 / windowWidth;

@@ -1,7 +1,8 @@
-import { request } from "../client";
+import { LoginRequiredError, request } from "../client";
 import { getDataFromHtml } from "../utils/getDataFromHtml";
 import { HotNodes, getHotNodes as getHotNodesOriginal } from "../node/getHotNodes";
 import { CacheAPIFunc } from "../types";
+import { parseTopicSummaries } from "../getRecentTopics";
 
 export interface HotTopic {
   username: string;
@@ -9,6 +10,8 @@ export interface HotTopic {
   userAvatarUrl: string;
   title: string;
   topicLink: string;
+  category?: string;
+  commentCount?: string;
 }
 
 export interface InterestTopic {
@@ -43,11 +46,31 @@ export function getHotTopics(): Promise<HotTopic[]> {
       topicLink: { _selector: ".hot_topic_title a", _attribute: "href", _type: "string" },
     }) as unknown as { userLink: string; userAvatarUrl: string; title: string; topicLink: string }[];
 
-    return topics.map((t) => ({
-      ...t,
-      username: t.userLink?.replace("/u/", "") || "",
-    }));
+    const summaries = parseTopicSummaries(body);
+    return topics.map((t) => {
+      const summary = summaries.find(item => item.link.split(/[?#]/)[0] === t.topicLink.split(/[?#]/)[0]);
+      return {
+        ...t,
+        username: t.userLink?.replace("/u/", "") || "",
+        ...(summary ? { category: summary.category, commentCount: summary.commentCount } : {}),
+      };
+    });
   });
+}
+
+export async function getHotTopicMetadata(topicLink: string): Promise<{ category: string; commentCount?: string }> {
+  const tid = topicLink.match(/^\/t\/(\d+)(?:[?#].*)?$/)?.[1];
+  if (!tid) throw new Error("热议链接无效");
+  const { body } = await request(`/t/${tid}`, { cache: true, timeout: 15000 });
+  const category = body?.querySelector('.topic-detail .meta .node')?.textContent.trim();
+  if (!category) throw new Error("板块信息暂不可用");
+  const summary = body?.querySelector('.topic-reply .ui-header')?.textContent || "";
+  const commentCount = summary.match(/共收到\s*([\d,]+)\s*(?:条|个)?\s*回复/)?.[1];
+  return { category, commentCount };
+}
+
+export async function getHotTopicCategory(topicLink: string): Promise<string> {
+  return (await getHotTopicMetadata(topicLink)).category;
 }
 
 export interface GetInterestTopicsParam {
@@ -60,6 +83,8 @@ export function getInterestTopics(
   const { page = 1 } = param || {};
   return request("/", {
     cache: true,
+    // Discovery is browseable without authentication; don't redirect its whole page.
+    notifyLoginRequired: false,
     query: {
       tab: "interest",
       p: String(page),
@@ -104,7 +129,16 @@ export interface DiscoveryData {
   hotNodes: HotNodes[];
   interestTopics: InterestTopic[];
   interestNodes: InterestNode[];
+  interestLoginRequired?: boolean;
+  interestError?: boolean;
 }
+
+const loadDiscoveryInterest = () => getInterestTopics({ page: 1 }).catch(error => ({
+  topics: [] as InterestTopic[],
+  nodes: [] as InterestNode[],
+  interestLoginRequired: error instanceof LoginRequiredError,
+  interestError: !(error instanceof LoginRequiredError),
+}));
 
 export const getDiscoveryData: CacheAPIFunc<void, DiscoveryData> = async (
   _params?,
@@ -113,26 +147,30 @@ export const getDiscoveryData: CacheAPIFunc<void, DiscoveryData> = async (
   const [hotTopics, hotNodes, interestData] = await Promise.all([
     getHotTopics(),
     getHotNodesOriginal(),
-    getInterestTopics({ page: 1 }),
+    loadDiscoveryInterest(),
   ]);
   const result = {
     hotTopics,
     hotNodes,
     interestTopics: interestData.topics,
     interestNodes: interestData.nodes,
+    interestLoginRequired: "interestLoginRequired" in interestData && interestData.interestLoginRequired,
+    interestError: "interestError" in interestData && interestData.interestError,
   };
 
   if (options?.onRefresh) {
     Promise.all([
       getHotTopics(),
       getHotNodesOriginal(),
-      getInterestTopics({ page: 1 }),
+      loadDiscoveryInterest(),
     ]).then(([ht, hn, id]) => {
       options.onRefresh!({
         hotTopics: ht,
         hotNodes: hn,
         interestTopics: id.topics,
         interestNodes: id.nodes,
+        interestLoginRequired: "interestLoginRequired" in id && id.interestLoginRequired,
+        interestError: "interestError" in id && id.interestError,
       });
     }).catch(() => {});
   }

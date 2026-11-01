@@ -65,7 +65,7 @@ const datingDef: TopicTypeDefinition = {
                   color={BRAND_COLOR}
                   className="genderRadioItem"
                 >
-                  {g}
+                  <Text>{g}</Text>
                 </Radio>
               ))}
             </RadioGroup>

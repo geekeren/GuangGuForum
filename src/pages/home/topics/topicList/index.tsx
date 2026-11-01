@@ -6,10 +6,38 @@ import Loading from "../../../../components/Loading";
 import { cacheService, CacheCategory } from "../../../../utils/CacheService";
 import "./index.scss";
 import { getFromLocalCache } from "../../../../utils/localAssets";
-import NodeIcon from "../../../../assets/topic_node.svg";
-import CommentIcon from "../../../../assets/comment.svg";
+import NodeIcon from "../../../../assets/home-node.svg";
+import AnnouncementIcon from "../../../../assets/home-announcement.svg";
+import CommentIcon from "../../../../assets/home-comment.svg";
+import AnnouncementArtworkIcon from "../../../../assets/home-announcement-icon.png";
+import AnnouncementScene from "../../../../assets/home-announcement-scene.png";
+import { splitTopicAnnouncement } from "../../../../utils/topicAnnouncement";
 import { urlPathVaiable } from "../../../../utils/urls";
 import PullDownRefresh, { PullDownRefreshRef } from "../../../../components/PullDownRefresh";
+import { isSkyline } from "../../../../utils/renderer";
+
+const HomepageAnnouncement = ({ topic }: { topic: TopicSummary }) => {
+  const tid = urlPathVaiable(URLS.TOPIC_DETAIL)(topic.link)?.params?.tid;
+  return (
+    <View
+      className='homeAnnouncement'
+      onClick={() => {
+        if (tid) Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
+      }}
+    >
+      <Image src={AnnouncementScene} mode='aspectFit' className='homeAnnouncementIllustration' />
+      <View className='homeAnnouncementIconWrap'>
+        <Image src={AnnouncementArtworkIcon} mode='aspectFit' className='homeAnnouncementIcon' />
+      </View>
+      <View className='homeAnnouncementCopy'>
+        <Text className='homeAnnouncementTitle'>{topic.title}</Text>
+        <Text className='homeAnnouncementSubtitle' overflow='ellipsis' maxLines={1}>
+          {topic.category} · {topic.lastUpdated}更新 · {topic.commentCount === "" ? 0 : topic.commentCount} 评论
+        </Text>
+      </View>
+    </View>
+  );
+};
 
 const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
   const {
@@ -26,6 +54,7 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
   return (
     <OpenContainer
       key={tid}
+      className='topicContainer'
       closeBorderRadius={12}
       openBorderRadius={0}
       transitionDuration={350}
@@ -43,25 +72,25 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
     >
       <View className='topicItem'>
         <View className='titleRow'>
-          <View className='title'>
-            <ShareElement mapkey={`topic_title_${tid}`}>
-              <Text>{title}</Text>
+          <View className='titleContent'>
+            <ShareElement className='titleShare' mapkey={`topic_title_${tid}`}>
+              <Text className='title' overflow='ellipsis' maxLines={2}>{title}</Text>
             </ShareElement>
           </View>
         </View>
         <View className='meta'>
           <View className='left'>
             <View className='categoryTag'>
-              <Image src={NodeIcon} svg className='categoryIcon' />
-              <Text>{category}</Text>
+              <Image src={category === "公告" ? AnnouncementIcon : NodeIcon} svg className='categoryIcon' />
+              <Text overflow='ellipsis' maxLines={1}>{category}</Text>
             </View>
             <View className='user'>
               <View className='avatar'>
                 <Image src={getFromLocalCache(userAvatarUrl)} />
               </View>
-              <View className='userName'>{username}</View>
+              <Text className='userName' overflow='ellipsis' maxLines={1}>{username}</Text>
             </View>
-            <Text className='lastUpdateTime'>{lastUpdated}更新</Text>
+            <Text className='lastUpdateTime' overflow='ellipsis' maxLines={1}>{lastUpdated}更新</Text>
           </View>
           <View className='right'>
             <Image src={CommentIcon} svg className='commentIcon' />
@@ -159,6 +188,7 @@ export default class TopicList extends Component<TopicListProps, State> {
 
   render() {
     const { topics } = this.state;
+    const { announcement, topics: regularTopics } = splitTopicAnnouncement(topics);
     const scrollViewHeight = this.props.style?.height;
     return (
       <PullDownRefresh
@@ -168,7 +198,8 @@ export default class TopicList extends Component<TopicListProps, State> {
       >
         {topics.length > 0 ? (
           <ScrollView
-            className='topicList'
+            type='custom'
+            className={isSkyline() ? 'topicList topicList--skyline' : 'topicList'}
             scrollY
             enhanced
             showScrollbar
@@ -184,16 +215,25 @@ export default class TopicList extends Component<TopicListProps, State> {
             onTouchMove={(e: any) => this.pullDownRef.current?.onTouchMove(e)}
             onTouchEnd={() => this.pullDownRef.current?.onTouchEnd()}
           >
-            {topics.map((topic) => (
+            <View className='topicListTopSpacer' />
+            {announcement && <HomepageAnnouncement topic={announcement} />}
+            {regularTopics.map((topic) => (
               <TopicItem key={urlPathVaiable(URLS.TOPIC_DETAIL)(topic.link)?.params?.tid} topic={topic} />
             ))}
             {topics.length >= 200 && (
-              <View className='listFooter'>— 我是有底线的 —</View>
+              <View className='listFooter'><Text>— 我是有底线的 —</Text></View>
             )}
           </ScrollView>
         ) : (
-          <View style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "300rpx", color: "#999", fontSize: "28rpx" }}>
-            {this.loading ? "加载中..." : "暂无数据"}
+          <View className='topicListEmpty'>
+            {this.loading ? (
+              <Loading size={32} />
+            ) : (
+              <>
+                <Text className='emptyTitle'>暂无话题</Text>
+                <Text className='emptyDesc'>下拉刷新，看看社区的新动态</Text>
+              </>
+            )}
           </View>
         )}
         {this.loading && topics.length > 0 && <Loading size={40} />}

@@ -1,13 +1,14 @@
 import { View, Text, Image, Button, Switch, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useState, useEffect, useRef } from "react";
-import Navbar from "../../components/Navbar";
 import { logout } from "guanggu-forum-api";
 import ArrowRightIcon from "../../assets/arrow-right.svg";
 import { linkHandler } from "../../utils/linkHandler";
 import { getCachedUsername } from "../../utils/currentUser";
 import { cacheService, CacheCategory, type CategoryStats } from "../../utils/CacheService";
 import AddToDesktopGuide, { checkMiniProgramAdded } from "../../components/AddToDesktopGuide";
+import Navbar from "../../components/Navbar";
+import { isSkyline } from "../../utils/renderer";
 import "./index.scss";
 
 const FEEDBACK_URL = "https://www.guozaoke.com/t/91893";
@@ -35,6 +36,7 @@ function isAdDisabled(): boolean {
 }
 
 export default function Settings() {
+  const skyline = isSkyline();
   const [showGuide, setShowGuide] = useState(false);
   const [miniProgramAdded, setMiniProgramAdded] = useState(false);
   const [adEnabled, setAdEnabled] = useState(!isAdDisabled());
@@ -249,11 +251,11 @@ export default function Settings() {
   ];
 
   return (
-    <View className="settingsPage">
-      <Navbar title="设置" back />
-      <ScrollView scrollY className="settingsBody" style={{ height: "calc(100vh - 88px)" }}>
+    <View className={`settingsPage${skyline ? " settingsPage--skyline" : ""}`}>
+      <Navbar back title='设置' titleStyle={{ opacity: 1 }} />
+      <ScrollView type='custom' scrollY className='settingsBody'>
         {sections.map((group, gi) => (
-          <View className="settingsGroup" key={gi}>
+          <View className='settingsGroup' key={gi}>
             {group.map((item, ii) => (
               <View
                 key={ii}
@@ -261,15 +263,15 @@ export default function Settings() {
                 onClick={item.action}
               >
                 {item.shareButton ? (
-                  <Button className="settingsItemBtn" open-type="share">
-                    <Text className="settingsItemLabel">{item.label}</Text>
-                    <Image src={ArrowRightIcon} svg className="settingsItemArrow" />
+                  <Button className='settingsItemBtn' open-type='share'>
+                    <Text className='settingsItemLabel'>{item.label}</Text>
+                    <Image src={ArrowRightIcon} svg className='settingsItemArrow' />
                   </Button>
                 ) : item.switchControl ? (
                   <>
-                    <View className="settingsItemLeft">
-                      <Text className="settingsItemLabel">{item.label}</Text>
-                      {item.switchDesc && <Text className="settingsItemDesc">{item.switchDesc}</Text>}
+                    <View className='settingsItemLeft'>
+                      <Text className='settingsItemLabel'>{item.label}</Text>
+                      {item.switchDesc && <Text className='settingsItemDesc' {...(skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {})}>{item.switchDesc}</Text>}
                     </View>
                     <View>
                       <Switch
@@ -282,14 +284,14 @@ export default function Settings() {
                   </>
                 ) : (
                   <>
-                    <View className="settingsItemLeft">
-                      <Text className="settingsItemLabel">{item.label}</Text>
-                      {item.desc && <Text className="settingsItemDesc">{item.desc}</Text>}
+                    <View className='settingsItemLeft'>
+                      <Text className='settingsItemLabel'>{item.label}</Text>
+                      {item.desc && <Text className='settingsItemDesc' {...(skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {})}>{item.desc}</Text>}
                     </View>
                     {item.statusTag ? (
                       <Text className={`settingsItemStatusTag ${item.statusTag === "已添加" ? "settingsItemStatusTag--added" : "settingsItemStatusTag--not"}`}>{item.statusTag}</Text>
                     ) : !item.noArrow ? (
-                      <Image src={ArrowRightIcon} svg className="settingsItemArrow" />
+                      <Image src={ArrowRightIcon} svg className='settingsItemArrow' />
                     ) : null}
                   </>
                 )}
@@ -298,10 +300,10 @@ export default function Settings() {
           </View>
         ))}
 
-        <View className="cacheCard">
-          <View className="cacheHeader">
-            <Text className="cacheHeaderLabel">本地数据</Text>
-            <Text className="cacheHeaderSize">{formatSize(totalSize)}</Text>
+        <View className='cacheCard'>
+          <View className='cacheHeader'>
+            <Text className='cacheHeaderLabel'>本地数据</Text>
+            <Text className='cacheHeaderSize'>{formatSize(totalSize)}</Text>
           </View>
           {cacheStats.length > 0 ? (
             cacheStats.map((stat) => (
@@ -310,39 +312,39 @@ export default function Settings() {
                 className={`cacheRow ${stat.category === CacheCategory.System ? "cacheRow--system" : ""}`}
                 onClick={() => handleClearCategory(stat.category, stat.label)}
               >
-                <View className="cacheRowLeft">
-                  <Text className="cacheRowLabel">{stat.label}</Text>
-                  {stat.category === CacheCategory.System && <Text className="cacheRowHint">不可删除</Text>}
+                <View className='cacheRowLeft'>
+                  <Text className='cacheRowLabel'>{stat.label}</Text>
+                  {stat.category === CacheCategory.System && <Text className='cacheRowHint'>不可删除</Text>}
                 </View>
-                <View className="cacheRowRight">
-                  <Text className="cacheRowSize">{formatSize(stat.size)}</Text>
-                  <Text className="cacheRowCount">{stat.count} 项</Text>
+                <View className='cacheRowRight'>
+                  <Text className='cacheRowSize'>{formatSize(stat.size)}</Text>
+                  <Text className='cacheRowCount'>{stat.count} 项</Text>
                 </View>
               </View>
             ))
           ) : (
-            <View className="cacheRow cacheRow--empty">
-              <Text className="cacheRowLabel" style={{ color: "var(--text-faint, #a0a8b8)" }}>暂无缓存</Text>
+            <View className='cacheRow cacheRow--empty'>
+              <Text className='cacheRowLabel' style={{ color: "var(--text-faint, #a0a8b8)" }}>暂无缓存</Text>
             </View>
           )}
-          <View className="cacheRow cacheRow--action" onClick={handleClearAll}>
-            <Text className="cacheActionText">清除缓存</Text>
+          <View className='cacheRow cacheRow--action' onClick={handleClearAll}>
+            <Text className='cacheActionText'>清除缓存</Text>
           </View>
-          <View className="cacheRow cacheRow--action" onClick={handleForceClearAll}>
-            <Text className="cacheActionText" style={{ color: "#e74c3c" }}>清除所有数据</Text>
+          <View className='cacheRow cacheRow--action' onClick={handleForceClearAll}>
+            <Text className='cacheActionText' style={{ color: "#e74c3c" }}>清除所有数据</Text>
           </View>
         </View>
 
         {isLoggedIn && (
-          <View className="settingsGroup">
-            <View className="settingsItem settingsItem--danger" onClick={handleLogout}>
-              <Text className="settingsItemLabel">退出登录</Text>
+          <View className='settingsGroup'>
+            <View className='settingsItem settingsItem--danger' onClick={handleLogout}>
+              <Text className='settingsItemLabel'>退出登录</Text>
             </View>
           </View>
         )}
 
-        <View className="settingsFooter">
-          <Text className="settingsFooterText">过早客 · 武汉本地生活社区</Text>
+        <View className='settingsFooter'>
+          <Text className='settingsFooterText'>过早客 · 武汉本地生活社区</Text>
         </View>
       </ScrollView>
 

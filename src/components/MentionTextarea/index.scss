@@ -1,0 +1,67 @@
+@import "../../vars.scss";
+
+.mentionEditor {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 20rpx;
+  border: 1rpx solid $border-color;
+  border-radius: $radius-md;
+  background: $surfaceAlt;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+.mentionEditorTags {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-bottom: 8rpx;
+}
+.mentionEditorTag {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8rpx;
+  max-width: 100%;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  background: $color-brand-soft;
+  color: $color-brand-dark;
+  font-size: 26rpx;
+  line-height: 1.4;
+  transition: background-color 140ms ease-out, opacity 140ms ease-out;
+  animation: mentionTagReveal 160ms ease-out;
+
+  &:active {
+    background: rgba(31, 105, 255, 0.14);
+    opacity: 0.78;
+  }
+}
+.mentionEditorRemove { font-size: 30rpx; opacity: 0.65; }
+.mentionEditorInput {
+  width: 100%;
+  height: 200rpx;
+  min-height: 160rpx;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-size: inherit;
+  line-height: 1.6;
+  background: transparent;
+}
+
+.mentionEditor--skyline {
+  width: 100%;
+
+  .mentionEditorInput {
+    font-size: 28rpx;
+    box-sizing: border-box;
+  }
+}
+
+@keyframes mentionTagReveal {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}

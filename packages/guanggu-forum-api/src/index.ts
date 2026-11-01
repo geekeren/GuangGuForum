@@ -1,4 +1,5 @@
 export * from "./getRecentTopics";
+export * from "./search";
 export * from "./getTopicDetail";
 export * from "./login/login";
 export * from "./login/logout";
@@ -17,4 +18,4 @@ export * from "./discovery/index";
 export * from "./utils/urls";
 export * from "./urls";
 export * from "./types";
-export { setCacheService, getCacheService, setOnLoginRequired } from "./client";
+export { setCacheService, getCacheService, setOnLoginRequired, setOnUnreadNotifications } from "./client";

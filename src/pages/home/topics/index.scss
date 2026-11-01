@@ -4,46 +4,52 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+}
+
+.topicPane {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .tab-header {
   flex-shrink: 0;
-  padding-bottom: 8rpx;
+  // Only reserve the top inset and pills; the bottom gap scrolls with the list.
+  height: 64rpx;
+  box-sizing: border-box;
+  padding-top: 10rpx;
 }
 
 .tab-scroll {
-  height: 80rpx;
+  height: 54rpx;
   white-space: nowrap;
+  flex-direction: row;
+  box-sizing: border-box;
+  padding: 0 22rpx;
 }
 
 .tab-item {
   display: inline-block;
-  color: $text-muted;
-  font-size: 28rpx;
-  font-weight: 400;
-  padding: 0 24rpx;
-  height: 80rpx;
-  line-height: 80rpx;
+  flex-shrink: 0;
+  color: #080d18;
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 0 28rpx;
+  margin-right: 14rpx;
+  height: 54rpx;
+  line-height: 54rpx;
   position: relative;
-  transition: all 0.2s ease;
+  border-radius: 30rpx;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 4rpx 12rpx rgba(71, 112, 194, 0.04);
+  transition: color 0.2s ease, background-color 0.2s ease;
   box-sizing: border-box;
 
   &--active {
-    color: $color-brand;
+    color: #fff;
     font-weight: 700;
-    font-size: 30rpx;
-    letter-spacing: -0.2rpx;
-
-    &::after {
-      content: "";
-      position: absolute;
-      bottom: 4rpx;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 48rpx;
-      height: 8rpx;
-      border-radius: 4rpx;
-      background: linear-gradient(135deg, $color-brand, $color-brand-light);
-    }
+    background: linear-gradient(150deg, #4b8cff, #0754ee);
+    box-shadow: 0 4rpx 12rpx rgba(31, 105, 255, 0.15);
   }
 }

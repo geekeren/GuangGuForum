@@ -1,12 +1,20 @@
 @import "../../vars.scss";
 
 .settingsPage {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: $bgColor;
 }
 
 .settingsBody {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  box-sizing: border-box;
   padding: 16rpx 22rpx 40rpx;
+  padding-bottom: max(40rpx, env(safe-area-inset-bottom));
 }
 
 .settingsGroup {
@@ -239,4 +247,14 @@
   font-size: 28rpx;
   color: $color-brand;
   font-weight: 500;
+}
+
+.settingsPage--skyline .settingsItemBtn {
+  line-height: 1.4;
+  font-size: 28rpx;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
 }

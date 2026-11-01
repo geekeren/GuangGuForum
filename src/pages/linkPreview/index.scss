@@ -50,3 +50,18 @@
     }
   }
 }
+
+.linkPreviewPage--skyline {
+  width: 100%;
+  // The bottom-sheet route owns the viewport (40% or 75% of the screen).
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  .linkPreviewContent {
+    flex: 1;
+    height: 0;
+    min-height: 0;
+  }
+}

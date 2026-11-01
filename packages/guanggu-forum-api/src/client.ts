@@ -3,13 +3,15 @@ import url from "url";
 
 import { parse, HTMLElement } from "node-html-parser";
 import { URLS } from "./urls";
-import { parseCookie, stringifyCookie } from "./utils/cookie";
+import { Cookie, parseCookie, stringifyCookie } from "./utils/cookie";
 import { ICacheService, CacheCategory } from "./types";
+import { parseUnreadNotifications } from "./notification/unread";
 
 type TaroRequestConfig = Parameters<typeof Taro.request>[0];
 export interface RequestConfig extends Omit<TaroRequestConfig, "url" | "data"> {
   useProxy?: boolean;
   useCookie?: boolean;
+  notifyLoginRequired?: boolean;
   query?: Record<string, string | undefined>;
   data?: Record<string, string | undefined>;
   method?: "POST" | "GET";
@@ -17,7 +19,15 @@ export interface RequestConfig extends Omit<TaroRequestConfig, "url" | "data"> {
   onRefresh?: (body: HTMLElement) => void;
 }
 
-const HTML_CACHE_PREFIX = "html_";
+const HTML_CACHE_PREFIX = "html_v2_";
+
+function getCacheEnvironment(): string {
+  try {
+    return Taro.getAccountInfoSync().miniProgram.envVersion || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
 
 const STRIP_TAGS = /<(script|style|noscript|iframe)[^>]*>[\s\S]*?<\/\1>/gi;
 const STRIP_BODY_FOOTER = /<footer[^>]*class="footer"[^>]*>[\s\S]*?<\/footer>/gi;
@@ -44,6 +54,7 @@ function categorizeUrl(relativeUrl: string): CacheCategory {
 
 let _cacheService: ICacheService | null = null;
 let _onLoginRequired: (() => void) | null = null;
+let _onUnreadNotifications: ((count: number, username: string) => void) | null = null;
 
 // In-memory cache for parsed HTML to avoid re-parsing on every cache hit
 const parsedCache = new Map<string, { body: HTMLElement; timestamp: number }>();
@@ -51,10 +62,15 @@ const PARSED_CACHE_TTL = 10 * 60 * 1000; // 10 min
 
 export function setCacheService(cs: ICacheService) {
   _cacheService = cs;
+  parsedCache.clear();
 }
 
 export function setOnLoginRequired(callback: () => void) {
   _onLoginRequired = callback;
+}
+
+export function setOnUnreadNotifications(callback: ((count: number, username: string) => void) | null) {
+  _onUnreadNotifications = callback;
 }
 
 export function getCacheService(): ICacheService {
@@ -62,28 +78,43 @@ export function getCacheService(): ICacheService {
   return _cacheService;
 }
 
-function parseHtmlResponse(resData: string, relativeUrl: string) {
+export class LoginRequiredError extends Error {
+  constructor() {
+    super("请先登录");
+    this.name = "LoginRequiredError";
+  }
+}
+
+function parseHtmlResponse(resData: string, relativeUrl: string, live = false, success = false, notifyLoginRequired = true) {
   const REG_BODY = /<body[^>]*>([\s\S]*)<\/body>/;
   const result = REG_BODY.exec(resData);
   if (result && result.length === 2) {
     const bodyStr = result[0];
+    const body = parse(bodyStr);
+    const userLink = body.querySelector('#navbar5 .navbar-right a.avatar[href^="/u/"]');
     if (
-      bodyStr.includes("请先登录社区再完成操作") &&
+      !userLink && body.querySelector(".alert.alert-danger")?.textContent.includes("请先登录社区再完成操作") &&
       !relativeUrl.includes("/login")
     ) {
-      Taro.showToast({
-        icon: "error",
-        duration: 2000,
-        title: "请先登录",
-      });
-      _onLoginRequired?.();
+      if (!live) return null;
+      if (notifyLoginRequired) {
+        Taro.showToast({
+          icon: "error",
+          duration: 2000,
+          title: "请先登录",
+        });
+        _onLoginRequired?.();
+      }
+      throw new LoginRequiredError();
     }
-    const body = parse(bodyStr);
-    const userLink = body.querySelector("#navbar5 .navbar-right a.avatar");
     const href = userLink?.getAttribute("href") || "";
     const match = href.match(/\/u\/(.+)$/);
-    if (match?.[1]) {
+    if (live && match?.[1]) {
       getCacheService().set("current_username", match[1], { category: "system" });
+      if (success) {
+        const unread = parseUnreadNotifications(body);
+        if (unread !== undefined) _onUnreadNotifications?.(unread, match[1]);
+      }
     }
     return body;
   }
@@ -104,6 +135,7 @@ export function request(
     method = "GET",
     useProxy = false,
     useCookie = true,
+    notifyLoginRequired = true,
     cache = false,
     onRefresh,
     ...rest
@@ -122,10 +154,12 @@ export function request(
   });
 
   const cs = getCacheService();
-  const cacheKey = HTML_CACHE_PREFIX + newUrl;
-  const cachedHtml = cache ? cs.get<string>(cacheKey) : null;
+  const username = useCookie ? cs.get<string>("current_username") : null;
+  const cacheKey = `${HTML_CACHE_PREFIX}${getCacheEnvironment()}_${username ? encodeURIComponent(username) : "guest"}_${newUrl}`;
+  const cachedHtml = cache && (relativeUrl !== "/notifications" || username)
+    ? cs.get<string>(cacheKey) : null;
 
-  const getCookies = () => cs.get<Record<string, string>>("cookies") || {};
+  const getCookies = () => cs.get<Record<string, Cookie | string>>("cookies") || {};
 
   const doBackgroundRefresh = () => {
     Taro.request({
@@ -142,7 +176,8 @@ export function request(
       }
       const resData = res.data;
       if (!useProxy) {
-        const parsedBody = parseHtmlResponse(resData, relativeUrl);
+        // A background refresh must not interrupt the page displaying cached data.
+        const parsedBody = parseHtmlResponse(resData, relativeUrl, true, res.statusCode === 200, false);
         if (parsedBody) {
           cs.setAsync(cacheKey, cleanHtmlForCache(resData), { category: categorizeUrl(relativeUrl), priority: "low" });
           parsedCache.set(cacheKey, { body: parsedBody, timestamp: Date.now() });
@@ -158,7 +193,7 @@ export function request(
     }
     const resData = res.data;
     if (!useProxy) {
-      const parsedBody = parseHtmlResponse(resData, relativeUrl);
+      const parsedBody = parseHtmlResponse(resData, relativeUrl, true, res.statusCode === 200, notifyLoginRequired);
       if (parsedBody) {
         if (cache) {
           cs.setAsync(cacheKey, cleanHtmlForCache(resData), { category: categorizeUrl(relativeUrl), priority: "low" });
@@ -183,11 +218,12 @@ export function request(
       parsedCache.set(cacheKey, { body, timestamp: Date.now() });
     }
 
-    doBackgroundRefresh();
-
     if (body) {
+      doBackgroundRefresh();
       return Promise.resolve({ body, rawRes: null, fromCache: true });
     }
+    cs.remove(cacheKey);
+    parsedCache.delete(cacheKey);
   }
 
   return Taro.request({

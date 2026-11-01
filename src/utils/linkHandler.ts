@@ -76,6 +76,60 @@ export function isUserMentionLink(href: string): boolean {
   return /^\/u\/[^/]+$/.test(href);
 }
 
+const URL_TEXT = /^(?:https?:\/\/|www\.)/i;
+const BARE_HOST = /^[\w-]+(?:\.[\w-]+)+(?:\/|$)/;
+const CHIP_MAX = 42;
+const SEGMENT_MAX = 16;
+
+function clip(value: string, max = CHIP_MAX): string {
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+function safeDecode(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/**
+ * 正文链接统一显示成“域名胶囊”：链接文字本身就是 URL 时，只展示域名 + 前两段路径，
+ * 避免整条长链被逐字符折成好几行。普通文字链接保留原文字，仅做长度截断。
+ */
+export function linkChipLabel(href: string, text?: string): string {
+  const raw = (text || "").replace(/\s+/g, " ").trim();
+  if (raw && !URL_TEXT.test(raw) && !BARE_HOST.test(raw)) {
+    return clip(raw);
+  }
+  const source = raw || href;
+  try {
+    const parsed = new URL(source, "https://www.guozaoke.com");
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return clip(source);
+    }
+    const host = parsed.hostname.replace(/^www\./i, "");
+    const segments = parsed.pathname.split("/").filter(Boolean).map(safeDecode);
+    const kept: string[] = [];
+    let moreSegments = false;
+    for (const segment of segments) {
+      if (kept.length === 2) {
+        moreSegments = true;
+        break;
+      }
+      if (segment.length > SEGMENT_MAX) {
+        kept.push(`${segment.slice(0, SEGMENT_MAX - 1)}…`);
+        break;
+      }
+      kept.push(segment);
+    }
+    const label = [host, ...kept].join("/");
+    return clip(moreSegments ? `${label}/…` : label);
+  } catch {
+    return clip(source);
+  }
+}
+
 export function isWhitelistedDomain(url: string): boolean {
   try {
     const parsed = new URL(url, "https://www.guozaoke.com");

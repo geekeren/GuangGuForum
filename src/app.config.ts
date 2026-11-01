@@ -12,6 +12,7 @@ export default defineAppConfig({
     "pages/search/index",
   ],
   window: {
+    navigationStyle: "custom",
     backgroundTextStyle: "light",
     navigationBarBackgroundColor: "#fff",
     navigationBarTitleText: "过早客",
@@ -25,6 +26,9 @@ export default defineAppConfig({
     skyline: {
       defaultDisplayBlock: true,
       defaultContentBox: true,
+      tagNameStyleIsolation: "legacy",
+      enableScrollViewAutoSize: true,
+      disableABTest: true,
     },
   },
 });

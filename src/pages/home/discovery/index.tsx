@@ -1,178 +1,204 @@
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useEffect } from "react";
-import {
-  getDiscoveryData,
-} from "guanggu-forum-api";
+import { useEffect, useState } from "react";
+import { getDiscoveryData, HotTopic } from "guanggu-forum-api";
 import { getCachedUsername } from "../../../utils/currentUser";
 import { getFromLocalCache } from "../../../utils/localAssets";
-import LoginPrompt from "../../../components/LoginPrompt";
+import { getHotTopicPage, loadDiscoveryTopicMetadata, startHotTopicRotation } from "../../../utils/discoveryTopics";
+import { fetchAndCacheNodeNavigation, getCachedNodeNavigation } from "../../../utils/nodeNavigation";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
+import { isSkyline } from "../../../utils/renderer";
+import LoginPrompt from "../../../components/LoginPrompt";
+import NodePicker from "../../../components/NodePicker";
+import Loading from "../../../components/Loading";
+import Scene from "../../../assets/discovery-scene.png";
+import TrendIcon from "../../../assets/discovery-trend.png";
+import FlameIcon from "../../../assets/discovery-flame.png";
+import HeartIcon from "../../../assets/discovery-heart.png";
+import WaterIcon from "../../../assets/discovery-node-water.png";
+import WorkIcon from "../../../assets/discovery-node-work.png";
+import CodeIcon from "../../../assets/discovery-node-code.png";
+import HouseIcon from "../../../assets/discovery-node-house.png";
+import CarIcon from "../../../assets/discovery-node-car.png";
+import ChatIcon from "../../../assets/discovery-node-chat.png";
+import FoodIcon from "../../../assets/discovery-node-food.png";
+import CityIcon from "../../../assets/discovery-node-city.png";
 import "./index.scss";
 
 interface DiscoveryProps {
   active?: boolean;
 }
 
-const Discovery = ({ active }: DiscoveryProps) => {
-  const isLoggedIn = !!getCachedUsername();
-  const { data: discoveryData, request: fetchDiscovery } = useDataWithCache(getDiscoveryData);
+const nodeIcons: Record<string, string> = {
+  "汤逊湖": WaterIcon, "找工作": WorkIcon, "IT技术": CodeIcon, "楼市房产": HouseIcon,
+  "汽车": CarIcon, "生活杂谈": ChatIcon, "美食": FoodIcon, "城市建设": CityIcon,
+};
+const openTopic = (link: string) => {
+  const tid = link.match(/^\/t\/(\d+)(?:[?#].*)?$/)?.[1];
+  if (tid) Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
+};
+const openNode = (slug: string, name: string) => Taro.navigateTo({
+  url: `/pages/node/topicList/index?node=${encodeURIComponent(slug)}&nodeName=${encodeURIComponent(name)}`,
+});
 
-  const hotTopics = discoveryData?.hotTopics || [];
+const Discovery = ({ active = false }: DiscoveryProps) => {
+  const { data: discoveryData, loading, request: fetchDiscovery } = useDataWithCache(getDiscoveryData);
+  const isLoggedIn = !!getCachedUsername() && !discoveryData?.interestLoginRequired;
+  const hotTopics = discoveryData?.hotTopics;
   const hotNodes = discoveryData?.hotNodes || [];
   const interestTopics = discoveryData?.interestTopics || [];
-  const interestNodes = discoveryData?.interestNodes || [];
+  const [hotPage, setHotPage] = useState(0);
+  const [hotFadingOut, setHotFadingOut] = useState(false);
+  const [metadata, setMetadata] = useState<Record<string, Pick<HotTopic, "category" | "commentCount">>>({});
+  const [error, setError] = useState(false);
+  const [showNodes, setShowNodes] = useState(false);
+  const [groups, setGroups] = useState(getCachedNodeNavigation);
+  const [nodesLoading, setNodesLoading] = useState(false);
+  const [nodesError, setNodesError] = useState("");
+
+  const refresh = () => {
+    setError(false);
+    return fetchDiscovery().catch(() => setError(true));
+  };
+  useEffect(() => {
+    if (!active) return;
+    setError(false);
+    fetchDiscovery().catch(() => setError(true));
+  }, [active, fetchDiscovery]);
 
   useEffect(() => {
-    fetchDiscovery();
-  }, []);
+    setHotPage(0);
+    setMetadata({});
+  }, [hotTopics]);
 
   useEffect(() => {
-    if (active) fetchDiscovery();
-  }, [active]);
+    if (!active || !hotTopics?.length) return;
+    return loadDiscoveryTopicMetadata(hotTopics, (link, details) => {
+      setMetadata(previous => ({ ...previous, [link]: details }));
+    });
+  }, [active, hotTopics]);
+
+  useEffect(() => {
+    setHotFadingOut(false);
+    return startHotTopicRotation(
+      () => {
+        setHotPage(page => (page + 1) % Math.ceil((hotTopics?.length || 0) / 5));
+        setHotFadingOut(false);
+      },
+      hotTopics?.length || 0,
+      active,
+      () => setHotFadingOut(true),
+    );
+  }, [active, hotTopics]);
+
+  const loadNodes = () => {
+    setNodesLoading(true);
+    setNodesError("");
+    fetchAndCacheNodeNavigation().then(setGroups).catch(() => setNodesError("板块加载失败，请重试"))
+      .finally(() => setNodesLoading(false));
+  };
+
+  const visibleTopics = getHotTopicPage(hotTopics || [], hotPage);
 
   return (
-    <View className="discoveryPage" style={{ height: "100%" }}>
-      <ScrollView scrollY className="discoveryScroll">
-        {/* 大家热议 */}
-        <View className="section section-hotTopics">
-          <View className="sectionHeader">
-            <Text className="sectionIcon">🔥</Text>
-            <Text className="sectionTitle">大家热议</Text>
+    <View className={isSkyline() ? "discoveryPage discoveryPage--skyline" : "discoveryPage"} style={{ height: "100%" }}>
+      <ScrollView type='custom' scrollY enhanced className='discoveryScroll'>
+        <View className='discoveryHero'>
+          <Image src={Scene} mode='aspectFit' className='discoveryHeroScene' />
+          <View className='discoveryHeroCopy'>
+            <Text className='discoveryHeroTitle'>来过早客，聊武汉</Text>
+            <Text className='discoveryHeroSubtitle'>工作 · 生活 · 买房 · 出行 · 吃喝玩乐</Text>
           </View>
-          <View className="hotTopicsList">
-            {hotTopics.map((topic, idx) => (
-              <View
-                key={idx}
-                className="hotTopicItem"
-                onClick={() => {
-                  const tid = topic.topicLink?.split("#")[0]?.replace("/t/", "");
-                  if (tid) {
-                    Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
-                  }
-                }}
-              >
-                <View className={`hotTopicRank hotTopicRank--${Math.min(idx + 1, 5)}`}>{idx + 1}</View>
-                <Text className="hotTopicTitle">{topic.title}</Text>
-              </View>
+        </View>
+
+        <View className='section section-hotTopics'>
+          <View className='sectionHeader'>
+            <Image src={TrendIcon} mode='aspectFit' className='sectionIcon' />
+            <Text className='sectionTitle'>热门讨论</Text>
+          </View>
+          <View className='hotTopicsList'>
+            {visibleTopics.map(({ topic, rank }, index) => {
+              const details = { ...topic, ...metadata[topic.topicLink] };
+              return (
+                <View key={`${hotPage}_${topic.topicLink}`} className={`hotTopicItem hotTopicItem--${hotFadingOut ? "exit" : "enter"} hotTopicItem--delay-${index}`} onClick={() => { if (!hotFadingOut) openTopic(topic.topicLink); }}>
+                  <View className={`discoveryRank${rank <= 3 ? ` discoveryRank--${rank}` : ""}`}>
+                    <Text className='discoveryRankText'>{rank}</Text>
+                  </View>
+                  <View className='hotTopicMain'>
+                    <Text className='hotTopicTitle' overflow='ellipsis' maxLines={1}>{topic.title}</Text>
+                    <Text className='hotTopicMeta' overflow='ellipsis' maxLines={1}>
+                      {details.category || "板块加载中"}{details.commentCount !== undefined ? ` · ${details.commentCount || "0"} 条评论` : ""}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+            {!hotTopics?.length && (loading ? <Loading size={32} /> : (
+              <Text className='discoveryStatus' onClick={error ? refresh : undefined}>{error ? "加载失败，点击重试" : "暂无热门讨论"}</Text>
             ))}
           </View>
         </View>
 
-        {/* 热门板块 */}
-        <View className="section section-hotNodes">
-          <View className="sectionHeader">
-            <Text className="sectionIcon">📁</Text>
-            <Text className="sectionTitle">热门板块</Text>
+        <View className='section section-hotNodes'>
+          <View className='sectionHeader'>
+            <Image src={FlameIcon} mode='aspectFit' className='sectionIcon' />
+            <Text className='sectionTitle'>热门板块</Text>
+            <View className='sectionMore' onClick={() => { setShowNodes(true); if (!groups.length) loadNodes(); }}>
+              <Text>查看全部</Text><View className='sectionChevron sectionChevron--down' />
+            </View>
           </View>
-          <View className="hotNodesGrid">
-            {hotNodes.map((node, idx) => {
-              const slug = node.link?.replace("/node/", "") || "";
+          <View className='hotNodesGrid'>
+            {hotNodes.slice(0, 8).map(node => {
+              const slug = node.link?.match(/^\/node\/([^?#/]+)/)?.[1];
               return (
-                <View
-                  key={idx}
-                  className="hotNodeTag"
-                  onClick={() => {
-                    Taro.navigateTo({
-                      url: `/pages/node/topicList/index?node=${slug}&nodeName=${node.title}`,
-                    });
-                  }}
-                >
-                  <Text className="hotNodeText">{node.title}</Text>
+                <View key={node.link} className='hotNodeTag' onClick={() => { if (slug) openNode(slug, node.title); }}>
+                  <Image src={nodeIcons[node.title] || WaterIcon} mode='aspectFit' className='hotNodeIcon' />
+                  <Text className='hotNodeText' overflow='ellipsis' maxLines={1}>{node.title}</Text>
                 </View>
               );
             })}
           </View>
+          {!hotNodes.length && <Text className='discoveryStatus'>{loading ? "正在加载板块…" : "暂无热门板块"}</Text>}
         </View>
 
-        {/* 我的关注板块 - 仅登录时展示 */}
-        {isLoggedIn && interestTopics.length > 0 && (
-          <View className="section section-interest">
-            <View className="sectionHeader">
-              <Text className="sectionIcon">⭐</Text>
-              <Text className="sectionTitle">关注板块更新</Text>
-            </View>
-            {/* 关注板块快捷入口 */}
-            {interestNodes.length > 0 && (
-              <View className="interestNodesScroll">
-                <ScrollView scrollX className="interestNodesInner">
-                  {interestNodes.map((node, idx) => (
-                    <View
-                      key={idx}
-                      className="interestNodeTag"
-                      onClick={() => {
-                        if (node.link?.startsWith("/node/")) {
-                          Taro.navigateTo({
-                            url: `/pages/node/topicList/index?node=${node.slug}&nodeName=${node.title}`,
-                          });
-                        } else if (node.link?.startsWith("/u/")) {
-                          Taro.navigateTo({
-                            url: `/pages/user/index?username=${node.slug}`,
-                          });
-                        }
-                      }}
-                    >
-                      <Text className="interestNodeText">{node.title}</Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-            {/* 关注板块话题列表 */}
-            <View className="interestList">
-              {interestTopics.slice(0, 5).map((topic, idx) => (
-                <View
-                  key={idx}
-                  className="interestItem"
-                  onClick={() => {
-                    const tid = topic.topicLink?.split("#")[0]?.replace("/t/", "");
-                    if (tid) {
-                      Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
-                    }
-                  }}
-                >
-                  <Image
-                    src={getFromLocalCache(topic.userAvatarUrl)}
-                    className="interestAvatar"
-                  />
-                  <View className="interestMain">
-                    <Text className="interestTitle">{topic.title}</Text>
-                    <View className="interestMeta">
-                      <View
-                        className="interestCategory"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const slug = topic.categoryLink?.replace("/node/", "");
-                          Taro.navigateTo({
-                            url: `/pages/node/topicList/index?node=${slug}&nodeName=${topic.category}`,
-                          });
-                        }}
-                      >
-                        {topic.category}
-                      </View>
-                      <Text className="interestTime">{topic.lastTouched}</Text>
-                      <Text className="interestComments">{topic.commentCount}评</Text>
+        <View className='section section-interest'>
+          <View className='sectionHeader'>
+            <Image src={HeartIcon} mode='aspectFit' className='sectionIcon' />
+            <Text className='sectionTitle'>我的关注</Text>
+            {isLoggedIn && <View className='sectionMore' onClick={() => Taro.navigateTo({ url: "/pages/home/index?tab=0&topicTab=interest" })}>
+              <Text>查看更多</Text><View className='sectionChevron sectionChevron--purple' />
+            </View>}
+          </View>
+          {isLoggedIn ? (
+            <View className='interestList'>
+              {interestTopics.slice(0, 10).map(topic => (
+                <View key={topic.topicLink} className='interestItem' onClick={() => openTopic(topic.topicLink)}>
+                  <Image src={getFromLocalCache(topic.userAvatarUrl)} className='interestAvatar' mode='aspectFill' />
+                  <View className='interestMain'>
+                    <Text className='interestTitle' overflow='ellipsis' maxLines={1}>{topic.title}</Text>
+                    <View className='interestMeta'>
+                      <View className='interestCategory' onClick={event => {
+                        event.stopPropagation();
+                        const slug = topic.categoryLink?.match(/^\/node\/([^?#/]+)/)?.[1];
+                        if (slug) openNode(slug, topic.category);
+                      }}><Text overflow='ellipsis' maxLines={1}>{topic.category}</Text></View>
+                      <Text className='interestTime' overflow='ellipsis' maxLines={1}>{topic.lastTouched} · {topic.commentCount || "0"} 评论</Text>
                     </View>
                   </View>
                 </View>
               ))}
+              {!interestTopics.length && <Text className='discoveryStatus' onClick={discoveryData?.interestError || error ? refresh : undefined}>{loading ? "正在加载关注…" : discoveryData?.interestError || error ? "关注加载失败，点击重试" : "暂无关注更新"}</Text>}
             </View>
-          </View>
-        )}
-
-        {/* 未登录提示 */}
-        {!isLoggedIn && (
-          <View className="section">
-            <LoginPrompt
-              icon="⭐"
-              title="登录查看关注板块更新"
-              desc="关注感兴趣的板块，获取最新动态"
-            />
-          </View>
-        )}
-
-        <View className="sectionBottomSpace" />
+          ) : <LoginPrompt icon='关注' title='登录查看我的关注' desc='关注感兴趣的板块，获取最新动态' />}
+        </View>
+        <View className='sectionBottomSpace' />
       </ScrollView>
+      <NodePicker visible={showNodes} groups={groups} selectedSlug='' loading={nodesLoading} error={nodesError}
+        onRetry={loadNodes} onClose={() => setShowNodes(false)} onSelect={slug => {
+          setShowNodes(false);
+          const node = groups.flatMap(group => group.nodes).find(item => item.slug === slug);
+          if (node) openNode(slug, node.name);
+        }} />
     </View>
   );
 };

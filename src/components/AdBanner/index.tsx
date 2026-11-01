@@ -10,6 +10,9 @@ interface AdBannerProps {
 
 export default function AdBanner({ unitId, className }: AdBannerProps) {
   const [showAd, setShowAd] = useState(!isAdDisabled());
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => { setFailed(false); }, [unitId]);
 
   useEffect(() => {
     // 监听广告状态变化（从设置页返回时刷新）
@@ -28,14 +31,14 @@ export default function AdBanner({ unitId, className }: AdBannerProps) {
     };
   }, []);
 
-  if (!showAd) return null;
+  if (!showAd || failed) return null;
 
   return (
     <AdCustom
       className={className}
       unitId={unitId}
       onLoad={() => console.log("ad onLoad")}
-      onError={(e) => console.log("ad onError", e)}
+      onError={() => setFailed(true)}
     />
   );
 }

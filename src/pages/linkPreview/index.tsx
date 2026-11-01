@@ -11,12 +11,14 @@ import { useDataWithCache } from "../../hooks/useDataWithCache";
 import "./index.scss";
 
 export default function LinkPreview() {
+  const skyline = isSkyline();
   const router = useRouter();
   const url = decodeURIComponent(router.params.url || "");
   const [scrollHeight, setScrollHeight] = useState("auto");
   const { data: summary, request: fetchSummary } = useDataWithCache(fetchLinkSummary);
 
   useEffect(() => {
+    if (skyline) return;
     const sys = Taro.getSystemInfoSync();
     const statusBarH = sys.statusBarHeight || 0;
     const navH = 44 + statusBarH;
@@ -41,9 +43,9 @@ export default function LinkPreview() {
   const displayTitle = summary?.title || (() => { try { return new URL(url).hostname; } catch { return url; } })();
 
   return (
-    <View className="linkPreviewPage">
-      <Navbar back modal={isSkyline()} title="链接预览" />
-      <ScrollView scrollY style={{ height: scrollHeight }} className="linkPreviewContent">
+    <View className={`linkPreviewPage${skyline ? " linkPreviewPage--skyline" : ""}`}>
+      <Navbar back modal={skyline} title="链接预览" />
+      <ScrollView type='custom' scrollY style={skyline ? undefined : { height: scrollHeight }} className="linkPreviewContent">
         {summary ? (
           <LinkPreviewCard summary={summary} url={url} />
         ) : (

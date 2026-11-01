@@ -5,32 +5,43 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  min-height: 400rpx;
   height: 100%;
+  width: 100%;
+  padding: 48rpx 32rpx;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .loginPromptIcon {
-  font-size: 80rpx;
-  margin-bottom: 24rpx;
+  font-size: 72rpx;
+  margin-bottom: 28rpx;
 }
 
 .loginPromptBadge {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 60rpx;
-  background: linear-gradient(135deg, #b8dcfa, #d6e8f8);
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 36rpx;
+  background: $color-brand-soft;
+  border: 1rpx solid rgba(31, 105, 255, 0.1);
   color: $color-brand;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  font-size: 52rpx;
+  font-size: 48rpx;
   font-weight: 700;
   margin-bottom: 32rpx;
-  box-shadow: $shadow-md;
+}
+
+.loginPromptBadgeIcon {
+  width: 52rpx;
+  height: 52rpx;
 }
 
 .loginPromptTitle {
   font-size: 32rpx;
+  line-height: 1.5;
   font-weight: 600;
   color: $text-primary;
   margin-bottom: 12rpx;
@@ -38,20 +49,30 @@
 
 .loginPromptDesc {
   font-size: 26rpx;
+  line-height: 1.7;
   color: $text-muted;
-  margin-bottom: 40rpx;
+  margin-bottom: 36rpx;
 }
 
 .loginPromptBtn {
-  padding: 20rpx 72rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  min-height: 88rpx;
+  min-width: 240rpx;
+  box-sizing: border-box;
+  padding: 22rpx 64rpx;
   background: linear-gradient(135deg, $color-brand, $color-brand-dark);
-  color: #fff;
-  border-radius: 44rpx;
+  color: $surface;
+  border-radius: $radius-md;
   font-size: 28rpx;
+  line-height: 1.5;
   font-weight: 600;
   box-shadow: $shadow-glow;
 
   &:active {
-    opacity: 0.85;
+    background: $color-brand-dark;
+    box-shadow: none;
   }
 }

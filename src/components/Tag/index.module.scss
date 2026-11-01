@@ -1,15 +1,22 @@
-// Tag 组件 — 蓝色软色 chip 风格（对齐设计稿）
+@import "../../vars.scss";
+
 .tag {
-  background: #e8efff;
-  color: #1f69ff;
+  background: $color-brand-soft;
+  color: $color-brand-dark;
   display: inline-flex;
   flex-direction: row;
-  border-radius: 20rpx;
+  border: 1rpx solid rgba(31, 105, 255, 0.08);
+  border-radius: $radius-sm;
   box-sizing: border-box;
-  padding: 6rpx 16rpx;
+  padding: 6rpx 12rpx;
   font-weight: 500;
   font-size: 22rpx;
-  align-content: center;
   align-items: center;
   line-height: 1.4;
+  max-width: 100%;
+  word-break: break-all;
+
+  &:active {
+    background: #dce7ff;
+  }
 }

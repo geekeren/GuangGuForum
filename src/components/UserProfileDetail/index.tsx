@@ -7,6 +7,7 @@ import Tag from "../Tag";
 import NodeIcon from "../../assets/topic_node.svg";
 import CommentIcon from "../../assets/comment.svg";
 import Loading from "../Loading";
+import { isSkyline } from "../../utils/renderer";
 import "./index.scss";
 
 interface Props {
@@ -24,6 +25,9 @@ const TAB_LIST = [
 type TabKey = (typeof TAB_LIST)[number]["key"];
 
 export default function UserProfileDetail({ profile, actions, navPaddingTop }: Props) {
+  const skyline = isSkyline();
+  const singleLine = skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {};
+  const twoLines = skyline ? { overflow: "ellipsis", maxLines: 2 } as const : {};
   const [activeTab, setActiveTab] = useState<TabKey>("topics");
   const [favorites, setFavorites] = useState<FavoriteTopic[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
@@ -54,7 +58,7 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
   };
 
   return (
-    <View className="userProfileDetail">
+    <View className={`userProfileDetail${skyline ? " userProfileDetail--skyline" : ""}`}>
       {/* 头像 + 名 + ID + 操作 */}
       <View className="profileCard" style={{
         paddingTop: navPaddingTop,
@@ -65,20 +69,18 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
           </View>
           <View className="nameBlock">
             <View className="nameRow">
-              <Text className="username">{profile.username}</Text>
-              {profile.reputation != null && (
-                <Text className="levelBadge">
-                  Lv.{Math.min(9, Math.floor((profile.reputation || 0) / 100) + 1)}
-                </Text>
+              <Text className="username" {...singleLine}>{profile.username}</Text>
+              {profile.level && (
+                <Text className="levelBadge">{profile.level}</Text>
               )}
             </View>
             {profile.nickname && profile.nickname !== profile.username && (
-              <View className="nickname">{profile.nickname}</View>
+              <Text className="nickname" {...singleLine}>{profile.nickname}</Text>
             )}
-            <View className="memberInfo">
+            <Text className="memberInfo">
               {profile.memberNumber}
               {profile.joinDate && ` · ${profile.joinDate.replace("入住于", "")}`}
-            </View>
+            </Text>
           </View>
           {actions}
         </View>
@@ -105,29 +107,29 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
       {/* 个人简介 */}
       {(profile.city || profile.email || profile.blog || profile.website) && (
         <View className="detailCard">
-          <View className="cardTitle">个人简介</View>
+          <Text className="cardTitle">个人简介</Text>
           {profile.city && (
             <View className="detailRow">
-              <View className="detailLabel">城市</View>
-              <View className="detailValue">{profile.city}</View>
+              <Text className="detailLabel">城市</Text>
+              <Text className="detailValue">{profile.city}</Text>
             </View>
           )}
           {profile.email && (
             <View className="detailRow">
-              <View className="detailLabel">Email</View>
-              <View className="detailValue">{profile.email}</View>
+              <Text className="detailLabel">Email</Text>
+              <Text className="detailValue">{profile.email}</Text>
             </View>
           )}
           {profile.blog && (
             <View className="detailRow">
-              <View className="detailLabel">Blog</View>
-              <View className="detailValue">{profile.blog}</View>
+              <Text className="detailLabel">Blog</Text>
+              <Text className="detailValue">{profile.blog}</Text>
             </View>
           )}
           {profile.website && profile.website !== profile.blog && (
             <View className="detailRow">
-              <View className="detailLabel">网站</View>
-              <View className="detailValue">{profile.website}</View>
+              <Text className="detailLabel">网站</Text>
+              <Text className="detailValue">{profile.website}</Text>
             </View>
           )}
         </View>
@@ -157,7 +159,7 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                   className="topicItem"
                   onClick={() => navigateToTopic(topic.link)}
                 >
-                  <View className="topicTitle">{topic.title}</View>
+                  <Text className="topicTitle" {...twoLines}>{topic.title}</Text>
                   <View className="topicMeta">
                     <Tag
                       onClick={(e) => {
@@ -166,9 +168,9 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                       }}
                     >
                       <Image src={NodeIcon} svg className="tagIcon" />
-                      <View style={{ display: "inline-block" }}>{topic.category}</View>
+                      <Text style={{ display: "inline-block" }}>{topic.category}</Text>
                     </Tag>
-                    <Text className="topicTime">
+                    <Text className="topicTime" {...singleLine}>
                       {topic.lastUpdated}
                     </Text>
                     <View className="topicCommentCount">
@@ -179,7 +181,7 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                 </View>
               ))
             ) : (
-              <View className="emptyTip">暂无帖子</View>
+              <Text className="emptyTip">暂无帖子</Text>
             ))}
 
           {activeTab === "replies" &&
@@ -190,18 +192,18 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                   className="replyItem"
                   onClick={() => navigateToTopic(reply.topicLink)}
                 >
-                  <View className="replyTitle">
+                  <Text className="replyTitle" {...singleLine}>
                     <Text>
                       {reply.replyTitle.replace(/^回复了\s+\S+\s+创建的主题\s*/, "")}
                     </Text>
-                  </View>
-                  <View className="replyContent">
+                  </Text>
+                  <Text className="replyContent" {...twoLines}>
                     {reply.content.replace(/<[^>]*>/g, "").trim()}
-                  </View>
+                  </Text>
                 </View>
               ))
             ) : (
-              <View className="emptyTip">暂无回复</View>
+              <Text className="emptyTip">暂无回复</Text>
             ))}
 
           {activeTab === "favorites" &&
@@ -214,7 +216,7 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                   className="topicItem"
                   onClick={() => navigateToTopic(topic.link)}
                 >
-                  <View className="topicTitle">{topic.title}</View>
+                  <Text className="topicTitle" {...twoLines}>{topic.title}</Text>
                   <View className="topicMeta">
                     <Tag
                       onClick={(e) => {
@@ -223,9 +225,9 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                       }}
                     >
                       <Image src={NodeIcon} svg className="tagIcon" />
-                      <View style={{ display: "inline-block" }}>{topic.category}</View>
+                      <Text style={{ display: "inline-block" }}>{topic.category}</Text>
                     </Tag>
-                    <Text className="topicTime">
+                    <Text className="topicTime" {...singleLine}>
                       {topic.lastUpdated}
                     </Text>
                     <View className="topicCommentCount">
@@ -236,7 +238,7 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                 </View>
               ))
             ) : (
-              <View className="emptyTip">暂无收藏</View>
+              <Text className="emptyTip">暂无收藏</Text>
             ))}
         </View>
       </View>

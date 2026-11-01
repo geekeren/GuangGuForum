@@ -1,6 +1,14 @@
 @import "../../vars.scss";
 
+.pullDownRefresh {
+  display: block;
+  min-height: 0;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .pullDownTip {
+  flex-shrink: 0;
   display: flex;
   flex-direction: row;
   align-items: center;

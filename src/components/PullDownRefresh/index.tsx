@@ -100,7 +100,7 @@ const PullDownRefresh = forwardRef<PullDownRefreshRef, PullDownRefreshProps>(
 
     return (
       <View
-        className={className}
+        className={`pullDownRefresh ${className || ""}`}
         style={{ position: "relative", flex: 1, overflow: "hidden", ...style }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

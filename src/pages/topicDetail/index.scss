@@ -1,13 +1,24 @@
 @import "../../vars.scss";
 
 .topicDetail {
-  background: $bgColor;
+  background: linear-gradient(180deg, #eff3fc 0%, #f5f7fc 100%);
   height: 100vh;
   flex-direction: column;
   display: flex;
 
+  .topicDetailLoading {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
   .scrollViewContainer {
     flex: auto;
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -15,20 +26,47 @@
     height: 100%;
   }
 
+  .authorNameRow,
+  .commentAuthorNameRow {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    min-width: 0;
+
+    .author,
+    .comment-author { flex: 0 1 auto; min-width: 0; }
+  }
+
+  .commentAuthorNameRow { flex: 1; }
+
+  .authorLevel {
+    margin-left: 8rpx;
+    flex-shrink: 0;
+    font-size: 21rpx;
+    line-height: 1.35;
+    color: $text-muted;
+    white-space: nowrap;
+  }
+
   // ────────────────────────────────────────────────────────────
   // 主帖内容
   // ────────────────────────────────────────────────────────────
   .main {
     background: $surface;
-    padding: 24rpx 32rpx 20rpx;
+    margin: 12rpx 16rpx 0;
+    padding: 20rpx 24rpx 16rpx;
+    border-radius: 26rpx;
+    overflow: hidden;
 
     .header {
       .title {
-        font-size: 36rpx;
+        font-size: 34rpx;
         font-weight: 700;
         line-height: 1.4;
         color: $text-primary;
-        margin-bottom: 20rpx;
+        margin-bottom: 16rpx;
+
+        .topicTitleShare { display: block; width: 100%; }
 
         .titleText {
           overflow: hidden;
@@ -44,13 +82,13 @@
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
-        gap: 16rpx;
+        gap: 12rpx;
 
         .authorInfo {
           display: flex;
           flex-direction: row;
           align-items: center;
-          gap: 16rpx;
+          gap: 12rpx;
           flex: 1;
           min-width: 0;
 
@@ -58,27 +96,36 @@
             flex-shrink: 0;
 
             image {
-              width: 64rpx;
-              height: 64rpx;
-              border-radius: 32rpx;
+              display: block;
+              width: 56rpx;
+              height: 56rpx;
+              border-radius: 28rpx;
             }
           }
 
+          .authorDetails { flex: 1; min-width: 0; }
+
           .author {
-            font-size: 28rpx;
-            font-weight: 600;
+            display: block;
+            font-size: 27rpx;
+            font-weight: 700;
+            line-height: 1.35;
             color: $text-primary;
-            text-transform: capitalize;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
 
           .moreInfo {
             display: flex;
             flex-direction: row;
-            font-size: 22rpx;
+            font-size: 21rpx;
+            line-height: 1.4;
             color: $text-faint;
-            margin-top: 4rpx;
-            gap: 16rpx;
-            white-space: nowrap;
+            margin-top: 2rpx;
+            min-width: 0;
+
+            .createTime { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
           }
         }
       }
@@ -86,11 +133,18 @@
 
     .content {
       overflow: hidden;
-      padding: 20rpx 0 8rpx;
-      line-height: 1.75;
-      font-size: 30rpx;
+      padding: 16rpx 0 4rpx;
+      line-height: 1.6;
+      font-size: 28rpx;
       color: $text-sub;
       user-select: auto;
+
+      .html {
+        font-size: inherit;
+        line-height: inherit;
+        .h5-p { margin: 0 0 12rpx; }
+        .h5-p:last-child { margin-bottom: 0; }
+      }
 
       image,
       img {
@@ -106,23 +160,44 @@
       flex-direction: row;
       justify-content: flex-end;
       align-items: center;
-      font-size: 22rpx;
+      font-size: 21rpx;
       color: $text-faint;
-      padding-top: 12rpx;
+      padding-top: 8rpx;
 
       .right {
         display: flex;
         flex-direction: row;
-        gap: 18rpx;
-        white-space: nowrap;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 12rpx;
       }
     }
 
+    .topicCategory {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      flex-shrink: 0;
+      min-width: 0;
+      max-width: 180rpx;
+      padding: 6rpx 12rpx;
+      border-radius: 12rpx;
+      background: #eaf0ff;
+      color: $color-brand-dark;
+      font-size: 23rpx;
+      font-weight: 600;
+      line-height: 1.4;
+      box-sizing: border-box;
+      &:active { background: #dce7ff; }
+    }
+
+    .topicCategoryLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
     .tagIcon {
-      width: 16rpx;
-      height: 16rpx;
-      margin-right: 4rpx;
-      display: inline-block;
+      width: 22rpx;
+      height: 22rpx;
+      margin-right: 6rpx;
+      flex-shrink: 0;
     }
   }
 
@@ -131,14 +206,17 @@
   // ────────────────────────────────────────────────────────────
   .section {
     background: $surface;
-    padding: 20rpx 32rpx;
-    margin-top: 12rpx;
+    padding: 18rpx 24rpx;
+    margin: 14rpx 16rpx 0;
+    border-radius: 26rpx;
+    overflow: hidden;
 
     .header {
       font-weight: 700;
       font-size: 30rpx;
       color: $text-primary;
-      margin-bottom: 16rpx;
+      margin-bottom: 8rpx;
+      min-height: 44rpx;
       letter-spacing: -0.2rpx;
       display: flex;
       flex-direction: row;
@@ -159,9 +237,9 @@
         flex-direction: row;
         align-items: center;
         justify-content: center;
-        width: 52rpx;
-        height: 52rpx;
-        border-radius: 26rpx;
+        width: 48rpx;
+        height: 48rpx;
+        border-radius: 24rpx;
         background: $bgColor;
 
         &--active {
@@ -185,7 +263,7 @@
     .comment-item {
       display: flex;
       flex-direction: row;
-      padding: 20rpx 0;
+      padding: 14rpx 0;
       border-radius: 12rpx;
       transition: background-color 0.3s ease;
 
@@ -194,57 +272,90 @@
       }
 
       .comment-author-avatar {
-        margin-right: 16rpx;
+        margin-right: 14rpx;
         flex-shrink: 0;
 
         image {
-          width: 60rpx;
-          height: 60rpx;
-          border-radius: 30rpx;
+          display: block;
+          width: 54rpx;
+          height: 54rpx;
+          border-radius: 27rpx;
         }
       }
 
       .comment-right {
         display: block;
-        padding: 0 0 20rpx 0;
-        flex: auto;
+        padding: 0 0 14rpx;
+        flex: 1;
+        min-width: 0;
         border-bottom: 1rpx solid $border-color;
 
         .line1 {
           display: flex;
           flex-direction: row;
           justify-content: space-between;
-          align-items: baseline;
+          align-items: center;
+          gap: 12rpx;
         }
 
         .comment-author {
-          font-size: 26rpx;
-          font-weight: 600;
+          min-width: 0;
+          flex: 0 1 auto;
+          font-size: 27rpx;
+          font-weight: 700;
+          line-height: 1.35;
           color: $text-primary;
-          text-transform: capitalize;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .comment-floor {
+          flex-shrink: 0;
+          padding: 2rpx 8rpx;
+          border-radius: 8rpx;
+          background: #f0f2f7;
+          color: $text-muted;
+          font-size: 21rpx;
+          line-height: 1.4;
         }
 
         .comment-content {
-          margin: 8rpx 0 12rpx 0;
+          margin: 6rpx 0 8rpx;
           user-select: auto;
           color: $text-sub;
           font-size: 28rpx;
           line-height: 1.65;
+
+          .html {
+            font-size: inherit;
+            line-height: inherit;
+
+            .h5-p {
+              margin: 0 0 8rpx;
+              &:last-child { margin-bottom: 0; }
+            }
+          }
         }
 
         .comment-line3 {
-          font-size: 22rpx;
+          font-size: 21rpx;
+          line-height: 1.4;
           color: $text-faint;
           display: flex;
           flex-direction: row;
           justify-content: space-between;
           align-items: center;
+          gap: 12rpx;
+
+          .comment-meta { flex: 1; min-width: 0; }
 
           .commentUpvote {
             display: flex;
             flex-direction: row;
             align-items: center;
-            font-size: 24rpx;
+            flex-shrink: 0;
+            font-size: 23rpx;
             color: $text-muted;
             gap: 4rpx;
 
@@ -261,13 +372,12 @@
         }
       }
 
+      &:last-child { padding-bottom: 0; }
+
       &:last-child .comment-right {
+        padding-bottom: 0;
         border-bottom: none;
       }
-    }
-
-    .h5-p {
-      margin: 0;
     }
 
     .emptyComments {
@@ -310,15 +420,18 @@
   // 相关主题
   // ────────────────────────────────────────────────────────────
   .relatingTopics {
-    line-height: 1.6;
-    font-size: 28rpx;
+    line-height: 1.5;
+    font-size: 26rpx;
+    margin-bottom: 16rpx;
   }
 
   // ────────────────────────────────────────────────────────────
   // 底部操作栏
   // ────────────────────────────────────────────────────────────
   .actions {
-    height: 120rpx;
+    min-height: 112rpx;
+    height: calc(88rpx + env(safe-area-inset-bottom));
+    flex-shrink: 0;
     box-shadow: 0 -4rpx 16rpx rgba(15, 22, 38, 0.06);
     display: flex;
     flex-direction: row;
@@ -328,7 +441,7 @@
     font-size: 28rpx;
     box-sizing: border-box;
     position: relative;
-    padding: 16rpx 24rpx 28rpx;
+    padding: 12rpx 22rpx max(12rpx, env(safe-area-inset-bottom));
 
     .left {
       flex: 1 1;
@@ -409,6 +522,25 @@
   }
 }
 
+.topicDetail--skyline {
+  .titleText {
+    display: block;
+    width: 100%;
+  }
+
+  .author {
+    display: block;
+  }
+
+  .comment-right {
+    min-width: 0;
+  }
+
+  .actions {
+    flex-shrink: 0;
+  }
+}
+
 // ────────────────────────────────────────────────────────────
 // 评论弹窗（放在 .topicDetail 外，避免 DOM 变化影响滚动）
 // ────────────────────────────────────────────────────────────
@@ -429,6 +561,27 @@
     opacity: 1;
   }
 
+  &.commentPopup--skyline {
+    display: block;
+    box-sizing: border-box;
+
+    .commentPopupMask {
+      width: 100%;
+      height: 100%;
+    }
+
+    .commentPopupBody {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+    }
+
+    .commentPopupTextarea {
+      max-height: none;
+    }
+  }
+
   .commentPopupMask {
     position: absolute;
     top: 0;
@@ -442,6 +595,10 @@
     position: relative;
     background: $surface;
     border-radius: 24rpx 24rpx 0 0;
+    flex: none;
+    max-height: 60vh;
+    box-sizing: border-box;
+    overflow: hidden;
     padding: 24rpx 32rpx;
     padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
   }
@@ -478,13 +635,15 @@
   }
 
   .commentPopupTextarea {
-    background-color: $bgColor;
+    background-color: $surfaceAlt;
     border-radius: $radius-md;
     padding: 20rpx;
     width: 100%;
     box-sizing: border-box;
     font-size: 28rpx;
     min-height: 200rpx;
+    max-height: 40vh;
+    overflow: hidden;
   }
 
   .commentPopupHint {

@@ -1,3 +1,4 @@
+import { HTMLElement } from "node-html-parser";
 import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
 import { getUrl } from "../utils/urls";
@@ -37,6 +38,7 @@ export interface UserProfile {
   replyCount: string;
   favoriteCount: string;
   reputation: string;
+  level?: string;
   topics: UserTopicSummary[];
   replies: UserReply[];
   moreTopicsLink: string;
@@ -214,6 +216,58 @@ const domStructure: DataDom<UserProfileRaw> = {
   },
 };
 
+const LEVEL_TEXT = /^Lv\.?\s*\d+$/i;
+
+/**
+ * 从用户名所在节点向外逐层找同级的等级文案，和帖子里作者等级的取法一致：
+ * 用户页的 “Lv.3” 通常就是用户名旁边的兄弟节点，不是信用分算出来的。
+ */
+function siblingLevel(start: HTMLElement, stop: HTMLElement | null): string {
+  let current: HTMLElement | null = start;
+  for (let depth = 0; current && depth < 4; depth++) {
+    const parent: HTMLElement | null = current.parentNode as HTMLElement | null;
+    if (!parent) break;
+    const level = parent.childNodes
+      .filter((child) => child !== current)
+      .map((child) => child.textContent.trim())
+      .find((text) => LEVEL_TEXT.test(text));
+    if (level) return level;
+    if (parent === stop) break;
+    current = parent;
+  }
+  return "";
+}
+
+/**
+ * 等级直接取自用户页现有文案（如 “Lv.3”），不再由信用分推算。
+ * 只在用户名所在的头部/用户卡范围内查找，避免误取正文里的同形文本。
+ */
+function parseLevel(root: HTMLElement | null | undefined): string {
+  if (!root) return "";
+  const header =
+    root.querySelector(".profile .ui-header") ||
+    root.querySelector(".ui-header") ||
+    root.querySelector(".sidebar-right .usercard") ||
+    root;
+  const username =
+    header.querySelector(".username") ||
+    header.querySelector(".user-name") ||
+    header.querySelector('a[href^="/u/"]');
+  const near = username ? siblingLevel(username, header) : "";
+  if (near) return near;
+  if (!username) return "";
+  const explicit = header.querySelector(
+    '[class*="level"], [class*="Level"], .lv, .LV',
+  );
+  const explicitText = explicit?.text?.trim() || "";
+  if (LEVEL_TEXT.test(explicitText)) return explicitText;
+  const badge = header
+    .querySelectorAll("span, em, i, strong, b")
+    .map((node) => node.text?.trim() || "")
+    .find((text) => LEVEL_TEXT.test(text));
+  return badge || "";
+}
+
 function parseProfile(body: any): UserProfile {
   if (!body) {
     return null;
@@ -243,6 +297,7 @@ function parseProfile(body: any): UserProfile {
     replyCount: raw.replyCount,
     favoriteCount: raw.favoriteCount,
     reputation: raw.reputation,
+    level: parseLevel(body),
     topics: raw.topics || [],
     replies: raw.replies || [],
     moreTopicsLink: raw.moreTopicsLink,

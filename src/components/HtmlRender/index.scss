@@ -326,9 +326,98 @@
       }
     }
 
+    // 外链统一显示为“域名胶囊”：图标 + 单行精简文案，不再逐字符折行。
     &--external {
-      display: inline;
+      display: inline-block;
+      max-width: 100%;
+      color: $color-brand;
+      font-size: 26rpx;
       font-weight: 500;
+      font-style: normal;
+      line-height: 1.5;
+      vertical-align: middle;
+      white-space: nowrap;
+      word-break: normal;
+      &:active { opacity: 1; }
     }
+  }
+
+  // Native Span lays out inline fragments independently. Only this View owns
+  // the rounded background, padding and horizontal image/text alignment.
+  .html-linkChip {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6rpx;
+    max-width: 100%;
+    padding: 2rpx 14rpx 2rpx 10rpx;
+    box-sizing: border-box;
+    border-radius: 8rpx;
+    background: $color-brand-soft;
+    font-style: normal;
+    vertical-align: middle;
+    &:active { background: rgba($color-brand, 0.12); }
+  }
+
+  .html-linkIcon {
+    width: 22rpx;
+    height: 22rpx;
+    flex-shrink: 0;
+  }
+
+  .html-linkLabel {
+    display: block;
+    min-width: 0;
+    font-size: 26rpx;
+    line-height: 1.5;
+    color: $color-brand;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+}
+
+.htmlWrap--skyline {
+  display: block;
+  min-width: 0;
+  box-sizing: border-box;
+
+  .html {
+    display: block;
+    min-width: 0;
+    // Preserve ordinary word boundaries; links already have their own break-all.
+    word-break: normal;
+
+    // Native block margins do not collapse: use one bottom gap per paragraph.
+    .h5-p {
+      margin: 0 0 12rpx;
+      &:last-child { margin-bottom: 0; }
+    }
+
+    .h5-div,
+    .h5-ul,
+    .h5-ol,
+    .h5-li,
+    .h5-blockquote,
+    .h5-p,
+    .h5-pre,
+    .h5-h1,
+    .h5-h2,
+    .h5-h3,
+    .h5-h4,
+    .h5-h5,
+    .h5-h6 { display: block; }
+
+    // Skyline cannot render CSS counter() content; numbering is a real Text node.
+    .h5-ol .h5-li::before { content: ""; }
+
+    .htmlListMarker {
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: $color-brand;
+      font-weight: 700;
+      font-size: 26rpx;
+    }
+
   }
 }

@@ -1,50 +1,45 @@
 @import "../../../vars.scss";
 
 .content {
-  background: $bgColor;
-  padding: 20rpx 24rpx;
-  line-height: 1.7;
-  border-radius: $radius-md;
+  line-height: 1.5;
 
   .relatingTopicItem {
     color: $color-brand;
     display: flex;
     flex-direction: row;
     width: 100%;
-    border-bottom: 1rpx solid $border-color;
-    padding: 16rpx 0;
-    align-items: flex-start;
+    box-sizing: border-box;
+    background: #f5f7fc;
+    border-radius: 16rpx;
+    margin-bottom: 8rpx;
+    padding: 10rpx 12rpx;
+    align-items: center;
 
-    &:last-child {
-      border-bottom: none;
-    }
+    &:last-child { margin-bottom: 0; }
 
     .left {
-      vertical-align: top;
-      justify-items: flex-start;
-      min-width: 70rpx;
-      width: 70rpx;
-      margin-right: 16rpx;
-      padding-top: 4rpx;
+      flex-shrink: 0;
+      width: 44rpx;
+      margin-right: 12rpx;
 
       .avatar {
-        border-radius: 24rpx;
+        display: block;
+        border-radius: 22rpx;
         box-sizing: border-box;
-        width: 56rpx;
-        height: 56rpx;
+        width: 44rpx;
+        height: 44rpx;
       }
     }
 
     .right {
-      flex: auto;
-      word-wrap: break-word;
-      font-size: 28rpx;
-      line-height: 1.55;
+      flex: 1;
+      min-width: 0;
+      word-break: break-all;
+      font-size: 26rpx;
+      line-height: 1.45;
       color: $color-brand;
 
-      &:active {
-        opacity: 0.7;
-      }
+      &:active { opacity: 0.7; }
     }
   }
 }

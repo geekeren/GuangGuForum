@@ -17,6 +17,7 @@
     width: 36rpx;
     height: 36rpx;
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
@@ -27,6 +28,11 @@
     font-size: 20rpx;
     color: #fff;
     line-height: 1;
+  }
+
+  &.clearableWrap--hasValue .clearableControl {
+    // Reserve the clear target instead of drawing it over the last characters.
+    padding-right: 64rpx;
   }
 
   &--textarea {

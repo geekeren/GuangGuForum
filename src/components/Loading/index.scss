@@ -5,7 +5,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32rpx 0;
+  padding: 40rpx 0;
+  box-sizing: border-box;
+  flex-shrink: 0;
 
   &--fullscreen {
     position: absolute;
@@ -18,6 +20,7 @@
 
 .spinner {
   position: relative;
+  flex-shrink: 0;
   animation: spin 1s linear infinite;
 }
 
@@ -25,12 +28,12 @@
   position: absolute;
   left: 50%;
   top: 0;
-  width: 3px;
-  height: 30%;
-  margin-left: -1.5px;
-  border-radius: 2px;
+  width: 7%;
+  height: 25%;
+  margin-left: -3.5%;
+  border-radius: 8rpx;
   background: $color-brand;
-  transform-origin: center 170%;
+  transform-origin: center 200%;
 
   &:nth-child(1) { transform: rotate(0deg); opacity: 1; }
   &:nth-child(2) { transform: rotate(45deg); opacity: 0.875; }
@@ -43,8 +46,9 @@
 }
 
 .tip {
-  margin-top: 16rpx;
-  font-size: 24rpx;
+  margin-top: 20rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
   color: $text-muted;
 }
 

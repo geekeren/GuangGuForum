@@ -1,11 +1,9 @@
 import {
-  AdCustom,
   Button,
   Image,
   ScrollView,
   ShareElement,
   Text,
-  Textarea,
   View,
 } from "@tarojs/components";
 import Taro, {
@@ -21,7 +19,6 @@ import {
   commentUpvote,
   createNewComment,
   getTopicDetail,
-  TopicDetail,
   urlPathVaiable,
   URLS,
 } from "guanggu-forum-api";
@@ -31,10 +28,14 @@ import Navbar from "../../components/Navbar";
 import { getFromLocalCache } from "../../utils/localAssets";
 import { cacheService, CacheCategory } from "../../utils/CacheService";
 import { rpxToPx } from "../../utils/dimension";
+import { SURFACE_RGB } from "../../utils/theme";
 import { isSkyline } from "../../utils/renderer";
 import { trimStrings } from "../../utils/trimStrings";
+import { formatReplySummary } from "../../utils/replySummary";
+import { findTargetComment, getCommentElementId } from "../../utils/topicReplyRoute";
+import { startCommentScroll } from "../../utils/commentScroll";
 import HtmlRender from "../../components/HtmlRender";
-import Tag from "../../components/Tag";
+import CommentComposer from "./CommentComposer";
 import NodeIcon from "../../assets/topic_node.svg";
 import CommentIcon from "../../assets/comment.svg";
 import WechatIcon from "../../assets/wechat.svg";
@@ -46,6 +47,7 @@ import PullDownRefresh, { PullDownRefreshRef } from "../../components/PullDownRe
 import AddToDesktopGuide from "../../components/AddToDesktopGuide";
 import AdBanner from "../../components/AdBanner";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
+import { useCurrentUsername } from "../../hooks/useCurrentUsername";
 import { openLoginModal } from "../../utils/auth";
 
 const Index = () => {
@@ -56,19 +58,27 @@ const Index = () => {
   const [commentAsc, setCommentAsc] = useState(() => cacheService.get<boolean>("commentSortAsc") || false);
   const [navScrollProgress, setNavScrollProgress] = useState(0);
   const [highlightFloor, setHighlightFloor] = useState<string | null>(null);
-  const [scrollIntoTarget, setScrollIntoTarget] = useState("");
+  const [scrollTop, setScrollTop] = useState<number | undefined>(undefined);
+  const [locatingComment, setLocatingComment] = useState(false);
+  const [scrollRequest, setScrollRequest] = useState<{ id: string } | null>(null);
+  const [pageReady, setPageReady] = useState(false);
+  const cancelScrollRef = useRef<(() => void) | undefined>(undefined);
+  const locatedRouteRef = useRef("");
   const workletReady = useRef(false);
   const scrollProgressSV = useRef<any>(null);
   const pullDownRef = useRef<PullDownRefreshRef>(null);
   const router = useRouter();
+  const skyline = isSkyline();
 
   const tid = router.params.tid;
 
   const { data: topicDetail, request: fetchTopicDetail, setData: setTopicDetail } = useDataWithCache(getTopicDetail);
+  const { username, loading: checkingLogin, error: loginError, retry: retryLogin } = useCurrentUsername();
 
   useReady(() => {
+    setPageReady(true);
     const { page } = Taro.getCurrentInstance();
-    if (page && (Taro as any).worklet) {
+    if (skyline && page && typeof page.applyAnimatedStyle === "function" && (Taro as any).worklet) {
       const sv = (Taro as any).worklet.shared(0);
       page._scrollProgress = sv;
       scrollProgressSV.current = sv;
@@ -79,7 +89,7 @@ const Index = () => {
           const p = Math.min(Math.max(sv.value, 0), 1);
           return {
             backdropFilter: `blur(${p * 20}px)`,
-            backgroundColor: `rgba(255, 255, 255, ${p * 0.85})`,
+            backgroundColor: `rgba(${SURFACE_RGB}, ${p * 0.85})`,
           };
         });
 
@@ -87,40 +97,60 @@ const Index = () => {
       });
     }
   });
+  const { p, replyId, floor, commentMessage } = router.params;
+  const replyRouteKey = JSON.stringify([tid, p, replyId, floor, commentMessage, refreshTime]);
+
   useEffect(() => {
     if (!tid) {
       Taro.navigateBack().then();
       return;
     }
-    fetchTopicDetail({ tid }).then((data) => {
-      const { commentMessage } = router.params;
-      if (commentMessage) {
-        const snippet = decodeURIComponent(commentMessage);
-        const plainText = (html: string) => html.replace(/<[^>]+>/g, "").trim();
-        const matched = data.comments.find((c) => plainText(c.content).startsWith(snippet));
-        if (matched) {
-          setHighlightFloor(matched.floor);
-          setTimeout(() => {
-            setScrollIntoTarget(`comment-${matched.floor.replace("#", "")}`);
-            setTimeout(() => setScrollIntoTarget(""), 300);
-          }, 150);
-          const flashTimers = [
-            setTimeout(() => setHighlightFloor(null), 400),
-            setTimeout(() => setHighlightFloor(matched.floor), 800),
-            setTimeout(() => setHighlightFloor(null), 1200),
-            setTimeout(() => setHighlightFloor(matched.floor), 1600),
-            setTimeout(() => setHighlightFloor(null), 2000),
-            setTimeout(() => setHighlightFloor(matched.floor), 2400),
-            setTimeout(() => setHighlightFloor(null), 2800),
-          ];
-        }
-      }
+    fetchTopicDetail({ tid, page: p, replyId }).catch(() => {
+      Taro.showToast({ title: "帖子加载失败，请重试", icon: "none" });
     });
-  }, [router.params, refreshTime]);
+  }, [tid, p, replyId, refreshTime, fetchTopicDetail]);
+
+  useEffect(() => {
+    if (!topicDetail || !pageReady || locatedRouteRef.current === replyRouteKey) return;
+    const matched = findTargetComment(topicDetail.comments, { replyId, floor, commentMessage });
+    if (!matched) return; // Fresh cache data can supply the reply missing from the initial render.
+    locatedRouteRef.current = replyRouteKey;
+    setHighlightFloor(matched.floor);
+    setScrollRequest({ id: getCommentElementId(matched) });
+  }, [topicDetail, pageReady, replyRouteKey, replyId, floor, commentMessage]);
+
+  useEffect(() => {
+    if (!scrollRequest || !pageReady) return;
+    setLocatingComment(true);
+    const cancel = startCommentScroll({
+      nextTick: (callback) => Taro.nextTick(callback),
+      measure: (callback) => {
+        const query = Taro.createSelectorQuery();
+        query.select(`#${scrollRequest.id}`).boundingClientRect();
+        query.select(".scrollContent").boundingClientRect();
+        query.select(".customNavbar").boundingClientRect();
+        query.select(".scrollContent").scrollOffset();
+        query.exec(([target, viewport, navbar, scroll]) => callback({ target, viewport, navbar, scroll }));
+      },
+      apply: setScrollTop,
+      settled: () => setLocatingComment(false),
+    });
+    cancelScrollRef.current = cancel;
+    return () => {
+      cancel();
+      if (cancelScrollRef.current === cancel) cancelScrollRef.current = undefined;
+    };
+  }, [scrollRequest, pageReady]);
+
+  useEffect(() => {
+    if (!highlightFloor) return;
+    const timer = setTimeout(() => setHighlightFloor(null), 2800);
+    return () => clearTimeout(timer);
+  }, [highlightFloor]);
 
   useDidShow(() => {
     if (isSkyline() && tid) {
-      fetchTopicDetail({ tid });
+      fetchTopicDetail({ tid, page: router.params.p, replyId: router.params.replyId });
     }
   });
 
@@ -142,20 +172,29 @@ const Index = () => {
 
   if (!topicDetail) {
     return (
-      <View className='topicDetail'>
+      <View className={skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}>
         <Navbar back home title='帖子详情' />
-        <View style={{ flex: 1, position: 'relative' }}>
-          <Loading fullscreen />
+        <View className='topicDetailLoading'>
+          <Loading />
         </View>
       </View>
     );
   }
 
   const hasComments = topicDetail.commentTotalCount.trim() !== "";
-  const hasLogin = !!topicDetail?.createCommentXSRF;
+  // The reply form token is a posting capability, not the restored account identity.
+  const hasLogin = !!username || !!topicDetail.createCommentXSRF;
+  const commentPlaceholder = hasLogin ? "说点什么..."
+    : checkingLogin ? "正在确认登录状态..."
+    : loginError ? "登录状态确认失败，点击重试" : "请登录后再评论";
 
   const showCommentDialog = (config?: { content: string }) => {
     if (!hasLogin) {
+      if (checkingLogin) return;
+      if (loginError) {
+        retryLogin();
+        return;
+      }
       openLoginModal(pageUrl);
       return;
     }
@@ -167,7 +206,7 @@ const Index = () => {
 
   return (
     <>
-      <View className='topicDetail'>
+      <View className={skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}>
         <Navbar
           back
           home
@@ -185,13 +224,18 @@ const Index = () => {
           onRefresh={() => setRefreshTime(Date.now())}
         >
           <ScrollView
-            scrollWithAnimation
+            type='custom'
+            scrollWithAnimation={!locatingComment}
             scrollY
             bounces
             enhanced
-            scroll-into-view={scrollIntoTarget}
+            scrollTop={scrollTop}
             className='scrollContent'
-            onTouchStart={(e: any) => pullDownRef.current?.onTouchStart(e)}
+            onTouchStart={(e: any) => {
+              cancelScrollRef.current?.();
+              setLocatingComment(false);
+              pullDownRef.current?.onTouchStart(e);
+            }}
             onTouchMove={(e: any) => pullDownRef.current?.onTouchMove(e)}
             onTouchEnd={(e: any) => pullDownRef.current?.onTouchEnd(e)}
             onScroll={(e: any) => {
@@ -206,8 +250,8 @@ const Index = () => {
             <View className='main'>
               <View className='header'>
                 <View className='title'>
-                  <ShareElement mapkey={`topic_title_${tid}`}>
-                    <Text className='titleText'>{topicDetail.title}</Text>
+                  <ShareElement className='topicTitleShare' mapkey={`topic_title_${tid}`}>
+                    <Text className='titleText' maxLines={skyline ? 3 : undefined} overflow={skyline ? 'ellipsis' : undefined}>{topicDetail.title}</Text>
                   </ShareElement>
                 </View>
                 <View className='metaRow'>
@@ -225,17 +269,20 @@ const Index = () => {
                         src={getFromLocalCache(topicDetail.authorAvatarUrl)}
                       />
                     </View>
-                    <View>
-                      <View className='author'>{topicDetail.author}</View>
+                    <View className='authorDetails'>
+                      <View className='authorNameRow'>
+                        <Text className='author' maxLines={skyline ? 1 : undefined} overflow={skyline ? 'ellipsis' : undefined}>{topicDetail.author}</Text>
+                        {topicDetail.authorLevel && <Text className='authorLevel'>{topicDetail.authorLevel}</Text>}
+                      </View>
                       <View className='moreInfo'>
-                        <View className='createTime'>
+                        <Text className='createTime' maxLines={skyline ? 1 : undefined} overflow={skyline ? 'ellipsis' : undefined}>
                           {topicDetail.createTime}
-                        </View>
-                        <View>{topicDetail.viewCount}</View>
+                        </Text>
                       </View>
                     </View>
                   </View>
-                  <Tag
+                  <View
+                    className='topicCategory'
                     onClick={() => {
                       const link = topicDetail?.categoryLink;
                       if (link) {
@@ -248,10 +295,8 @@ const Index = () => {
                     }}
                   >
                     <Image src={NodeIcon} svg className='tagIcon' />
-                    <View style={{ display: "inline-block" }}>
-                      {topicDetail.category}
-                    </View>
-                  </Tag>
+                    <Text className='topicCategoryLabel' maxLines={skyline ? 1 : undefined} overflow={skyline ? 'ellipsis' : undefined}>{topicDetail.category}</Text>
+                  </View>
                 </View>
               </View>
               <View className='content'>
@@ -259,15 +304,16 @@ const Index = () => {
               </View>
               <View className='extra'>
                 <View className='right'>
-                  <View>{topicDetail.upVoteCount}</View>
-                  <View>{topicDetail.favoriteCount}</View>
+                  <Text>{topicDetail.viewCount}</Text>
+                  <Text>{topicDetail.upVoteCount}</Text>
+                  <Text>{topicDetail.favoriteCount}</Text>
                 </View>
               </View>
             </View>
             <View className='comments section' id='comments-section'>
               {hasComments ? (
                 <View className='header'>
-                  {topicDetail.commentTotalCount}
+                  <Text>{formatReplySummary(topicDetail.commentTotalCount)}</Text>
                   <View
                     className={`sortBtn ${commentAsc ? "sortBtn--active" : ""}`}
                     onClick={() => {
@@ -281,11 +327,11 @@ const Index = () => {
                 </View>
               ) : (
                 <View className='emptyComments'>
-                  <View className='emptyIcon'>💬</View>
-                  <View className='emptyTitle'>暂无评论</View>
-                  <View className='emptyDesc'>快来发表第一条评论吧</View>
+                  <Text className='emptyIcon'>💬</Text>
+                  <Text className='emptyTitle'>暂无评论</Text>
+                  <Text className='emptyDesc'>快来发表第一条评论吧</Text>
                   <View className='emptyBtn' onClick={() => showCommentDialog()}>
-                    说点什么
+                    <Text>说点什么</Text>
                   </View>
                 </View>
               )}
@@ -296,12 +342,12 @@ const Index = () => {
                 ).map((comment, index) => {
                   const items: React.ReactNode[] = [
                     <View
-                      id={`comment-${comment.floor.replace("#", "")}`}
+                      id={getCommentElementId(comment)}
                       className={`comment-item${highlightFloor === comment.floor ? " comment-item--highlight" : ""}`}
                       key={comment.floor}
                     >
                       <View
-                        className="comment-author-avatar"
+                        className='comment-author-avatar'
                         onClick={(e) => {
                           e.stopPropagation();
                           Taro.navigateTo({
@@ -314,14 +360,17 @@ const Index = () => {
                           src={getFromLocalCache(comment.authorAvatarUrl)}
                         />
                       </View>
-                      <View className="comment-right">
-                        <View className="line1">
-                          <View className="comment-author">{comment.author}</View>
-                          <View>{comment.floor}</View>
+                      <View className='comment-right'>
+                        <View className='line1'>
+                          <View className='commentAuthorNameRow'>
+                            <Text className='comment-author' maxLines={skyline ? 1 : undefined} overflow={skyline ? 'ellipsis' : undefined}>{comment.author}</Text>
+                            {comment.authorLevel && <Text className='authorLevel'>{comment.authorLevel}</Text>}
+                          </View>
+                          <Text className='comment-floor'>{comment.floor}</Text>
                         </View>
 
                         <View
-                          className="comment-content"
+                          className='comment-content'
                           onClick={() => {
                             Taro.showActionSheet({
                               itemList: ["回复", "复制"],
@@ -340,12 +389,12 @@ const Index = () => {
                         >
                           <HtmlRender html={comment.content} />
                         </View>
-                        <View className="comment-line3">
-                          <View className="comment-meta">
+                        <View className='comment-line3'>
+                          <Text className='comment-meta'>
                             {comment.replyMetas.join("·").replace(/\\s/g, "")}
-                          </View>
+                          </Text>
                           <View
-                            className="commentUpvote"
+                            className='commentUpvote'
                             onClick={() => {
                               const current_reply_id: string =
                                 queryString.parseUrl(comment.upVoteUrl).query
@@ -370,8 +419,8 @@ const Index = () => {
                               });
                             }}
                           >
-                            <Image src={UpvoteIcon} svg style={{ height: rpxToPx(34), width: rpxToPx(34) }} />
-                            {parseInt(comment.upVoteCount.replace("赞", ""))}
+                            <Image src={UpvoteIcon} svg style={{ height: rpxToPx(28), width: rpxToPx(28) }} />
+                            <Text>{parseInt(comment.upVoteCount.replace("赞", ""))}</Text>
                           </View>
                         </View>
                       </View>
@@ -380,11 +429,9 @@ const Index = () => {
 
                   if ((index + 1) % 10 === 4) {
                     items.push(
-                      <AdCustom
+                      <AdBanner
                         key={`ad-${comment.floor}`}
-                        unitId="adunit-528fc7c01c3edadb"
-                        onLoad={() => console.log("ad onLoad")}
-                        onError={(e) => console.log("ad onError", e)}
+                        unitId='adunit-528fc7c01c3edadb'
                       />,
                     );
                   }
@@ -393,83 +440,71 @@ const Index = () => {
                 })}
             </View>
             <View className='relatingTopics section'>
-              <View className='header'>相关主题</View>
+              <View className='header'><Text>相关主题</Text></View>
               <RelatingTopics topicDetail={topicDetail} />
             </View>
           </ScrollView>
         </PullDownRefresh>
         <View className='actions'>
-          <View className='left' onClick={showCommentDialog}>
-            {hasLogin ? "说点什么..." : "请登录后再评论"}
+          <View className='left' onClick={() => showCommentDialog()}>
+            <Text>{commentPlaceholder}</Text>
           </View>
           <View className='right'>
             <View className='badgeWrap' onClick={() => {
-              setScrollIntoTarget('comments-section');
-              setTimeout(() => setScrollIntoTarget(""), 300);
-            }}>
+              setScrollRequest({ id: 'comments-section' });
+            }}
+            >
               {topicDetail?.comments.length > 0 && (
                 <View className='badgeValue'>
-                  {Math.min(topicDetail.comments.length, 99)}
+                  <Text>{Math.min(topicDetail.comments.length, 99)}</Text>
                 </View>
               )}
               <Image src={CommentIcon} svg className='commentIcon' />
             </View>
             <Button openType='share' className='share'>
               <Image src={WechatIcon} svg className='icon' />
-              分享
+              <Text>分享</Text>
             </Button>
           </View>
         </View>
       </View>
-      <View className={`commentPopup${isCommenting ? " commentPopup--visible" : ""}`}>
-        <View className='commentPopupMask' onClick={() => setIsCommenting(false)} />
-        <View className='commentPopupBody'>
-          <View className='commentPopupHeader'>
-            <View className='commentPopupCancel' onClick={() => setIsCommenting(false)}>取消</View>
-            <View className='commentPopupTitle'>评论</View>
-            <View
-              className={`commentPopupSend ${sending ? 'commentPopupSend--disabled' : ''}`}
-              onClick={() => {
-                if (sending) return;
-                if (commentContent.trim().length < 3) {
-                  Taro.showToast({ title: '评论内容至少3个字', icon: 'none' });
-                  return;
-                }
-                setSending(true);
-                Taro.showLoading({ title: "发送中...", mask: true });
-                tid &&
-                  createNewComment({
-                    tid,
-                    _xsrf: topicDetail?.createCommentXSRF,
-                    content: commentContent,
-                  }).then(() => {
-                    setIsCommenting(false);
-                    setCommentContent("");
-                    setRefreshTime(Date.now());
-                  }).finally(() => {
-                    setSending(false);
-                    Taro.hideLoading();
-                  });
-              }}
-            >
-              {sending ? "发送中..." : "发送"}
-            </View>
-          </View>
-          <Textarea
-            className='commentPopupTextarea'
-            cursorSpacing={100}
-            adjustPosition
-            focus={isCommenting}
-            autoHeight
-            onInput={(event) => {
-              setCommentContent(event.detail.value);
-            }}
-            value={commentContent}
-            showConfirmBar={false}
-            placeholder='说点什么'
-          />
-        </View>
-      </View>
+      {isCommenting && <CommentComposer
+        value={commentContent}
+        sending={sending}
+        onChange={setCommentContent}
+        onClose={() => setIsCommenting(false)}
+        onSend={async () => {
+          if (sending || !tid) return;
+          if (commentContent.trim().length < 3) {
+            Taro.showToast({ title: '评论内容至少3个字', icon: 'none' });
+            return;
+          }
+          setSending(true);
+          Taro.showLoading({ title: "发送中...", mask: true });
+          try {
+            let xsrf = topicDetail.createCommentXSRF;
+            if (!xsrf) {
+              // A restored session or cached topic can lack the current reply form.
+              const freshDetail = await getTopicDetail({ tid, page: p, replyId }, { cache: false });
+              setTopicDetail(freshDetail);
+              xsrf = freshDetail.createCommentXSRF;
+            }
+            if (!xsrf) {
+              Taro.showToast({ title: "暂时无法评论，请刷新后重试", icon: "none" });
+              return;
+            }
+            await createNewComment({ tid, _xsrf: xsrf, content: commentContent });
+            setIsCommenting(false);
+            setCommentContent("");
+            setRefreshTime(Date.now());
+          } catch {
+            Taro.showToast({ title: "评论发送失败，请重试", icon: "none" });
+          } finally {
+            setSending(false);
+            Taro.hideLoading();
+          }
+        }}
+      />}
       <AddToDesktopGuide />
     </>
   );

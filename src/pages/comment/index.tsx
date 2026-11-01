@@ -1,7 +1,8 @@
-import { View, Textarea } from "@tarojs/components";
+import { View } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useState } from "react";
 import { createNewComment } from "guanggu-forum-api";
+import MentionTextarea from "../../components/MentionTextarea";
 import "./index.scss";
 
 const CommentPage = () => {
@@ -38,17 +39,17 @@ const CommentPage = () => {
 
   return (
     <View
-      className="commentPage"
+      className='commentPage'
       style={{
         transform: keyboardHeight > 0 ? `translateY(-${keyboardHeight}px)` : 'none',
         transition: 'transform 0.2s ease-out',
       }}
     >
-      <View className="commentPageHeader">
-        <View className="commentPageCancel" onClick={() => Taro.navigateBack()}>
+      <View className='commentPageHeader'>
+        <View className='commentPageCancel' onClick={() => Taro.navigateBack()}>
           取消
         </View>
-        <View className="commentPageTitle">评论</View>
+        <View className='commentPageTitle'>评论</View>
         <View
           className={`commentPageSend ${sending || !commentContent.trim() ? "commentPageSend--disabled" : ""}`}
           onClick={handleSend}
@@ -56,8 +57,8 @@ const CommentPage = () => {
           {sending ? "发送中..." : "发送"}
         </View>
       </View>
-      <Textarea
-        className="commentPageTextarea"
+      <MentionTextarea
+        className='commentPageTextarea'
         adjustPosition={false}
         autoFocus
         onInput={(event) => {
@@ -65,7 +66,7 @@ const CommentPage = () => {
         }}
         value={commentContent}
         showConfirmBar={false}
-        placeholder="说点什么"
+        placeholder='说点什么'
         onKeyboardHeightChange={(e) => {
           setKeyboardHeight(e.detail.height);
         }}

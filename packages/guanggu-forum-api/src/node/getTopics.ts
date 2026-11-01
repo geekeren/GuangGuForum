@@ -1,6 +1,5 @@
-import { domStructure, TopicSummary } from "../getRecentTopics";
+import { parseTopicSummaries, TopicSummary } from "../getRecentTopics";
 import { request } from "../client";
-import { getDataFromHtml } from "../utils/getDataFromHtml";
 import { CacheAPIFunc } from "../types";
 
 export interface GetNodeTopicsParam {
@@ -21,9 +20,9 @@ export const getNodeTopics: CacheAPIFunc<GetNodeTopicsParam, TopicSummary[]> = (
       p: String(page),
     },
     onRefresh: options?.onRefresh
-      ? (body) => options.onRefresh!(getDataFromHtml(body, domStructure) as TopicSummary[])
+      ? (body) => options.onRefresh!(parseTopicSummaries(body))
       : undefined,
   }).then(({ body }) => {
-    return getDataFromHtml(body, domStructure) as TopicSummary[];
+    return parseTopicSummaries(body);
   });
 };

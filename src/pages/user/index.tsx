@@ -33,7 +33,7 @@ const UserProfilePage = () => {
   return (
     <View className="userPage">
       <Navbar title="个人主页" back home />
-      <ScrollView className="userScroll" scrollY enhanced showScrollbar={false}>
+      <ScrollView type='custom' className="userScroll" scrollY enhanced showScrollbar={false}>
         <UserProfileDetail profile={profile} />
       </ScrollView>
     </View>

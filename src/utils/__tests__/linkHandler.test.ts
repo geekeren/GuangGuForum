@@ -23,6 +23,7 @@ import {
   isUserMentionLink,
   isWhitelistedDomain,
   extractSummaryUrl,
+  linkChipLabel,
   linkHandler,
 } from "../linkHandler";
 
@@ -106,6 +107,36 @@ describe("linkHandler", () => {
       );
       // zhihu.com is also in the whitelist
       expect(result).toBeTruthy();
+    });
+  });
+
+  // ─── linkChipLabel ───
+
+  describe("linkChipLabel", () => {
+    it("shortens a raw URL to host plus two path segments", () => {
+      expect(linkChipLabel("https://github.com/geekeren/GuangGuForum/pull/12", "https://github.com/geekeren/GuangGuForum/pull/12"))
+        .toBe("github.com/geekeren/GuangGuForum/…");
+    });
+
+    it("drops the www prefix and keeps short paths intact", () => {
+      expect(linkChipLabel("https://www.guozaoke.com/t/123", "https://www.guozaoke.com/t/123")).toBe("guozaoke.com/t/123");
+    });
+
+    it("keeps readable anchor text untouched", () => {
+      expect(linkChipLabel("https://example.com/a/b/c", "官网文档")).toBe("官网文档");
+    });
+
+    it("trims whitespace-collapsed anchor text to one short line", () => {
+      expect(linkChipLabel("https://example.com", "  很长的   链接文字  ")).toBe("很长的 链接文字");
+    });
+
+    it("falls back to the href when the anchor text is empty", () => {
+      expect(linkChipLabel("https://example.com/page", "")).toBe("example.com/page");
+    });
+
+    it("clips oversized single segments instead of leaving a partial tail", () => {
+      expect(linkChipLabel("https://example.com/abcdefghijklmnopqrstuvwxyz", "https://example.com/abcdefghijklmnopqrstuvwxyz"))
+        .toBe("example.com/abcdefghijklmno…");
     });
   });
 

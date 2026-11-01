@@ -1,3 +1,4 @@
+import { HTMLElement } from "node-html-parser";
 import { request } from "./client";
 import { DataDom, getDataFromHtml } from "./utils/getDataFromHtml";
 import { ApiOptions, CacheAPIFunc } from "./types";
@@ -11,9 +12,10 @@ export interface TopicSummary {
   title: string;
   link: string;
   commentCount: string;
+  isPinned?: boolean;
 }
 
-export const domStructure: DataDom<TopicSummary> = {
+export const domStructure: DataDom<Omit<TopicSummary, "isPinned">> = {
   _attribute: "",
   _type: "array",
   _item: "object",
@@ -60,8 +62,18 @@ export const domStructure: DataDom<TopicSummary> = {
   },
 };
 
+export function parseTopicSummaries(body?: HTMLElement): TopicSummary[] {
+  if (!body) return [];
+  const items = body.querySelectorAll(".topics .topic-item");
+  const topics = getDataFromHtml(body, domStructure) as unknown as TopicSummary[];
+  return topics.map((topic, index) => ({
+    ...topic,
+    isPinned: !!items[index].querySelector(".title .icon-pushpin"),
+  }));
+}
+
 export interface GetTopicsParam {
-  type: "default" | "latest" | "elite" | "follows";
+  type: "default" | "latest" | "elite" | "follows" | "interest";
   page: number;
 }
 
@@ -77,6 +89,7 @@ export const getRecentTopics: CacheAPIFunc<GetTopicsParam, TopicSummary[]> = (
     latest: "latest",
     elite: "elite",
     follows: "follows",
+    interest: "interest",
   };
 
   return request("/", {
@@ -86,9 +99,9 @@ export const getRecentTopics: CacheAPIFunc<GetTopicsParam, TopicSummary[]> = (
       tab: tabUrlValue[type],
     },
     onRefresh: options?.onRefresh
-      ? (body) => options.onRefresh!(getDataFromHtml(body, domStructure) as unknown as TopicSummary[])
+      ? (body) => options.onRefresh!(parseTopicSummaries(body))
       : undefined,
   }).then(({ body }) => {
-    return getDataFromHtml(body, domStructure as any) as unknown as TopicSummary[];
+    return parseTopicSummaries(body);
   });
 };

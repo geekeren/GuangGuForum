@@ -1,0 +1,204 @@
+@import "../../vars.scss";
+
+.nodePickerMask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 22, 38, 0.38);
+  z-index: 999;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  animation: nodePickerFadeIn 180ms ease-out;
+
+  &--closing {
+    // Match the existing 250ms unmount timer in NodePicker.
+    animation: nodePickerFadeOut 250ms ease forwards;
+  }
+
+  .nodePickerSheet {
+    width: 100%;
+    background: $surface;
+    border-radius: 28rpx 28rpx 0 0;
+    box-shadow: inset 0 1rpx 0 $border-color;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    animation: nodePickerSlideUp 220ms ease-out;
+
+    &--closing {
+      animation: nodePickerSlideDown 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+    }
+  }
+
+  .nodePickerHeader {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28rpx 32rpx 16rpx;
+    flex-shrink: 0;
+  }
+
+  .nodePickerTitle {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: $text-primary;
+  }
+
+  .nodePickerClose {
+    width: 48rpx;
+    height: 48rpx;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: $bgColor;
+    transition: background-color 140ms ease-out;
+
+    &:active { background: $color-brand-soft; }
+  }
+
+  .nodePickerCloseText {
+    font-size: 24rpx;
+    color: $text-muted;
+  }
+
+  .nodePickerScroll {
+    width: 100%;
+    height: calc(70vh - 100rpx - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 32rpx 32rpx;
+    box-sizing: border-box;
+  }
+
+  .nodeGroup {
+    margin-bottom: 24rpx;
+  }
+
+  .nodeGroupLabel {
+    font-size: 24rpx;
+    font-weight: 600;
+    color: $text-muted;
+    margin-bottom: 16rpx;
+  }
+
+  .nodeGroupTags {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 16rpx;
+  }
+
+  .nodeTag {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding: 12rpx 28rpx;
+    border-radius: $radius-md;
+    background: $bgColor;
+    border: 2rpx solid transparent;
+    transition: background-color 140ms ease-out, border-color 140ms ease-out;
+
+    &:active { background: $color-brand-soft; }
+
+    &--active {
+      background: $color-brand-soft;
+      border-color: $color-brand;
+    }
+  }
+
+  .nodeTagText {
+    font-size: 26rpx;
+    color: $text-muted;
+    font-weight: 500;
+  }
+
+  .nodeTag--active .nodeTagText {
+    color: $color-brand;
+    font-weight: 600;
+  }
+
+  .nodePickerStatus {
+    display: block;
+    margin-bottom: 24rpx;
+    font-size: 24rpx;
+    line-height: 1.6;
+    color: $text-muted;
+  }
+
+  .nodePickerRetry {
+    padding: 12rpx;
+    color: $color-brand;
+    transition: opacity 140ms ease-out;
+
+    &:active { opacity: 0.65; }
+  }
+}
+
+.nodePickerMask.nodePickerMask--skyline {
+  display: block;
+  box-sizing: border-box;
+
+  .nodePickerSheet {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: none;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  // Use remaining sheet space, not viewport minus a guessed header height.
+  .nodePickerScroll {
+    height: 0;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .nodeGroup,
+  .nodeGroupTags {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .nodeGroupTags { flex-wrap: wrap; }
+  .nodeGroupLabel { display: block; }
+
+  .nodeTag {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .nodeTagText {
+    min-width: 0;
+    word-break: break-all;
+  }
+}
+
+@keyframes nodePickerFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes nodePickerFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes nodePickerSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes nodePickerSlideDown {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}

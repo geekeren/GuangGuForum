@@ -1,0 +1,23 @@
+@import "../../vars.scss";
+
+.hotRank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  width: 68rpx;
+  height: 40rpx;
+  flex-shrink: 0;
+  border-radius: 10rpx;
+  background: $surfaceAlt;
+  color: $text-muted;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 40rpx;
+
+  &--1 { background: #ffe5e0; color: #cf3d32; }
+  &--2 { background: #fff0d6; color: #9a5b12; }
+  &--3 { background: #fff6da; color: #8c6a12; }
+}
+
+.hotRankFlame { width: 22rpx; height: 26rpx; flex-shrink: 0; }

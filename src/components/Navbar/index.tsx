@@ -1,6 +1,8 @@
 import { View, Text, Image, ShareElement } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { getNavInfo } from "../../utils/dimension";
+import { SURFACE_RGB } from "../../utils/theme";
+import { isSkyline } from "../../utils/renderer";
 import ChevronLeftIcon from "../../assets/chevron-left.svg";
 import HomeIcon from "../../assets/nav-home.svg";
 import "./index.scss";
@@ -22,7 +24,7 @@ interface Props {
 const Navbar = (props: Props) => {
   const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, left = false, shareKey, leftAction, children } = props;
   const { capsulePaddingTop, capsuleHeight, capsuleWidth, capsuleLeft, screenWidth, statusBarHeight, marginSides } = getNavInfo();
-  const paddingRight = screenWidth - capsuleLeft;
+  const paddingRight = screenWidth - capsuleLeft + Math.max(marginSides, 12);
   const singleBtnWidth = (capsuleWidth - 0.5) / 2;
   const hasLeft = back || home || leftAction;
 
@@ -36,7 +38,7 @@ const Navbar = (props: Props) => {
     : {
         paddingTop: inModal ? 0 : statusBarHeight + "px",
         backdropFilter: `blur(${p * 20}px)`,
-        backgroundColor: `rgba(255, 255, 255, ${p * 0.85})`,
+        backgroundColor: `rgba(${SURFACE_RGB}, ${p * 0.85})`,
       };
 
   const defaultTitleStyle = workletDriven
@@ -88,7 +90,7 @@ const Navbar = (props: Props) => {
         )}
         <View className={`navContent ${left ? 'navContent--left' : ''}`} style={{ height: capsuleHeight + "px" }}>
           {title && !children && (
-            <Text className="navTitle" style={titleStyle}>{title}</Text>
+            <Text className="navTitle" style={titleStyle} maxLines={isSkyline() ? 1 : undefined} overflow={isSkyline() ? 'ellipsis' : undefined}>{title}</Text>
           )}
           {children && children}
         </View>
@@ -96,7 +98,10 @@ const Navbar = (props: Props) => {
     </View>
   );
 
-  return <ShareElement mapkey={shareKey ?? "navbar"}>{content}</ShareElement>;
+  return <ShareElement
+    mapkey={shareKey ?? "navbar"}
+    style={isSkyline() ? { width: "100%", flexShrink: 0 } : undefined}
+  >{content}</ShareElement>;
 };
 
 export default Navbar;

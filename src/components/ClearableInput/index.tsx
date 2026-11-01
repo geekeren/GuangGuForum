@@ -90,7 +90,7 @@ export const ClearableInput = forwardRef<any, ClearableInputProps>((props, ref) 
   const displayValue = focused && !value && onDeleteWhenEmpty ? ZWSP : value;
 
   return (
-    <View className="clearableWrap">
+    <View className={`clearableWrap${value ? " clearableWrap--hasValue" : ""}`}>
       <Input
         ref={ref}
         className={`clearableControl ${className}`}
@@ -165,7 +165,7 @@ export const ClearableTextarea = forwardRef<any, ClearableTextareaProps>((props,
   const displayValue = focused && !value && onDeleteWhenEmpty ? ZWSP : value;
 
   return (
-    <View className="clearableWrap clearableWrap--textarea">
+    <View className={`clearableWrap clearableWrap--textarea${value ? " clearableWrap--hasValue" : ""}`}>
       <Textarea
         ref={ref}
         className={`clearableControl ${className}`}

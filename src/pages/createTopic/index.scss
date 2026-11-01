@@ -210,7 +210,7 @@
     }
   }
 
-  .clearableWrap .fieldTextarea {
+  .clearableWrap:not(.clearableWrap--hasValue) .fieldTextarea {
     padding-right: 12rpx;
   }
 
@@ -579,119 +579,36 @@
     margin-bottom: 16rpx;
   }
 
-  // 节点选择弹窗
-  .nodePickerMask {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    display: flex;
-    align-items: flex-end;
-    animation: fadeIn 0.25s ease;
+}
 
-    &--closing {
-      animation: fadeOut 0.25s ease forwards;
-    }
-  }
+// Native scrolling owns the remaining space; no guessed navbar/footer heights.
+.createTopic--skyline {
+  overflow: hidden;
+  .createTopicBody { flex: 1; height: 0; min-height: 0; }
+  .typeTag, .locationBtn, .thumbnailRemove, .clearBtn, .submitBtn,
+  .repostSheetClose, .repostCheckboxBox, .repostSheetCopy,
+  .repostSheetCancel, .repostSheetConfirm { flex-direction: row; }
+  .pickerItem .pickerValue { min-width: 0; }
+  .typeLabel, .fieldLabel { display: block; }
+  .fieldGroup--half { min-width: 0; }
+  .locationRow .clearableWrap { flex: 1; width: 0; min-width: 0; }
+}
 
-  .nodePickerSheet {
-    width: 100%;
-    background: $surface;
-    border-radius: 24rpx 24rpx 0 0;
-    max-height: 70vh;
-    display: flex;
-    flex-direction: column;
-    animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+.createTopic--skyline .repostMask,
+.createTopic .repostMask--skyline {
+  width: 100vw;
+  height: 100vh;
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
 
-    &--closing {
-      animation: slideDown 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards;
-    }
-  }
-
-  .nodePickerHeader {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 28rpx 32rpx 16rpx;
-    flex-shrink: 0;
-  }
-
-  .nodePickerTitle {
-    font-size: 32rpx;
-    font-weight: 700;
-    color: $text-primary;
-  }
-
-  .nodePickerClose {
-    width: 48rpx;
-    height: 48rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    background: $bgColor;
-  }
-
-  .nodePickerCloseText {
-    font-size: 24rpx;
-    color: $text-muted;
-  }
-
-  .nodePickerScroll {
-    width: 100%;
-    height: calc(70vh - 100rpx - env(safe-area-inset-bottom));
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 0 32rpx 32rpx;
-    box-sizing: border-box;
-  }
-
-  .nodeGroup {
-    margin-bottom: 24rpx;
-  }
-
-  .nodeGroupLabel {
-    font-size: 24rpx;
-    font-weight: 600;
-    color: $text-muted;
-    margin-bottom: 16rpx;
-  }
-
-  .nodeGroupTags {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 16rpx;
-  }
-
-  .nodeTag {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12rpx 28rpx;
-    border-radius: $radius-md;
-    background: $bgColor;
-    border: 2rpx solid transparent;
-
-    &--active {
-      background: $color-brand-soft;
-      border-color: $color-brand;
-    }
-  }
-
-  .nodeTagText {
-    font-size: 26rpx;
-    color: $text-muted;
-    font-weight: 500;
-  }
-
-  .nodeTag--active .nodeTagText {
-    color: $color-brand;
-    font-weight: 600;
+  .repostSheet { flex-shrink: 0; box-sizing: border-box; overflow: hidden; }
+  .repostSheetScroll {
+    flex: 1;
+    height: 0;
+    min-height: 0;
+    overflow: hidden;
   }
 }
 
