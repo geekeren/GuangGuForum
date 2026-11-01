@@ -189,6 +189,7 @@ describe("Skyline scoped page layout contracts", () => {
       expect(tree.props.style.height).toBe("100%");
       const navbars = elements(tree).filter(item => item.type === "Navbar");
       expect(navbars).toHaveLength(1);
+      expect(navbars[0].props.shared).toBe(false);
       find(navbars[0].props.leftAction, "navSettingsIcon").props.onClick();
       expect(Taro.navigateTo).toHaveBeenCalledWith({ url: "/pages/settings/index" });
       const body = find(tree, "meStatusBody");
@@ -239,6 +240,7 @@ describe("Skyline scoped page layout contracts", () => {
 
   it("keeps settings description ellipsis on Text and native share controls in a row", () => {
     let tree = render(Settings);
+    expect(elements(tree).find(item => item.type === "Navbar")?.props.shared).toBe(false);
     expect(find(tree, "settingsItemDesc")).toMatchObject({ type: "Text", props: { maxLines: 1 } });
     vi.stubGlobal("getCurrentPages", () => [{ renderer: "webview" }]);
     expect(find(render(Settings), "settingsItemDesc").props.maxLines).toBeUndefined();

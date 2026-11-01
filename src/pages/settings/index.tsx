@@ -252,7 +252,7 @@ export default function Settings() {
 
   return (
     <View className={`settingsPage${skyline ? " settingsPage--skyline" : ""}`}>
-      <Navbar back title='设置' titleStyle={{ opacity: 1 }} />
+      <Navbar shared={false} back title='设置' titleStyle={{ opacity: 1 }} />
       <ScrollView type='custom' scrollY className='settingsBody'>
         {sections.map((group, gi) => (
           <View className='settingsGroup' key={gi}>

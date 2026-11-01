@@ -17,12 +17,13 @@ interface Props {
   titleStyle?: React.CSSProperties;
   left?: boolean;
   shareKey?: string;
+  shared?: boolean;
   leftAction?: React.ReactNode;
   children?: React.ReactNode;
 }
 
 const Navbar = (props: Props) => {
-  const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, left = false, shareKey, leftAction, children } = props;
+  const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, left = false, shareKey, shared = true, leftAction, children } = props;
   const { capsulePaddingTop, capsuleHeight, capsuleWidth, capsuleLeft, screenWidth, statusBarHeight, marginSides } = getNavInfo();
   const paddingRight = screenWidth - capsuleLeft + Math.max(marginSides, 12);
   const singleBtnWidth = (capsuleWidth - 0.5) / 2;
@@ -97,6 +98,8 @@ const Navbar = (props: Props) => {
       </View>
     </View>
   );
+
+  if (!shared) return content;
 
   return <ShareElement
     mapkey={shareKey ?? "navbar"}

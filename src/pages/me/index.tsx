@@ -33,6 +33,7 @@ const Me = ({ active }: { active?: boolean }) => {
     return (
       <View className='meProfile meProfile--notLoggedIn' style={{ height: "100%" }}>
         <Navbar
+          shared={false}
           leftAction={
             <Image
               className='navSettingsIcon'
