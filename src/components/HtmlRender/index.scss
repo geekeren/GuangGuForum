@@ -74,6 +74,11 @@
   .inline-text {
     display: inline-block;
   }
+
+  // WebView emphasis containers with View link chips remain in text flow.
+  .htmlInlineLinkHost {
+    display: inline;
+  }
   // ── Image ──
   .h5-img {
     max-width: 100%;

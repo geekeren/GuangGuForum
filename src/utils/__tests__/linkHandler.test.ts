@@ -181,6 +181,8 @@ describe("linkHandler", () => {
       expect(wxNavigateToMock).toHaveBeenCalledWith(
         expect.objectContaining({
           url: `/pages/linkPreview/index?url=${encodeURIComponent("https://example.com/page")}`,
+          routeType: "wx://bottom-sheet",
+          routeOptions: { height: "40%" },
         }),
       );
     });
@@ -190,6 +192,7 @@ describe("linkHandler", () => {
       expect(wxNavigateToMock).toHaveBeenCalledWith(
         expect.objectContaining({
           url: `/pages/linkPreview/index?url=${encodeURIComponent("https://github.com/user/repo")}`,
+          routeType: "wx://bottom-sheet",
           routeOptions: { height: "75%" },
         }),
       );

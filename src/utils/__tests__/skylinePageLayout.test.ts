@@ -236,7 +236,11 @@ describe("Skyline scoped page layout contracts", () => {
     tree = render(LinkPreview);
     expect(tree.props.className).toBe("linkPreviewPage");
     expect(find(tree, "linkPreviewContent").props.style).toEqual({ height: "auto" });
-    expect(css("pages/linkPreview").split(".linkPreviewPage--skyline")[1]).toContain("height: 100%;");
+    const native = css("pages/linkPreview").split(".linkPreviewPage--skyline")[1];
+    expect(native).toContain("height: 100%;");
+    expect(native).toContain("min-height: 0;");
+    expect(native).toMatch(/\.linkPreviewContent\s*\{\s*flex:\s*1;\s*height:\s*0;\s*min-height:\s*0;/);
+    expect(css("pages/login").split(".loginPage--skyline")[1]).toContain("height: 100%;");
   });
 
   it("keeps settings description ellipsis on Text and native share controls in a row", () => {

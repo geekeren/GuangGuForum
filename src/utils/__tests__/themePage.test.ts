@@ -41,7 +41,9 @@ describe("native theme metadata", () => {
     expect(meta.props.children.props.frontColor).toBe("#ffffff");
     expect(content.type).toBe("View");
     expect(content.props.className).toBe("themePageHost themePageHost--dark");
-    expect(content.props.style).toMatchObject({ "--theme-bg": "#000000", "--theme-text-primary": "#f2f2f2", width: "100%", minHeight: "100vh" });
+    expect(content.props.style).toMatchObject({ "--theme-bg": "#000000", "--theme-text-primary": "#f2f2f2", width: "100%", height: "100%", minHeight: 0 });
+    expect(JSON.stringify(content.props.style)).not.toContain("100vh");
+    expect(readFileSync("src/app.scss", "utf8")).toMatch(/page\s*\{[^}]*height:\s*100%;/);
     expect(content.props.style).not.toHaveProperty("backgroundColor");
     expect(content.props.children).toBe(body);
   });

@@ -64,6 +64,8 @@ image {
 }
 
 page {
+  // Percent-height pages must inherit the native route viewport, including sheets.
+  height: 100%;
   line-height: 1.4;
   color: $text-primary;
   letter-spacing: 0;

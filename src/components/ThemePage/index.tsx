@@ -20,7 +20,7 @@ export default function ThemePage({ children }: { children?: ReactNode }) {
       >
         <NavigationBar frontColor={theme === "dark" ? "#ffffff" : "#000000"} backgroundColor={palette.bg} />
       </PageMeta>
-      <View className={`themePageHost themePageHost--${theme}`} style={{ ...themeVariables(theme), width: "100%", minHeight: "100vh" }}>
+      <View className={`themePageHost themePageHost--${theme}`} style={{ ...themeVariables(theme), width: "100%", height: "100%", minHeight: 0 }}>
         {children}
       </View>
     </Fragment>

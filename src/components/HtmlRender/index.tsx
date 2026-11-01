@@ -211,7 +211,18 @@ Taro.options.html.transformElement = (
       taroEle.nodeName = "view";
     }
   }
-  if (isSkyline()) normalizeSkylineElement(taroEle, htmlEle.tagName);
+  if (isSkyline()) {
+    normalizeSkylineElement(taroEle, htmlEle.tagName);
+  } else if (taroEle.nodeName === "text") {
+    // WebView Text cannot render a View link chip. The parser runs bottom-up,
+    // so convert only its inline Text ancestors, keeping authored emphasis.
+    const containsLinkChip = (element: TaroElement): boolean =>
+      element.className.split(" ").includes("html-linkChip") || element.children.some(containsLinkChip);
+    if (taroEle.children.some(containsLinkChip)) {
+      setNodeName(taroEle, "view");
+      taroEle.className += " htmlInlineLinkHost";
+    }
+  }
   return taroEle;
 };
 

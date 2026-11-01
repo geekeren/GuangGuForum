@@ -2,11 +2,12 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { runInNewContext } from "node:vm";
-import { document, hydrate, options } from "@tarojs/runtime";
+import { document, hydrate, options, TaroEvent } from "@tarojs/runtime";
 import { getComponentsAlias, internalComponents } from "@tarojs/shared";
 import Taro from "@tarojs/taro";
 import TopicList from "../../pages/home/topics/topicList";
 import "../../components/HtmlRender";
+import { linkHandler } from "../linkHandler";
 
 const featureGlobals = vi.hoisted(() => {
   const previous = new Map<string, PropertyDescriptor | undefined>();
@@ -339,6 +340,47 @@ describe("Skyline HTML parser normalization", () => {
     const external = css.match(/&--external\s*\{([\s\S]*?)\n    \}/)![1];
     expect(external).not.toMatch(/background:|padding:|border-radius:/);
     expect(css).toMatch(/\.html-linkChip\s*\{[\s\S]*?display: inline-flex;[\s\S]*?font-style: normal;/);
+  });
+  it("keeps the WebView authored footer link outside native Text while preserving emphasis and taps", () => {
+    vi.stubGlobal("getCurrentPages", () => [{ renderer: "webview" }]);
+    const href = "https://example.test";
+    const root = parse(`<p><em style='font-size: 12px'>本帖发自<a href='${href}'><strong>小程序</strong></a></em></p>`);
+    const emphasis = nodes(root).find(n => n.className?.includes("h5-em"))!;
+    expect(emphasis.nodeName).toBe("view");
+    expect(emphasis.className).toContain("htmlInlineLinkHost");
+    expect(emphasis.style.cssText).toContain("font-size: 12px");
+    const chip = nodes(root).find(n => n.className?.includes("html-linkChip"))!;
+    expect(chip.childNodes.map((node: any) => node.nodeName)).toEqual(["image", "text"]);
+    expect(root.textContent).toBe("本帖发自小程序");
+    for (let ancestor = chip.parentElement; ancestor; ancestor = ancestor.parentElement) {
+      expect(ancestor.nodeName).not.toBe("text");
+    }
+    const calls = vi.mocked(linkHandler).mock.calls.length;
+    const tap = new TaroEvent("tap", { bubbles: true, cancelable: true });
+    const stopPropagation = vi.spyOn(tap, "stopPropagation");
+    const parentTap = vi.fn();
+    emphasis.addEventListener("tap", parentTap);
+    chip.dispatchEvent(tap);
+    expect(stopPropagation).toHaveBeenCalledTimes(1);
+    expect(parentTap).not.toHaveBeenCalled();
+    expect(linkHandler).toHaveBeenCalledTimes(calls + 1);
+    expect(linkHandler).toHaveBeenLastCalledWith(href);
+    expect(source("components/HtmlRender/index.scss")).toMatch(/\.htmlInlineLinkHost\s*\{\s*display: inline;/);
+  });
+  it("converts every WebView emphasis ancestor containing chips without changing plain text or mentions", () => {
+    vi.stubGlobal("getCurrentPages", () => [{ renderer: "webview" }]);
+    const root = parse("<p><strong><em>前 <a href='https://example.test'>一</a> 后 <a href='https://example.test/two'>二</a></em></strong><em>普通斜体</em><strong>普通粗体</strong><a href='/u/tester'>@tester</a></p>");
+    const chips = nodes(root).filter(n => n.className?.includes("html-linkChip"));
+    expect(chips).toHaveLength(2);
+    for (const chip of chips) {
+      for (let ancestor = chip.parentElement; ancestor; ancestor = ancestor.parentElement) {
+        expect(ancestor.nodeName).not.toBe("text");
+      }
+    }
+    expect(nodes(root).find(n => n.className === "h5-em")!.nodeName).toBe("text");
+    expect(nodes(root).find(n => n.className === "h5-strong")!.nodeName).toBe("text");
+    expect(nodes(root).find(n => n.className?.includes("html-link--mention"))!.nodeName).toBe("text");
+    expect(root.textContent).toBe("前 一 后 二普通斜体普通粗体@tester");
   });
   it("normalizes headings, list text and preformatted line breaks", () => {
     const root = parse("<h2>标题<em>强调</em></h2><ul><li>条目</li></ul><pre><code>one\ntwo</code></pre>");
