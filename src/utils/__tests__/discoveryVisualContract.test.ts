@@ -27,6 +27,15 @@ describe("discovery reference layout", () => {
     expect(page).toContain("event.stopPropagation()");
     expect(page).not.toContain("武汉地铁新线开通后");
   });
+  it("uses the shared live-category tag in followed topics without losing node navigation", () => {
+    const page = source("pages/home/discovery/index.tsx");
+    const interest = page.split("interestTopics.slice(0, 10).map(topic => (")[1];
+    expect(interest).toContain("<TopicTag label={topic.category} onClick={event => {");
+    expect(interest).toContain("event.stopPropagation();");
+    expect(interest).toContain("const slug = topic.categoryLink?.match(/^\\/node\\/([^?#/]+)/)?.[1];");
+    expect(interest).toContain("if (slug) openNode(slug, topic.category);");
+    expect(interest).not.toContain("className='interestCategory'");
+  });
   it("stagger-fades only the hot rows while preserving layout and click identity", () => {
     const page = source("pages/home/discovery/index.tsx"), css = source("pages/home/discovery/index.scss");
     expect(page).toContain('hotTopicItem--${hotFadingOut ? "exit" : "enter"}');
@@ -40,8 +49,21 @@ describe("discovery reference layout", () => {
   it("maps the artwork to a four-column grid and compact rounded sections", () => {
     const css = source("pages/home/discovery/index.scss");
     for (const contract of ["height: 178rpx;", "border-radius: 30rpx;", "height: 96rpx;", "width: 22.3%;", "height: 116rpx;", "height: 118rpx;", "height: 100%;", "flex-direction: row;"]) expect(css).toContain(contract);
+    const page = source("pages/home/discovery/index.tsx");
     for (const asset of ["scene", "trend", "flame", "heart", ...["water", "work", "code", "house", "car", "chat", "food", "city"].map(name => `node-${name}`)]) {
-      expect(readFileSync(`src/assets/discovery-${asset}.png`).subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+      expect(page).toContain(`assets/discovery-${asset}.svg`);
+      expect(page).not.toContain(`assets/discovery-${asset}.png`);
+      const svg = source(`assets/discovery-${asset}.svg`);
+      expect(svg).toMatch(/<svg\b[^>]*\bviewBox=/);
+      expect(svg).toMatch(/<(?:path|rect|circle|ellipse|polygon|polyline)\b/);
+      expect(svg).not.toMatch(/<image\b|<foreignObject\b|base64|data:image|\.(?:png|jpe?g|webp|gif)\b/i);
+    }
+    expect(page).toContain('assets/discovery-scene.svg?raw');
+    expect(page).toContain("discoverySceneSource(Scene, theme)");
+    expect(page).toContain("<Image src={scene} svg mode='aspectFit'");
+    expect(page).toContain("<Image src={nodeIcons[node.title] || WaterIcon} svg mode='aspectFit'");
+    for (const icon of ["TrendIcon", "FlameIcon", "HeartIcon"]) {
+      expect(page).toContain(`<Image src={${icon}} svg mode='aspectFit'`);
     }
     expect(css).not.toContain("display: grid");
   });

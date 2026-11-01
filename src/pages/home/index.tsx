@@ -11,16 +11,17 @@ import AddToDesktopGuide from "../../components/AddToDesktopGuide";
 import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from "../config";
 import { getBottomSafeAreaInset, getNavInfo, rpxToPx } from "../../utils/dimension";
 import { isSkyline } from "../../utils/renderer";
-import HomeIcon from "../../assets/home.svg";
-import HomeActiveIcon from "../../assets/home-active.svg";
-import DiscoverIcon from "../../assets/discover.svg";
-import DiscoverActiveIcon from "../../assets/discover-active.svg";
-import UserIcon from "../../assets/user.svg";
-import UserActiveIcon from "../../assets/user-active.svg";
-import NotificationIcon from "../../assets/notification.svg";
-import NotificationActiveIcon from "../../assets/notification-active.svg";
+import HomeIcon from "../../assets/home.svg?raw";
+import HomeActiveIcon from "../../assets/home-active.svg?raw";
+import DiscoverIcon from "../../assets/discover.svg?raw";
+import DiscoverActiveIcon from "../../assets/discover-active.svg?raw";
+import UserIcon from "../../assets/user.svg?raw";
+import UserActiveIcon from "../../assets/user-active.svg?raw";
+import NotificationIcon from "../../assets/notification.svg?raw";
+import NotificationActiveIcon from "../../assets/notification-active.svg?raw";
 import ComposePlusIcon from "../../assets/home-compose-plus.svg";
 import SearchEntry from "../../components/SearchEntry";
+import ThemedIcon from "../../components/ThemedIcon";
 import { getUnreadNotificationCount, subscribeUnreadNotifications } from "../../utils/unreadNotifications";
 
 interface State {
@@ -37,6 +38,10 @@ const TAB_CONFIG = [
   { title: "消息", icon: NotificationIcon, activeIcon: NotificationActiveIcon },
   { title: "我的", icon: UserIcon, activeIcon: UserActiveIcon },
 ];
+
+function TabIcon({ tab, active }: { tab: typeof TAB_CONFIG[number]; active: boolean }) {
+  return <ThemedIcon src={(active ? tab.activeIcon : tab.icon)!} tone={active ? 'accent' : 'secondary'} lightColor={active ? '#1f69ff' : '#6b7488'} className='tabIcon' />;
+}
 
 export default class Index extends Component<{}, State> {
   constructor(props, state) {
@@ -94,7 +99,7 @@ export default class Index extends Component<{}, State> {
 
     return (
       <>
-        <View className={this.state.selectedTabIndex === 0 ? "root root--topics" : this.state.selectedTabIndex === 1 ? "root root--discovery" : "root"}>
+        <View className={this.state.selectedTabIndex === 0 ? "root root--topics" : this.state.selectedTabIndex === 1 ? "root root--discovery" : this.state.selectedTabIndex === 4 ? "root root--me" : "root"}>
           {ENABLE_CUSTOM_NAVBAR && this.state.selectedTabIndex === 0 && (
             <Navbar>
               <Text className="navTitle">过早客</Text>
@@ -143,7 +148,7 @@ export default class Index extends Component<{}, State> {
                 return (
                   <View key={index} className={`tabItem ${active ? "tabItem--active" : ""}`} onClick={() => this.handleClick(index)}>
                     <View className="tabIconWrap">
-                      <Image src={active ? tab.activeIcon! : tab.icon!} svg className="tabIcon" />
+                      <TabIcon tab={tab} active={active} />
                       {index === 3 && this.state.unreadNotifications > 0 && <View className='tabUnreadDot' />}
                     </View>
                     <Text className="tabTitle">{tab.title}</Text>

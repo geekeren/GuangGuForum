@@ -30,13 +30,45 @@
 }
 
 .navSettingsIcon {
-  filter: var(--theme-icon-filter, none);
   width: 42rpx;
   height: 42rpx;
 }
 
 .settingsIcon {
-  filter: var(--theme-icon-filter, none);
   width: 42rpx;
   height: 42rpx;
+}
+
+.themePageHost--dark .meProfile {
+  background: var(--theme-profile-bg, #000000);
+  color: var(--theme-text-primary, #f2f2f2);
+
+  .navCapsule {
+    background: var(--theme-profile-surface, #1c1c1e);
+    border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.07));
+  }
+
+  .navCapsuleBtn:active {
+    background: var(--theme-profile-surface-alt, #2c2c2e);
+  }
+
+  .loginPromptBadge {
+    background: var(--theme-accent-muted, #202c40);
+    color: var(--theme-accent-text, #8bb5ff);
+    border-color: transparent;
+  }
+
+  .loginPromptDesc,
+  .loading .tip {
+    color: var(--theme-text-tertiary, #a6a6aa);
+  }
+
+  .loginPromptBtn {
+    background: var(--theme-accent-primary, #3478ff);
+    box-shadow: none;
+  }
+
+  .loginPromptBtn:active {
+    background: var(--theme-accent-muted, #202c40);
+  }
 }

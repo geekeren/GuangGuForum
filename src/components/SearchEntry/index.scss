@@ -16,7 +16,6 @@
   &:active { background: $surfaceAlt; }
 
   .searchIcon {
-    filter: var(--theme-icon-filter, none);
     width: 28rpx;
     height: 28rpx;
     flex-shrink: 0;

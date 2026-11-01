@@ -2,7 +2,7 @@
 
 .h5-a {
   display: inline-block;
-  color: $color-brand;
+  color: var(--theme-accent-text, #0754d7);
   word-break: break-all;
 }
 
@@ -42,7 +42,7 @@
 
   .metaCardLink {
     font-size: 24rpx;
-    color: $color-brand;
+    color: var(--theme-accent-text, #0754d7);
     word-break: break-all;
     line-height: 1.5;
   }
@@ -302,7 +302,7 @@
 
   // ── Links ──
   .html-link {
-    color: $color-brand-dark;
+    color: var(--theme-accent-text, #0754d7);
     font-size: 28rpx;
     word-break: break-all;
 
@@ -315,11 +315,11 @@
       font-weight: 500;
       background: $color-brand-soft;
       padding: 2rpx 16rpx;
-      border-radius: 8rpx;
+      border-radius: 6rpx;
       font-size: 26rpx;
       line-height: 1.5;
       vertical-align: middle;
-      color: $color-brand;
+      color: var(--theme-accent-text, #0754d7);
 
       &:active {
         background: rgba($color-brand, 0.12);
@@ -330,7 +330,7 @@
     &--external {
       display: inline-block;
       max-width: 100%;
-      color: $color-brand;
+      color: var(--theme-accent-text, #0754d7);
       font-size: 26rpx;
       font-weight: 500;
       font-style: normal;
@@ -370,7 +370,7 @@
     min-width: 0;
     font-size: 26rpx;
     line-height: 1.5;
-    color: $color-brand;
+    color: var(--theme-accent-text, #0754d7);
     white-space: nowrap;
     overflow: hidden;
   }

@@ -7,7 +7,11 @@ import { useCurrentUsername } from "../../../hooks/useCurrentUsername";
 import HtmlRender from "../../../components/HtmlRender";
 import Loading from "../../../components/Loading";
 import LoginPrompt from "../../../components/LoginPrompt";
-import NotificationIcon from "../../../assets/notification-active.svg";
+import NotificationIcon from "../../../assets/notification-active.svg?raw";
+import ThemedIcon from "../../../components/ThemedIcon";
+import { useTheme } from "../../../hooks/useTheme";
+import { THEME_PALETTES } from "../../../utils/themePreferences";
+import { svgIconSource } from "../../../utils/svgIcon";
 import ReplyIcon from "../../../assets/notification-replies.svg";
 import AnnouncementIcon from "../../../assets/notification-announcements.svg";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
@@ -17,6 +21,8 @@ import { fetchAndCacheNodeNavigation, getCachedNodeNavigation } from "../../../u
 import "./index.scss";
 
 const Notifications = ({ active }: { active?: boolean }) => {
+  const { theme } = useTheme();
+  const notificationSource = svgIconSource(NotificationIcon, THEME_PALETTES[theme]["accent-text"]);
   const { username, loading: checkingLogin, error: loginError, retry } = useCurrentUsername(active);
   const { data: notifications, loading, request: fetchNotifications } = useDataWithCache(getNotifications);
   const [requestError, setRequestError] = useState(false);
@@ -71,7 +77,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
         <View className='loginPromptWrap'>
           <LoginPrompt
             icon='消息'
-            iconSrc={NotificationIcon}
+            iconSrc={notificationSource}
             title='登录后查看消息'
             desc='接收回复和提及通知'
           />
@@ -118,7 +124,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
       ) : !notifications || notifications.length === 0 ? (
         <View className='notificationStatus'>
           <View className='emptyState'>
-            <View className='emptyIcon'><Image src={NotificationIcon} svg /></View>
+            <View className='emptyIcon'><ThemedIcon src={NotificationIcon} tone='accent-text' /></View>
             <Text className='emptyTitle'>暂无消息</Text>
             <Text className='emptyDesc'>有人回复或提及时会在这里通知你</Text>
           </View>

@@ -2,6 +2,8 @@ import { RootPortal, View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { ReactNode, useEffect, useState } from "react";
 import { isSkyline } from "../../utils/renderer";
+import { useTheme } from "../../hooks/useTheme";
+import { themeVariables } from "../../utils/themePreferences";
 import "./index.scss";
 
 interface BottomSheetProps {
@@ -15,6 +17,7 @@ interface BottomSheetProps {
 }
 
 export default function BottomSheet({ visible, title, onClose, children, footer, heightRpx, className = "" }: BottomSheetProps) {
+  const { theme } = useTheme();
   const [present, setPresent] = useState(visible);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [viewport, setViewport] = useState<ReturnType<typeof Taro.getWindowInfo>>();
@@ -45,8 +48,8 @@ export default function BottomSheet({ visible, title, onClose, children, footer,
   const availableHeight = Math.max(0, windowInfo.windowHeight - keyboardHeight);
   const height = Math.min(Math.round(heightRpx * windowInfo.windowWidth / 750) + safeBottom, Math.floor(availableHeight * 0.85));
   const overlay = (
-    <View className={`bottomSheetMask${skyline ? " bottomSheetMask--skyline" : ""}${visible ? "" : " bottomSheetMask--closing"} ${className}`}
-      style={skyline ? { width: `${windowInfo.windowWidth}px`, height: `${windowInfo.windowHeight}px` } : undefined}
+    <View className={`bottomSheetMask themeOverlay--${theme}${skyline ? " bottomSheetMask--skyline" : ""}${visible ? "" : " bottomSheetMask--closing"} ${className}`}
+      style={{ ...themeVariables(theme), ...(skyline ? { width: `${windowInfo.windowWidth}px`, height: `${windowInfo.windowHeight}px` } : {}) }}
       onClick={() => { if (visible) onClose(); }}>
       <View className={`bottomSheetPanel${visible ? "" : " bottomSheetPanel--closing"}`}
         style={{ height: `${height}px`, ...(skyline ? { top: `${availableHeight - height}px`, width: `${windowInfo.windowWidth}px` } : { bottom: `${keyboardHeight}px` }) }}

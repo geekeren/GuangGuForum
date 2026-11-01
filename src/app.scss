@@ -4,6 +4,65 @@ image {
   display: block;
 }
 
+// Keep light-mode gradients; dark page canvases are uniformly black.
+// Cards, artwork and action buttons retain their own surfaces.
+.themePageHost--dark {
+  background-color: #000000;
+
+  .root,
+  .searchPage,
+  .topicDetail,
+  .loginPage,
+  .userProfileDetail .profileCard {
+    background: var(--theme-background-primary);
+  }
+
+  .root.root--topics {
+    .searchEntry {
+      background: var(--theme-background-tertiary);
+      border: 1rpx solid var(--theme-border-subtle);
+      color: var(--theme-text-tertiary);
+    }
+
+    .tab-item {
+      background: var(--theme-tab-inactive-background);
+      border: 1rpx solid var(--theme-border-subtle);
+      box-shadow: none;
+      line-height: 52rpx;
+    }
+
+    .tab-item--active {
+      background: var(--theme-tab-active-background);
+      border-color: transparent;
+    }
+
+    .topicItem {
+      background: var(--theme-background-secondary);
+      // Compensate the real Skyline border so content geometry stays unchanged.
+      border: 1rpx solid var(--theme-border-subtle);
+      padding: 21rpx 25rpx 19rpx;
+
+      .commentIcon { filter: none; }
+    }
+  }
+
+  .root.root--me { background: var(--theme-profile-bg); }
+
+  .root .bottomTab {
+    background: var(--theme-navigation-surface);
+    border-top: 1rpx solid var(--theme-border-subtle);
+    height: 111rpx;
+
+    .tabIcon { filter: none; }
+    .tabTitle { color: var(--theme-text-secondary); }
+    .tabItem--active .tabTitle { color: var(--theme-accent-primary); }
+    .addIcon {
+      background: var(--theme-accent-primary);
+      box-shadow: var(--theme-compose-shadow);
+    }
+  }
+}
+
 page {
   line-height: 1.4;
   color: $text-primary;

@@ -6,38 +6,14 @@ import Loading from "../../../../components/Loading";
 import { cacheService, CacheCategory } from "../../../../utils/CacheService";
 import "./index.scss";
 import { getFromLocalCache } from "../../../../utils/localAssets";
-import NodeIcon from "../../../../assets/home-node.svg";
-import AnnouncementIcon from "../../../../assets/home-announcement.svg";
-import CommentIcon from "../../../../assets/home-comment.svg";
-import AnnouncementArtworkIcon from "../../../../assets/home-announcement-icon.png";
-import AnnouncementScene from "../../../../assets/home-announcement-scene.png";
+import TopicTag from "../../../../components/TopicTag";
+import CommentIcon from "../../../../assets/comment.svg?raw";
+import ThemedIcon from "../../../../components/ThemedIcon";
+import PinnedTopicCard from "../../../../components/PinnedTopicCard";
 import { splitTopicAnnouncement } from "../../../../utils/topicAnnouncement";
 import { urlPathVaiable } from "../../../../utils/urls";
 import PullDownRefresh, { PullDownRefreshRef } from "../../../../components/PullDownRefresh";
 import { isSkyline } from "../../../../utils/renderer";
-
-const HomepageAnnouncement = ({ topic }: { topic: TopicSummary }) => {
-  const tid = urlPathVaiable(URLS.TOPIC_DETAIL)(topic.link)?.params?.tid;
-  return (
-    <View
-      className='homeAnnouncement'
-      onClick={() => {
-        if (tid) Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
-      }}
-    >
-      <Image src={AnnouncementScene} mode='aspectFit' className='homeAnnouncementIllustration' />
-      <View className='homeAnnouncementIconWrap'>
-        <Image src={AnnouncementArtworkIcon} mode='aspectFit' className='homeAnnouncementIcon' />
-      </View>
-      <View className='homeAnnouncementCopy'>
-        <Text className='homeAnnouncementTitle'>{topic.title}</Text>
-        <Text className='homeAnnouncementSubtitle' overflow='ellipsis' maxLines={1}>
-          {topic.category} · {topic.lastUpdated}更新 · {topic.commentCount === "" ? 0 : topic.commentCount} 评论
-        </Text>
-      </View>
-    </View>
-  );
-};
 
 const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
   const {
@@ -80,20 +56,17 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
         </View>
         <View className='meta'>
           <View className='left'>
-            <View className='categoryTag'>
-              <Image src={category === "公告" ? AnnouncementIcon : NodeIcon} svg className='categoryIcon' />
-              <Text overflow='ellipsis' maxLines={1}>{category}</Text>
-            </View>
+            <TopicTag label={category} announcement={category === "公告"} />
             <View className='user'>
               <View className='avatar'>
-                <Image src={getFromLocalCache(userAvatarUrl)} />
+                <Image src={getFromLocalCache(userAvatarUrl)} svg={userAvatarUrl?.endsWith('/m_default.png')} />
               </View>
               <Text className='userName' overflow='ellipsis' maxLines={1}>{username}</Text>
             </View>
             <Text className='lastUpdateTime' overflow='ellipsis' maxLines={1}>{lastUpdated}更新</Text>
           </View>
           <View className='right'>
-            <Image src={CommentIcon} svg className='commentIcon' />
+            <ThemedIcon src={CommentIcon} tone='muted' lightColor='#000000' className='commentIcon' />
             <Text className='commentCount'>
               {commentCount === "" ? 0 : commentCount}
             </Text>
@@ -216,7 +189,7 @@ export default class TopicList extends Component<TopicListProps, State> {
             onTouchEnd={() => this.pullDownRef.current?.onTouchEnd()}
           >
             <View className='topicListTopSpacer' />
-            {announcement && <HomepageAnnouncement topic={announcement} />}
+            {announcement && <PinnedTopicCard topic={announcement} />}
             {regularTopics.map((topic) => (
               <TopicItem key={urlPathVaiable(URLS.TOPIC_DETAIL)(topic.link)?.params?.tid} topic={topic} />
             ))}

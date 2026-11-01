@@ -1,8 +1,9 @@
-import { View, Text, Image, Button, Switch, ScrollView } from "@tarojs/components";
+import { View, Text, Button, Switch, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useState, useEffect, useRef } from "react";
 import { logout } from "guanggu-forum-api";
-import ArrowRightIcon from "../../assets/arrow-right.svg";
+import ArrowRightIcon from "../../assets/arrow-right.svg?raw";
+import ThemedIcon from "../../components/ThemedIcon";
 import { linkHandler } from "../../utils/linkHandler";
 import { getCachedUsername } from "../../utils/currentUser";
 import { cacheService, CacheCategory, type CategoryStats } from "../../utils/CacheService";
@@ -279,7 +280,7 @@ export default function Settings() {
                 {item.shareButton ? (
                   <Button className='settingsItemBtn' open-type='share'>
                     <Text className='settingsItemLabel'>{item.label}</Text>
-                    <Image src={ArrowRightIcon} svg className='settingsItemArrow' />
+                    <ThemedIcon src={ArrowRightIcon} tone='muted' lightColor='#8a8a8a' className='settingsItemArrow' />
                   </Button>
                 ) : item.switchControl ? (
                   <>
@@ -305,7 +306,7 @@ export default function Settings() {
                     {item.statusTag ? (
                       <Text className={`settingsItemStatusTag ${item.statusTag === "已添加" ? "settingsItemStatusTag--added" : "settingsItemStatusTag--not"}`}>{item.statusTag}</Text>
                     ) : !item.noArrow ? (
-                      <Image src={ArrowRightIcon} svg className='settingsItemArrow' />
+                      <ThemedIcon src={ArrowRightIcon} tone='muted' lightColor='#8a8a8a' className='settingsItemArrow' />
                     ) : null}
                   </>
                 )}

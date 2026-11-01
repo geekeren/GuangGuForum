@@ -1,4 +1,4 @@
-import { View, Text, Image, ScrollView } from "@tarojs/components";
+import { View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect } from "react";
 import { getUserProfile } from "guanggu-forum-api";
@@ -9,7 +9,8 @@ import LoginPrompt from "../../components/LoginPrompt";
 import Navbar from "../../components/Navbar";
 import { useCurrentUsername } from "../../hooks/useCurrentUsername";
 import { getNavInfo } from "../../utils/dimension";
-import SettingsIcon from "../../assets/settings.svg";
+import SettingsIcon from "../../assets/settings.svg?raw";
+import ThemedIcon from "../../components/ThemedIcon";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
 
 const Me = ({ active }: { active?: boolean }) => {
@@ -21,10 +22,11 @@ const Me = ({ active }: { active?: boolean }) => {
   }, [active, username, fetchProfile]);
 
   const settingsAction = (
-    <Image
+    <ThemedIcon
       className='settingsIcon'
       src={SettingsIcon}
-      svg
+      tone='secondary'
+      lightColor='#000000'
       onClick={() => Taro.navigateTo({ url: "/pages/settings/index" })}
     />
   );
@@ -35,10 +37,11 @@ const Me = ({ active }: { active?: boolean }) => {
         <Navbar
           shared={false}
           leftAction={
-            <Image
+            <ThemedIcon
               className='navSettingsIcon'
               src={SettingsIcon}
-              svg
+              tone='secondary'
+              lightColor='#000000'
               onClick={() => Taro.navigateTo({ url: "/pages/settings/index" })}
             />
           }
@@ -60,11 +63,12 @@ const Me = ({ active }: { active?: boolean }) => {
     );
   }
 
+  // Reserve the real status/capsule height; the Me-specific top row adds a small gap.
   const navTopPadding = getNavInfo().appHeaderHeight;
 
   return (
     <ScrollView type='custom' scrollY className='meProfile' style={{ height: "100%" }}>
-      <UserProfileDetail profile={profile} actions={settingsAction} navPaddingTop={navTopPadding} />
+      <UserProfileDetail className='userProfileDetail--me' profile={profile} actions={settingsAction} navPaddingTop={navTopPadding} />
     </ScrollView>
   );
 };

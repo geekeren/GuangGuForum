@@ -36,12 +36,12 @@ describe("native theme metadata", () => {
     const tree = ThemePage({ children: body });
     const [meta, content] = tree.props.children;
     expect(meta.type).toBe("PageMeta");
-    expect(meta.props.pageStyle).toContain("--theme-bg:#10141d");
-    expect(meta.props.backgroundColor).toBe("#10141d");
+    expect(meta.props.pageStyle).toContain("--theme-bg:#000000");
+    expect(meta.props.backgroundColor).toBe("#000000");
     expect(meta.props.children.props.frontColor).toBe("#ffffff");
     expect(content.type).toBe("View");
-    expect(content.props.className).toBe("themePageHost");
-    expect(content.props.style).toMatchObject({ "--theme-bg": "#10141d", "--theme-text-primary": "#edf2fc", width: "100%", minHeight: "100vh" });
+    expect(content.props.className).toBe("themePageHost themePageHost--dark");
+    expect(content.props.style).toMatchObject({ "--theme-bg": "#000000", "--theme-text-primary": "#f2f2f2", width: "100%", minHeight: "100vh" });
     expect(content.props.style).not.toHaveProperty("backgroundColor");
     expect(content.props.children).toBe(body);
   });
@@ -52,6 +52,6 @@ describe("native theme metadata", () => {
     for (const match of config.matchAll(/"(pages\/[^"]+\/index)"/g)) {
       expect(readFileSync(`src/${match[1]}.config.ts`, "utf8")).toContain("enablePageMeta: true");
     }
-    expect(JSON.parse(readFileSync("src/theme.json", "utf8")).dark.backgroundColor).toBe("#10141d");
+    expect(JSON.parse(readFileSync("src/theme.json", "utf8")).dark.backgroundColor).toBe("#000000");
   });
 });

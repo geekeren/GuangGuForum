@@ -25,6 +25,7 @@ import {
 import "./index.scss";
 import Loading from "../../components/Loading";
 import Navbar from "../../components/Navbar";
+import ThemedIcon from "../../components/ThemedIcon";
 import { getFromLocalCache } from "../../utils/localAssets";
 import { cacheService, CacheCategory } from "../../utils/CacheService";
 import { rpxToPx } from "../../utils/dimension";
@@ -37,12 +38,12 @@ import { findTargetComment, getCommentElementId } from "../../utils/topicReplyRo
 import { startCommentScroll } from "../../utils/commentScroll";
 import HtmlRender from "../../components/HtmlRender";
 import CommentComposer from "./CommentComposer";
-import NodeIcon from "../../assets/topic_node.svg";
-import CommentIcon from "../../assets/comment.svg";
+import TopicTag from "../../components/TopicTag";
+import CommentIcon from "../../assets/comment.svg?raw";
 import WechatIcon from "../../assets/wechat.svg";
-import SortAscIcon from "../../assets/sort-asc.svg";
-import SortDescIcon from "../../assets/sort-desc.svg";
-import UpvoteIcon from "../../assets/upvote.svg";
+import SortAscIcon from "../../assets/sort-asc.svg?raw";
+import SortDescIcon from "../../assets/sort-desc.svg?raw";
+import UpvoteIcon from "../../assets/upvote.svg?raw";
 import RelatingTopics from "./relatingTopics";
 import PullDownRefresh, { PullDownRefreshRef } from "../../components/PullDownRefresh";
 import AddToDesktopGuide from "../../components/AddToDesktopGuide";
@@ -279,6 +280,7 @@ const Index = () => {
                       <Image
                         lazyLoad
                         src={getFromLocalCache(topicDetail.authorAvatarUrl)}
+                        svg={topicDetail.authorAvatarUrl?.endsWith('/m_default.png')}
                       />
                     </View>
                     <View className='authorDetails'>
@@ -293,8 +295,8 @@ const Index = () => {
                       </View>
                     </View>
                   </View>
-                  <View
-                    className='topicCategory'
+                  <TopicTag
+                    label={topicDetail.category}
                     onClick={() => {
                       const link = topicDetail?.categoryLink;
                       if (link) {
@@ -305,10 +307,7 @@ const Index = () => {
                         });
                       }
                     }}
-                  >
-                    <Image src={NodeIcon} svg className='tagIcon' />
-                    <Text className='topicCategoryLabel' maxLines={skyline ? 1 : undefined} overflow={skyline ? 'ellipsis' : undefined}>{topicDetail.category}</Text>
-                  </View>
+                  />
                 </View>
               </View>
               <View className='content'>
@@ -334,7 +333,7 @@ const Index = () => {
                       cacheService.set("commentSortAsc", next, { category: CacheCategory.Other });
                     }}
                   >
-                    <Image src={commentAsc ? SortDescIcon : SortAscIcon} svg className='sortIcon' />
+                    <ThemedIcon src={commentAsc ? SortDescIcon : SortAscIcon} tone='secondary' lightColor='#000' className='sortIcon' />
                   </View>
                 </View>
               ) : (
@@ -370,6 +369,7 @@ const Index = () => {
                         <Image
                           lazyLoad
                           src={getFromLocalCache(comment.authorAvatarUrl)}
+                          svg={comment.authorAvatarUrl?.endsWith('/m_default.png')}
                         />
                       </View>
                       <View className='comment-right'>
@@ -431,7 +431,7 @@ const Index = () => {
                               });
                             }}
                           >
-                            <Image src={UpvoteIcon} svg style={{ height: rpxToPx(28), width: rpxToPx(28) }} />
+                            <ThemedIcon src={UpvoteIcon} tone='muted' lightColor='#000' style={{ height: rpxToPx(28), width: rpxToPx(28) }} />
                             <Text>{parseInt(comment.upVoteCount.replace("赞", ""))}</Text>
                           </View>
                         </View>
@@ -471,7 +471,7 @@ const Index = () => {
                   <Text>{Math.min(topicDetail.comments.length, 99)}</Text>
                 </View>
               )}
-              <Image src={CommentIcon} svg className='commentIcon' />
+              <ThemedIcon src={CommentIcon} tone='secondary' lightColor='#000' className='commentIcon' />
             </View>
             <Button openType='share' className='share'>
               <Image src={WechatIcon} svg className='icon' />

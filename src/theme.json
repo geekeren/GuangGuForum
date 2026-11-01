@@ -6,8 +6,8 @@
     "backgroundTextStyle": "dark"
   },
   "dark": {
-    "backgroundColor": "#10141d",
-    "navigationBarBackgroundColor": "#1b2230",
+    "backgroundColor": "#000000",
+    "navigationBarBackgroundColor": "#000000",
     "navigationBarTextStyle": "white",
     "backgroundTextStyle": "light"
   }

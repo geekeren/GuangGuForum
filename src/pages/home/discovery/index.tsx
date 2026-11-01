@@ -1,6 +1,6 @@
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getDiscoveryData, HotTopic } from "guanggu-forum-api";
 import { getCachedUsername } from "../../../utils/currentUser";
 import { getFromLocalCache } from "../../../utils/localAssets";
@@ -11,18 +11,21 @@ import { isSkyline } from "../../../utils/renderer";
 import LoginPrompt from "../../../components/LoginPrompt";
 import NodePicker from "../../../components/NodePicker";
 import Loading from "../../../components/Loading";
-import Scene from "../../../assets/discovery-scene.png";
-import TrendIcon from "../../../assets/discovery-trend.png";
-import FlameIcon from "../../../assets/discovery-flame.png";
-import HeartIcon from "../../../assets/discovery-heart.png";
-import WaterIcon from "../../../assets/discovery-node-water.png";
-import WorkIcon from "../../../assets/discovery-node-work.png";
-import CodeIcon from "../../../assets/discovery-node-code.png";
-import HouseIcon from "../../../assets/discovery-node-house.png";
-import CarIcon from "../../../assets/discovery-node-car.png";
-import ChatIcon from "../../../assets/discovery-node-chat.png";
-import FoodIcon from "../../../assets/discovery-node-food.png";
-import CityIcon from "../../../assets/discovery-node-city.png";
+import TopicTag from "../../../components/TopicTag";
+import Scene from "../../../assets/discovery-scene.svg?raw";
+import { useTheme } from "../../../hooks/useTheme";
+import { discoverySceneSource } from "../../../utils/discoveryScene";
+import TrendIcon from "../../../assets/discovery-trend.svg";
+import FlameIcon from "../../../assets/discovery-flame.svg";
+import HeartIcon from "../../../assets/discovery-heart.svg";
+import WaterIcon from "../../../assets/discovery-node-water.svg";
+import WorkIcon from "../../../assets/discovery-node-work.svg";
+import CodeIcon from "../../../assets/discovery-node-code.svg";
+import HouseIcon from "../../../assets/discovery-node-house.svg";
+import CarIcon from "../../../assets/discovery-node-car.svg";
+import ChatIcon from "../../../assets/discovery-node-chat.svg";
+import FoodIcon from "../../../assets/discovery-node-food.svg";
+import CityIcon from "../../../assets/discovery-node-city.svg";
 import "./index.scss";
 
 interface DiscoveryProps {
@@ -42,6 +45,8 @@ const openNode = (slug: string, name: string) => Taro.navigateTo({
 });
 
 const Discovery = ({ active = false }: DiscoveryProps) => {
+  const { theme } = useTheme();
+  const scene = useMemo(() => discoverySceneSource(Scene, theme), [theme]);
   const { data: discoveryData, loading, request: fetchDiscovery } = useDataWithCache(getDiscoveryData);
   const isLoggedIn = !!getCachedUsername() && !discoveryData?.interestLoginRequired;
   const hotTopics = discoveryData?.hotTopics;
@@ -104,7 +109,8 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
     <View className={isSkyline() ? "discoveryPage discoveryPage--skyline" : "discoveryPage"} style={{ height: "100%" }}>
       <ScrollView type='custom' scrollY enhanced className='discoveryScroll'>
         <View className='discoveryHero'>
-          <Image src={Scene} mode='aspectFit' className='discoveryHeroScene' />
+          <Image src={scene} svg mode='aspectFit' className='discoveryHeroScene' />
+          <View className='discoveryHeroBlend' />
           <View className='discoveryHeroCopy'>
             <Text className='discoveryHeroTitle'>来过早客，聊武汉</Text>
             <Text className='discoveryHeroSubtitle'>工作 · 生活 · 买房 · 出行 · 吃喝玩乐</Text>
@@ -113,7 +119,7 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
 
         <View className='section section-hotTopics'>
           <View className='sectionHeader'>
-            <Image src={TrendIcon} mode='aspectFit' className='sectionIcon' />
+            <Image src={TrendIcon} svg mode='aspectFit' className='sectionIcon' />
             <Text className='sectionTitle'>热门讨论</Text>
           </View>
           <View className='hotTopicsList'>
@@ -141,7 +147,7 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
 
         <View className='section section-hotNodes'>
           <View className='sectionHeader'>
-            <Image src={FlameIcon} mode='aspectFit' className='sectionIcon' />
+            <Image src={FlameIcon} svg mode='aspectFit' className='sectionIcon' />
             <Text className='sectionTitle'>热门板块</Text>
             <View className='sectionMore' onClick={() => { setShowNodes(true); if (!groups.length) loadNodes(); }}>
               <Text>查看全部</Text><View className='sectionChevron sectionChevron--down' />
@@ -152,7 +158,7 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
               const slug = node.link?.match(/^\/node\/([^?#/]+)/)?.[1];
               return (
                 <View key={node.link} className='hotNodeTag' onClick={() => { if (slug) openNode(slug, node.title); }}>
-                  <Image src={nodeIcons[node.title] || WaterIcon} mode='aspectFit' className='hotNodeIcon' />
+                  <Image src={nodeIcons[node.title] || WaterIcon} svg mode='aspectFit' className='hotNodeIcon' />
                   <Text className='hotNodeText' overflow='ellipsis' maxLines={1}>{node.title}</Text>
                 </View>
               );
@@ -163,7 +169,7 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
 
         <View className='section section-interest'>
           <View className='sectionHeader'>
-            <Image src={HeartIcon} mode='aspectFit' className='sectionIcon' />
+            <Image src={HeartIcon} svg mode='aspectFit' className='sectionIcon' />
             <Text className='sectionTitle'>我的关注</Text>
             {isLoggedIn && <View className='sectionMore' onClick={() => Taro.navigateTo({ url: "/pages/home/index?tab=0&topicTab=interest" })}>
               <Text>查看更多</Text><View className='sectionChevron sectionChevron--purple' />
@@ -173,15 +179,15 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
             <View className='interestList'>
               {interestTopics.slice(0, 10).map(topic => (
                 <View key={topic.topicLink} className='interestItem' onClick={() => openTopic(topic.topicLink)}>
-                  <Image src={getFromLocalCache(topic.userAvatarUrl)} className='interestAvatar' mode='aspectFill' />
+                  <Image src={getFromLocalCache(topic.userAvatarUrl)} svg={topic.userAvatarUrl?.endsWith('/m_default.png')} className='interestAvatar' mode='aspectFill' />
                   <View className='interestMain'>
                     <Text className='interestTitle' overflow='ellipsis' maxLines={1}>{topic.title}</Text>
                     <View className='interestMeta'>
-                      <View className='interestCategory' onClick={event => {
+                      <TopicTag label={topic.category} onClick={event => {
                         event.stopPropagation();
                         const slug = topic.categoryLink?.match(/^\/node\/([^?#/]+)/)?.[1];
                         if (slug) openNode(slug, topic.category);
-                      }}><Text overflow='ellipsis' maxLines={1}>{topic.category}</Text></View>
+                      }} />
                       <Text className='interestTime' overflow='ellipsis' maxLines={1}>{topic.lastTouched} · {topic.commentCount || "0"} 评论</Text>
                     </View>
                   </View>

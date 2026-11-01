@@ -351,3 +351,139 @@
   .topicItem .topicTitle,
   .replyItem .replyContent { display: block; }
 }
+
+.userProfileDetail--me .profileCard .topRow {
+  // The profile card already reserves getNavInfo().appHeaderHeight above this row.
+  margin-top: 24rpx;
+}
+
+// Me-specific roles must not change the appearance of other members' profiles.
+.themePageHost--dark .userProfileDetail.userProfileDetail--me {
+  background: var(--theme-profile-bg, #000000);
+
+  .profileCard {
+    background: var(--theme-profile-bg, #000000);
+
+    .avatar {
+      background: var(--theme-profile-surface-alt, #2c2c2e);
+      box-shadow: none;
+    }
+
+    .nameBlock .username,
+    .stats .stat-value {
+      color: var(--theme-text-primary, #f2f2f2);
+    }
+
+    .nameBlock .nickname {
+      color: var(--theme-text-secondary, #d1d1d1);
+    }
+
+    .nameBlock .memberInfo,
+    .stats .stat-label {
+      color: var(--theme-text-tertiary, #a6a6aa);
+    }
+
+    .nameBlock .levelBadge {
+      background: var(--theme-profile-surface-alt, #2c2c2e);
+      color: var(--theme-text-secondary, #d1d1d1);
+    }
+
+    .editBtn {
+      background: var(--theme-profile-surface-alt, #2c2c2e);
+      color: var(--theme-accent-text, #8bb5ff);
+      border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.07));
+    }
+  }
+
+  .detailCard,
+  .tabCard {
+    background: var(--theme-profile-surface, #1c1c1e);
+    border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.07));
+    box-shadow: none;
+  }
+
+  .detailCard {
+    .cardTitle {
+      color: var(--theme-text-primary, #f2f2f2);
+    }
+
+    .detailRow {
+      border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.07));
+    }
+
+    .detailLabel {
+      color: var(--theme-text-tertiary, #a6a6aa);
+    }
+
+    .detailValue {
+      color: var(--theme-text-secondary, #d1d1d1);
+    }
+  }
+
+  .tabBar {
+    border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.07));
+
+    .tabLabel {
+      color: var(--theme-text-tertiary, #a6a6aa);
+    }
+
+    .tabItem--active .tabLabel {
+      color: var(--theme-accent-text, #8bb5ff);
+    }
+
+    .tabUnderline {
+      background: var(--theme-accent-primary, #3478ff);
+    }
+  }
+
+  .tabBody {
+    background: var(--theme-profile-surface, #1c1c1e);
+  }
+
+  .topicItem,
+  .replyItem {
+    padding: 22rpx 28rpx;
+    border-color: var(--theme-border-subtle, rgba(255, 255, 255, 0.07));
+
+    &:active {
+      background: var(--theme-profile-surface-alt, #2c2c2e);
+    }
+  }
+
+  .topicItem {
+    .topicTitle {
+      color: var(--theme-text-primary, #f2f2f2);
+    }
+
+    .topicMeta {
+      color: var(--theme-text-tertiary, #a6a6aa);
+      line-height: 1.4;
+    }
+
+    .topicCommentCount {
+      color: var(--theme-text-tertiary, #a6a6aa);
+      align-items: center;
+
+      image {
+        display: block;
+        flex-shrink: 0;
+        filter: none;
+      }
+    }
+  }
+
+  .replyItem {
+    .replyTitle,
+    .replyTitle text {
+      color: var(--theme-text-tertiary, #a6a6aa);
+    }
+
+    .replyContent {
+      color: var(--theme-text-primary, #f2f2f2);
+    }
+  }
+
+  .emptyTip {
+    color: var(--theme-text-tertiary, #a6a6aa);
+  }
+}

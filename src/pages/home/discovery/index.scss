@@ -225,22 +225,29 @@
     margin-top: 8rpx;
   }
 
-  .interestCategory {
-    min-width: 0;
-    max-width: 136rpx;
-    flex-shrink: 0;
-    padding: 1rpx 14rpx;
-    border: 1rpx solid #1f69ff;
-    border-radius: 24rpx;
-    font-size: 22rpx;
-    line-height: 1.4;
-    color: #0754d7;
-    background: var(--theme-brand-soft, #f1f7ff);
-  }
-
   .interestTime { min-width: 0; flex: 1; color: var(--theme-text-muted, #656c85); font-size: 22rpx; line-height: 1.4; }
   .discoveryStatus { display: block; padding: 28rpx 0; text-align: center; font-size: 24rpx; color: var(--theme-text-muted, #656c85); }
   .sectionBottomSpace { height: 48rpx; }
+}
+
+.themePageHost--dark .discoveryPage {
+  .discoveryHero {
+    background: var(--theme-background-secondary);
+    border: 1rpx solid var(--theme-border-subtle);
+    box-sizing: border-box;
+  }
+
+  .discoveryHeroBlend {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 446rpx;
+    pointer-events: none;
+    background: linear-gradient(90deg, var(--theme-background-secondary) 0%, rgba(var(--theme-surface-rgb), 0.86) 30%, rgba(var(--theme-surface-rgb), 0.28) 65%, transparent 100%);
+  }
+
+  .discoveryHeroSubtitle { color: var(--theme-text-tertiary); }
 }
 
 @keyframes discoveryTopicEnter {

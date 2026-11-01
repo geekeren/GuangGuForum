@@ -1,11 +1,12 @@
-import { View, Text, Image, ShareElement } from "@tarojs/components";
+import { View, Text, ShareElement } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { getNavInfo } from "../../utils/dimension";
 import { useTheme } from "../../hooks/useTheme";
 import { THEME_PALETTES } from "../../utils/themePreferences";
 import { isSkyline } from "../../utils/renderer";
-import ChevronLeftIcon from "../../assets/chevron-left.svg";
-import HomeIcon from "../../assets/nav-home.svg";
+import ThemedIcon from "../ThemedIcon";
+import ChevronLeftIcon from "../../assets/chevron-left.svg?raw";
+import HomeIcon from "../../assets/nav-home.svg?raw";
 import "./index.scss";
 
 interface Props {
@@ -72,13 +73,13 @@ const Navbar = (props: Props) => {
                       Taro.reLaunch({ url: "/pages/home/index" });
                     }
                   }}>
-                    <Image src={ChevronLeftIcon} svg className="navCapsuleIcon" />
+                    <ThemedIcon src={ChevronLeftIcon} tone='primary' lightColor='#333' className="navCapsuleIcon" />
                   </View>
                 )}
                 {back && home && <View className="navCapsuleDivider" />}
                 {home && (
                   <View className="navCapsuleBtn" style={{ width: singleBtnWidth + "px" }} onClick={() => Taro.reLaunch({ url: "/pages/home/index" })}>
-                    <Image src={HomeIcon} svg className="navCapsuleIcon" />
+                    <ThemedIcon src={HomeIcon} tone='primary' lightColor='#333' className="navCapsuleIcon" />
                   </View>
                 )}
               </View>

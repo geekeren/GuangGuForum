@@ -5,6 +5,10 @@ declare module "*.gif";
 declare module "*.jpg";
 declare module "*.jpeg";
 declare module "*.svg";
+declare module "*.svg?raw" {
+  const source: string;
+  export default source;
+}
 declare module "*.css";
 declare module "*.less";
 declare module "*.scss";

@@ -1,4 +1,4 @@
-import defaultAvatar from "../assets/m_default.png";
+import defaultAvatar from "../assets/m_default.svg";
 
 export const getFromLocalCache = (url: string) => {
   if (url.endsWith("/m_default.png")) {

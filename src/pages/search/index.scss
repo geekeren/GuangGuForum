@@ -121,7 +121,7 @@
 .searchField { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 16rpx; min-height: 80rpx; font-size: 26rpx; border-bottom: 1rpx solid var(--theme-border, #eef2f8); }
 .searchFieldLabel { width: 130rpx; color: var(--theme-text-muted, #656c85); }
 .searchFieldValue { display: block; color: var(--theme-text-primary, #10182d); padding: 12rpx 0; }
-.searchAuthor { flex: 1; min-width: 180rpx; font-size: 26rpx; }
+.searchAuthor { flex: 1; min-width: 180rpx; font-size: 26rpx; color: var(--theme-text-primary, #0f1626); }
 .searchNodeStatus { margin-bottom: 20rpx; font-size: 24rpx; color: var(--theme-text-muted, #656c85); line-height: 1.6; }
 .searchStatus, .searchNotice { display: block; margin: 0 4rpx 16rpx; font-size: 22rpx; line-height: 1.5; color: var(--theme-text-muted, #656c85); }
 .searchNotice { color: var(--theme-text-muted, #6b558c); }

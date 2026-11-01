@@ -15,10 +15,15 @@
 
 .tab-header {
   flex-shrink: 0;
-  // Only reserve the top inset and pills; the bottom gap scrolls with the list.
-  height: 64rpx;
+  // Keep a small gap below the pills even after the list scrolls.
+  height: 76rpx;
   box-sizing: border-box;
   padding-top: 10rpx;
+  padding-bottom: 12rpx;
+}
+
+.topicsContainer .topicListTopSpacer {
+  height: 16rpx;
 }
 
 .tab-scroll {

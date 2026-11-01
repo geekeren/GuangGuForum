@@ -3,6 +3,11 @@ import Taro from "@tarojs/taro";
 import { readFileSync } from "node:fs";
 import NodePicker from "../../components/NodePicker";
 import { isSkyline } from "../renderer";
+import { themeVariables } from "../themePreferences";
+
+const theme = vi.hoisted(() => ({ current: "dark" as "light" | "dark" }));
+vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: theme.current }) }));
+vi.mock("../CacheService", () => ({ cacheService: {}, CacheCategory: {} }));
 
 vi.mock("react", () => ({ useState: (value: any) => [value, vi.fn()], useEffect: vi.fn() }));
 vi.mock("@tarojs/components", () => ({ RootPortal: "RootPortal", View: "View", Text: "Text", ScrollView: "ScrollView" }));
@@ -14,12 +19,13 @@ function all(tree: any): any[] {
   return tree && typeof tree === "object" ? [tree, ...all(tree.props?.children)] : [];
 }
 function find(tree: any, name: string) { return all(tree).find(e => e.props.className === name)!.props; }
-beforeEach(() => { vi.clearAllMocks(); vi.mocked(isSkyline).mockReturnValue(true); });
+beforeEach(() => { vi.clearAllMocks(); theme.current = "dark"; vi.mocked(isSkyline).mockReturnValue(true); });
 describe("board picker bottom positioning", () => {
   it("uses the actual native viewport and explicitly anchors the sheet to its bottom", () => {
     const tree = NodePicker(props)!;
     expect(tree.type).toBe("RootPortal");
-    expect(tree.props.children.props.style).toEqual({ position: "fixed", top: 0, left: 0, width: "390px", height: "844px" });
+    expect(tree.props.children.props.style).toEqual({ ...themeVariables("dark"), position: "fixed", top: 0, left: 0, width: "390px", height: "844px" });
+    expect(tree.props.children.props.className).toContain("themeOverlay--dark");
     expect(find(tree, "nodePickerSheet").style).toEqual({ position: "absolute", top: "254px", left: 0, width: "390px", height: "590px" });
     expect(find(tree, "nodePickerScroll").style).toEqual({ paddingBottom: "calc(32rpx + 34px)" });
     const native = readFileSync("src/components/NodePicker/index.scss", "utf8").split(".nodePickerMask.nodePickerMask--skyline")[1];
@@ -42,10 +48,16 @@ describe("board picker bottom positioning", () => {
     vi.mocked(isSkyline).mockReturnValue(false);
     const tree = NodePicker(props)!;
     expect(tree.type).toBe("View");
-    expect(tree.props.style).toBeUndefined();
+    expect(tree.props.style).toEqual(themeVariables("dark"));
     expect(find(tree, "nodePickerSheet").style).toBeUndefined();
     expect(find(tree, "nodePickerScroll").style).toBeUndefined();
     expect(Taro.getWindowInfo).not.toHaveBeenCalled();
+  });
+  it("refreshes portal variables when switching back to light", () => {
+    theme.current = "light";
+    const mask = NodePicker(props)!.props.children.props;
+    expect(mask.className).toContain("themeOverlay--light");
+    expect(mask.style).toMatchObject(themeVariables("light"));
   });
   it("does not mount or query the viewport when hidden", () => {
     expect(NodePicker({ ...props, visible: false })).toBeNull();

@@ -2,6 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import Taro from "@tarojs/taro";
 import BottomSheet from "../../components/BottomSheet";
+import { themeVariables } from "../themePreferences";
+
+const theme = vi.hoisted(() => ({ current: "dark" as "light" | "dark" }));
+vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: theme.current }) }));
+vi.mock("../CacheService", () => ({ cacheService: {}, CacheCategory: {} }));
 
 const harness = vi.hoisted(() => ({ state: [] as any[], cursor: 0, effects: [] as (() => any)[] }));
 vi.mock("react", () => ({
@@ -27,14 +32,15 @@ function elements(tree: any): any[] {
   return tree && typeof tree === "object" ? [tree, ...elements(tree.props?.children)] : [];
 }
 function find(tree: any, name: string) { return elements(tree).find(e => String(e.props?.className || "").split(" ").includes(name))!.props; }
-beforeEach(() => { vi.clearAllMocks(); harness.state = []; vi.useFakeTimers(); vi.stubGlobal("getCurrentPages", () => [{ renderer: "skyline" }]); });
+beforeEach(() => { vi.clearAllMocks(); theme.current = "dark"; harness.state = []; vi.useFakeTimers(); vi.stubGlobal("getCurrentPages", () => [{ renderer: "skyline" }]); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("shared bottom sheet", () => {
   it("anchors a compact native panel to the bottom with a bounded body and safe-area footer", () => {
     const tree = render();
     expect(tree.type).toBe("RootPortal");
-    expect(find(tree, "bottomSheetMask").style).toMatchObject({ height: "932px", width: "430px" });
+    expect(find(tree, "bottomSheetMask").style).toEqual({ ...themeVariables("dark"), height: "932px", width: "430px" });
+    expect(find(tree, "bottomSheetMask").className).toContain("themeOverlay--dark");
     expect(find(tree, "bottomSheetPanel").style).toEqual({ top: "611px", height: "321px", width: "430px" });
     expect(find(tree, "bottomSheetBody")).toMatchObject({ type: "custom", scrollY: true, enhanced: true });
     expect(find(tree, "bottomSheetFooter").style.paddingBottom).toBe("calc(20rpx + 34px)");
@@ -43,6 +49,13 @@ describe("shared bottom sheet", () => {
     expect(css).toContain("border-radius: 28rpx 28rpx 0 0;");
     expect(css).toContain("animation: bottomSheetSlideUp 220ms ease-out;");
     expect(css).not.toMatch(/overflow: auto|position: sticky|display: grid/);
+  });
+  it("refreshes portal variables when the theme changes while open", () => {
+    render();
+    theme.current = "light";
+    const mask = find(render(), "bottomSheetMask");
+    expect(mask.className).toContain("themeOverlay--light");
+    expect(mask.style).toMatchObject(themeVariables("light"));
   });
   it("moves above the keyboard without an unsafe bottom inset and unsubscribes", () => {
     render();

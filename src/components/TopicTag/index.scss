@@ -1,0 +1,31 @@
+.topicTag {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 158rpx;
+  box-sizing: border-box;
+  padding: 4rpx 10rpx;
+  border-radius: 24rpx;
+  background: var(--theme-accent-muted, #e8efff);
+  color: var(--theme-accent-text, #0754d7);
+  font-size: 22rpx;
+  font-weight: 600;
+  line-height: 1.4;
+
+  .topicTagIcon {
+    width: 20rpx;
+    height: 20rpx;
+    margin-right: 6rpx;
+    flex-shrink: 0;
+  }
+
+  .topicTagText {
+    min-width: 0;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

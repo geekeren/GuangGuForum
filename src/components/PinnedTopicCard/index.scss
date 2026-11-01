@@ -1,0 +1,79 @@
+.homeAnnouncement {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 114rpx;
+  box-sizing: border-box;
+  margin: 0 22rpx 22rpx;
+  padding: 18rpx 26rpx;
+  border-radius: 24rpx;
+  overflow: hidden;
+  background: linear-gradient(115deg, var(--theme-surface, #f8fbff) 0%, var(--theme-surface-soft, #e5efff) 55%, var(--theme-brand-soft, #c7e8ff) 100%);
+
+  .homeAnnouncementIllustration {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 276rpx;
+    height: 114rpx;
+    opacity: 0.65;
+    pointer-events: none;
+  }
+
+  .homeAnnouncementIconWrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 44rpx;
+    height: 44rpx;
+    margin-right: 14rpx;
+    z-index: 1;
+  }
+
+  .homeAnnouncementIcon { width: 44rpx; height: 44rpx; }
+
+  .homeAnnouncementCopy {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    z-index: 1;
+  }
+
+  .homeAnnouncementTitle {
+    display: block;
+    color: var(--theme-text-primary, #080d18);
+    font-size: 30rpx;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: normal;
+    word-break: break-all;
+  }
+
+  .homeAnnouncementSubtitle {
+    display: block;
+    margin-top: 6rpx;
+    font-size: 22rpx;
+    line-height: 1.4;
+    color: var(--theme-text-sub, #353d51);
+  }
+}
+
+.themePageHost--dark {
+  .homeAnnouncement {
+    background: var(--theme-background-secondary);
+    border: 1rpx solid var(--theme-border-subtle);
+    padding: 17rpx 25rpx;
+  }
+
+  .homeAnnouncementIllustration { opacity: 0.82; }
+
+  .homeAnnouncementBlend {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 276rpx;
+    pointer-events: none;
+    background: linear-gradient(90deg, var(--theme-background-secondary) 0%, rgba(var(--theme-surface-rgb), 0.88) 24%, rgba(var(--theme-surface-rgb), 0.36) 62%, transparent 100%);
+  }
+}

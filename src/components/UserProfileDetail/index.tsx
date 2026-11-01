@@ -3,15 +3,16 @@ import { Image, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { UserProfile, URLS, urlPathVaiable, getUserFavorites, FavoriteTopic } from "guanggu-forum-api";
 import { getFromLocalCache } from "../../utils/localAssets";
-import Tag from "../Tag";
-import NodeIcon from "../../assets/topic_node.svg";
-import CommentIcon from "../../assets/comment.svg";
+import TopicTag from "../TopicTag";
+import CommentIcon from "../../assets/comment.svg?raw";
+import ThemedIcon from "../ThemedIcon";
 import Loading from "../Loading";
 import { isSkyline } from "../../utils/renderer";
 import "./index.scss";
 
 interface Props {
   profile: UserProfile;
+  className?: string;
   actions?: React.ReactNode;
   navPaddingTop?: number;
 }
@@ -24,7 +25,7 @@ const TAB_LIST = [
 
 type TabKey = (typeof TAB_LIST)[number]["key"];
 
-export default function UserProfileDetail({ profile, actions, navPaddingTop }: Props) {
+export default function UserProfileDetail({ profile, className = "", actions, navPaddingTop }: Props) {
   const skyline = isSkyline();
   const singleLine = skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {};
   const twoLines = skyline ? { overflow: "ellipsis", maxLines: 2 } as const : {};
@@ -57,15 +58,23 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
     }
   };
 
+  const renderTopicTag = (category: string) => {
+    const onClick = (e?: { stopPropagation?: () => void }) => {
+      e?.stopPropagation?.();
+      navigateToNode(`/node/${category}`, category);
+    };
+    return <TopicTag label={category} onClick={onClick} />;
+  };
+
   return (
-    <View className={`userProfileDetail${skyline ? " userProfileDetail--skyline" : ""}`}>
+    <View className={`userProfileDetail${skyline ? " userProfileDetail--skyline" : ""}${className ? ` ${className}` : ""}`}>
       {/* 头像 + 名 + ID + 操作 */}
       <View className="profileCard" style={{
         paddingTop: navPaddingTop,
       }}>
         <View className="topRow">
           <View className="avatar">
-            <Image src={getFromLocalCache(profile.avatarUrl)} />
+            <Image src={getFromLocalCache(profile.avatarUrl)} svg={profile.avatarUrl?.endsWith('/m_default.png')} />
           </View>
           <View className="nameBlock">
             <View className="nameRow">
@@ -161,20 +170,12 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                 >
                   <Text className="topicTitle" {...twoLines}>{topic.title}</Text>
                   <View className="topicMeta">
-                    <Tag
-                      onClick={(e) => {
-                        e?.stopPropagation?.();
-                        navigateToNode(`/node/${topic.category}`, topic.category);
-                      }}
-                    >
-                      <Image src={NodeIcon} svg className="tagIcon" />
-                      <Text style={{ display: "inline-block" }}>{topic.category}</Text>
-                    </Tag>
+                    {renderTopicTag(topic.category)}
                     <Text className="topicTime" {...singleLine}>
                       {topic.lastUpdated}
                     </Text>
                     <View className="topicCommentCount">
-                      <Image src={CommentIcon} svg />
+                      <ThemedIcon src={CommentIcon} tone='muted' lightColor='#000000' />
                       <Text>{topic.commentCount || 0}</Text>
                     </View>
                   </View>
@@ -218,20 +219,12 @@ export default function UserProfileDetail({ profile, actions, navPaddingTop }: P
                 >
                   <Text className="topicTitle" {...twoLines}>{topic.title}</Text>
                   <View className="topicMeta">
-                    <Tag
-                      onClick={(e) => {
-                        e?.stopPropagation?.();
-                        navigateToNode(`/node/${topic.category}`, topic.category);
-                      }}
-                    >
-                      <Image src={NodeIcon} svg className="tagIcon" />
-                      <Text style={{ display: "inline-block" }}>{topic.category}</Text>
-                    </Tag>
+                    {renderTopicTag(topic.category)}
                     <Text className="topicTime" {...singleLine}>
                       {topic.lastUpdated}
                     </Text>
                     <View className="topicCommentCount">
-                      <Image src={CommentIcon} svg />
+                      <ThemedIcon src={CommentIcon} tone='muted' lightColor='#000000' />
                       <Text>{topic.commentCount || 0}</Text>
                     </View>
                   </View>

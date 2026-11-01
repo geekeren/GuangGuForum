@@ -44,6 +44,7 @@ vi.mock("../CacheService", () => ({ cacheService: { get: () => harness.sortAsc, 
 vi.mock("../localAssets", () => ({ getFromLocalCache: (url: string) => url }));
 vi.mock("../auth", () => ({ openLoginModal: vi.fn() }));
 vi.mock("../../components/Navbar", () => ({ default: "Navbar" }));
+vi.mock("../../components/TopicTag", () => ({ default: "TopicTag" }));
 vi.mock("../../components/HtmlRender", () => ({ default: "HtmlRender" }));
 vi.mock("../../components/PullDownRefresh", () => ({ default: "PullDownRefresh" }));
 vi.mock("../../components/AddToDesktopGuide", () => ({ default: "Guide" }));
@@ -83,12 +84,15 @@ describe("compact topic detail reference contracts", () => {
     vi.stubGlobal("getCurrentPages", () => [{ renderer }]);
     const tree = render();
     expect(find(tree, "author").props.children).toBe("MixedCaseAuthor");
-    expect(find(tree, "topicCategoryLabel").props.children).toBe("IT 技术");
+    const category = elements(tree).find(e => e.type === "TopicTag")!;
+    expect(category.props.label).toBe("IT 技术");
+    expect(elements(tree).filter(e => e.type === "TopicTag")).toHaveLength(1);
+    expect(find(tree, "topicCategoryLabel")).toBeUndefined();
     expect(find(tree, "author").props.maxLines).toBe(renderer === "skyline" ? 1 : undefined);
     expect(find(tree, "moreInfo").props.children.props.children).toBe("5 天前");
     const footerValues = elements(find(tree, "extra")).filter(e => e.type === "Text").map(e => e.props.children);
     expect(footerValues).toEqual(["9 次浏览", "19 赞", "2 收藏"]);
-    find(tree, "topicCategory").props.onClick();
+    category.props.onClick();
     expect(Taro.navigateTo).toHaveBeenCalledWith({ url: "/pages/node/topicList/index?node=tech&nodeName=IT 技术" });
     for (const node of elements(tree).filter(e => e.type === "View")) {
       expect([node.props.children].flat(Infinity).some(child => typeof child === "string" || typeof child === "number")).toBe(false);

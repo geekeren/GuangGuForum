@@ -33,10 +33,20 @@ describe("restored original foundation", () => {
     expect(topics).toContain("background: linear-gradient(150deg, #4b8cff, #0754ee);");
     expect(home).not.toContain("background: $color-brand;");
   });
-  it("matches the four active navigation icons to the restored brand", () => {
-    expect(readFileSync("src/assets/home-active.svg", "utf8")).toContain(`fill="${BRAND_COLOR}"`);
-    for (const name of ["discover", "notification", "user"]) {
-      expect(readFileSync(`src/assets/${name}-active.svg`, "utf8")).toContain(`stroke="${BRAND_COLOR}"`);
+  it("resolves the four currentColor active navigation vectors from the restored brand", () => {
+    for (const [name, paint] of [["home", "fill"], ["discover", "stroke"], ["notification", "stroke"], ["user", "stroke"]]) {
+      const svg = readFileSync(`src/assets/${name}-active.svg`, "utf8");
+      expect(svg).toContain(`${paint}="currentColor"`);
+      expect(svg).not.toMatch(/<image\b|base64|data:image/i);
+      expect(svg).not.toContain(BRAND_COLOR);
     }
+    const home = readFileSync("src/pages/home/index.tsx", "utf8");
+    expect(home).toContain("<ThemedIcon src={(active ? tab.activeIcon : tab.icon)!}");
+    expect(home).toContain("tone={active ? 'accent' : 'secondary'}");
+    expect(home).toContain(`lightColor={active ? '${BRAND_COLOR}' : '#6b7488'}`);
+    const themedIcon = readFileSync("src/components/ThemedIcon/index.tsx", "utf8");
+    expect(themedIcon).toContain('accent: palette["accent-primary"]');
+    expect(themedIcon).toContain('theme === "light" && lightColor ? lightColor : roles[tone]');
+    expect(themedIcon).toContain("svgIconSource(src, resolvedColor)");
   });
 });

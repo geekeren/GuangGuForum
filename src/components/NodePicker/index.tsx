@@ -3,6 +3,8 @@ import Taro from "@tarojs/taro";
 import { useEffect, useState } from "react";
 import type { NodeGroup } from "guanggu-forum-api";
 import { isSkyline } from "../../utils/renderer";
+import { useTheme } from "../../hooks/useTheme";
+import { themeVariables } from "../../utils/themePreferences";
 import "./index.scss";
 
 interface NodePickerProps {
@@ -20,6 +22,7 @@ interface NodePickerProps {
 export default function NodePicker({
   visible, groups, selectedSlug, onSelect, onClose, allLabel, loading, error, onRetry,
 }: NodePickerProps) {
+  const { theme } = useTheme();
   const [present, setPresent] = useState(visible);
   const [closing, setClosing] = useState(false);
 
@@ -52,7 +55,7 @@ export default function NodePicker({
   const scrollStyle = windowInfo ? { paddingBottom: `calc(32rpx + ${safeBottom}px)` } : undefined;
 
   const overlay = (
-    <View className={`nodePickerMask${skyline ? " nodePickerMask--skyline" : ""}${closing ? " nodePickerMask--closing" : ""}`} style={maskStyle} onClick={onClose}>
+    <View className={`nodePickerMask themeOverlay--${theme}${skyline ? " nodePickerMask--skyline" : ""}${closing ? " nodePickerMask--closing" : ""}`} style={{ ...themeVariables(theme), ...maskStyle }} onClick={onClose}>
       <View className={`nodePickerSheet${closing ? " nodePickerSheet--closing" : ""}`} style={sheetStyle} onClick={(e) => e.stopPropagation()}>
         <View className='nodePickerHeader'>
           <Text className='nodePickerTitle'>选择板块</Text>

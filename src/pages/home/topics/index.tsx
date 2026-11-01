@@ -62,7 +62,7 @@ export default function Topics({ initialTab }: { initialTab?: string }) {
       Taro.createSelectorQuery()
         .select(`#list_container`)
         .boundingClientRect((res) => {
-          res?.height && setTabPaneHeight(Math.max(0, res.height - rpxToPx(64)));
+          res?.height && setTabPaneHeight(Math.max(0, res.height - rpxToPx(76)));
         })
         .exec();
     });

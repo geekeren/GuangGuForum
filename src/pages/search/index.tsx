@@ -12,18 +12,19 @@ import {
   NodeGroup,
 } from "guanggu-forum-api";
 import Navbar from "../../components/Navbar";
+import ThemedIcon from "../../components/ThemedIcon";
 import NodePicker from "../../components/NodePicker";
 import BottomSheet from "../../components/BottomSheet";
 import { getCachedNodeNavigation, fetchAndCacheNodeNavigation } from "../../utils/nodeNavigation";
 import SearchHotTopics from "../../components/SearchHotTopics";
-import NodeIcon from "../../assets/topic_node.svg";
+import TopicTag from "../../components/TopicTag";
 import NodesIcon from "../../assets/search-nodes.svg";
-import HistoryIcon from "../../assets/search-history.svg";
-import TrashIcon from "../../assets/search-trash.svg";
-import FilterIcon from "../../assets/search-filter.svg";
+import HistoryIcon from "../../assets/search-history.svg?raw";
+import TrashIcon from "../../assets/search-trash.svg?raw";
+import FilterIcon from "../../assets/search-filter.svg?raw";
 import { clearSearchHistory, getSearchHistory, rememberSearch, splitSearchHighlight } from "../../utils/searchPresentation";
-import SortIcon from "../../assets/search-sort.svg";
-import SearchIcon from "../../assets/search.svg";
+import SortIcon from "../../assets/search-sort.svg?raw";
+import SearchIcon from "../../assets/search.svg?raw";
 import { useSearchPlaceholder } from "../../hooks/useSearchPlaceholder";
 import { decodeSearchRouteValue, getPlaceholderTopicRoute } from "../../utils/searchRoute";
 import { isSkyline } from "../../utils/renderer";
@@ -309,7 +310,7 @@ export default function Search() {
         <View className='searchAdvanced'>
           <View className='searchField'>
             <Text className='searchFieldLabel'>主题作者</Text>
-            <Input className='searchAuthor' placeholder='用户名' maxlength={80} value={filters.author} adjustPosition={false} confirmType='search'
+            <Input className='searchAuthor' placeholderClass='searchPlaceholder' placeholder='用户名' maxlength={80} value={filters.author} adjustPosition={false} confirmType='search'
               onInput={(e) => changeFilter({ author: e.detail.value }, 350)} onConfirm={() => submit()}
             />
           </View>
@@ -331,7 +332,7 @@ export default function Search() {
       <Navbar back title='搜索' titleStyle={{ opacity: 1 }} />
       <View className='searchBody'>
         <View className='searchBar'>
-          <Image src={SearchIcon} svg className='searchBarIcon' />
+          <ThemedIcon src={SearchIcon} tone='secondary' lightColor='#000' className='searchBarIcon' />
           <Input
             className='searchBarInput'
             placeholder={placeholder}
@@ -367,23 +368,23 @@ export default function Search() {
             onChange={(e) => changeFilter({ sort: sorts[Number(e.detail.value)].value })}
           >
             <View className='searchFilter'>
-              <Image src={SortIcon} svg className='searchFilterIcon' />
+              <ThemedIcon src={SortIcon} tone='secondary' lightColor='#596579' className='searchFilterIcon' />
               <Text className='searchFilterValue' {...(skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {})}>{sorts.find((item) => item.value === filters.sort)?.label}</Text>
               <View className='searchFilterArrow' />
             </View>
           </Picker>
           <View className='searchAdvancedToggle' onClick={() => { Taro.hideKeyboard(); setAdvanced(true); }}>
-            <Image src={FilterIcon} svg className='searchAdvancedIcon' />
+            <ThemedIcon src={FilterIcon} tone='accent' lightColor='#0754ee' className='searchAdvancedIcon' />
             <Text>高级筛选</Text>
           </View>
         </View>
 
         {showHotTopics && history.length > 0 && <View className='searchHistory'>
           <View className='searchHistoryHeader'>
-            <Image src={HistoryIcon} svg className='searchHistoryIcon' />
+            <ThemedIcon src={HistoryIcon} tone='primary' lightColor='#10182d' className='searchHistoryIcon' />
             <Text className='searchHistoryTitle'>搜索历史</Text>
             <View className='searchHistoryClear' onClick={() => { clearSearchHistory(); setHistory([]); }}>
-              <Image src={TrashIcon} svg className='searchHistoryClearIcon' /><Text>清空</Text>
+              <ThemedIcon src={TrashIcon} tone='secondary' lightColor='#28324a' className='searchHistoryClearIcon' /><Text>清空</Text>
             </View>
           </View>
           <View className='searchHistoryTags'>
@@ -412,7 +413,7 @@ export default function Search() {
           {response?.results.map((result) => <View key={result.link} className='searchItem' onClick={() => openResult(result)}>
             <Text className='searchItemTitle'>{highlightedText(result.title, submitted.current?.q || keyword)}</Text>
             <View className='searchItemMeta'>
-              <View className='searchItemCategory'><Image src={NodeIcon} svg className='searchItemCategoryIcon' /><Text>{result.category}</Text></View>
+              <TopicTag label={result.category} />
               <Text className='searchMetaDot'>·</Text>
               <Text className='searchItemUser'>{result.username}</Text>
               <Text className='searchMetaDot'>·</Text>

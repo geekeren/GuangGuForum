@@ -28,6 +28,23 @@
 .bottomSheetMask--closing { animation: bottomSheetFadeOut 250ms ease forwards; }
 .bottomSheetPanel--closing { animation: bottomSheetSlideDown 250ms ease forwards; }
 .bottomSheetMask--skyline .bottomSheetPanel { bottom: auto; }
+.bottomSheetMask.themeOverlay--dark {
+  background: rgba(0, 0, 0, 0.6);
+
+  .bottomSheetPanel {
+    background: var(--theme-background-secondary);
+    border-top: 1rpx solid var(--theme-border-subtle);
+  }
+  .bottomSheetClose {
+    background: var(--theme-background-tertiary);
+    border-radius: 50%;
+    color: var(--theme-text-secondary);
+  }
+  .searchFilterToggle,
+  .searchBarClear { color: var(--theme-accent-text); }
+  .searchSubmit { background: var(--theme-accent-primary); }
+}
+
 @keyframes bottomSheetFadeOut { from { opacity: 1; } to { opacity: 0; } }
 @keyframes bottomSheetSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes bottomSheetSlideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }

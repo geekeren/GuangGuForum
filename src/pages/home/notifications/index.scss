@@ -129,10 +129,10 @@
     text-overflow: ellipsis;
     &:active { color: #0754ee; }
   }
-  .notificationBadge { flex-shrink: 0; padding: 4rpx 12rpx; border-radius: 10rpx; background: var(--theme-brand-soft, #eaf2ff); color: #0754ee; font-size: 21rpx; line-height: 1.4; }
+  .notificationBadge { flex-shrink: 0; padding: 4rpx 12rpx; border-radius: 10rpx; background: var(--theme-accent-muted, #e8efff); color: var(--theme-accent-text, #0754d7); font-size: 21rpx; line-height: 1.4; }
   .notificationTitle { display: block; font-size: 25rpx; color: var(--theme-text-muted, #68758d); line-height: 1.55; word-break: break-all; }
-  .notificationAction { color: var(--theme-text-muted, #68758d); }
-  .notificationTopicLink { color: var(--theme-text-sub, #34415d); font-weight: 500; &:active { color: #0754ee; } }
+  .notificationAction { color: var(--theme-accent-text, #0754d7); }
+  .notificationTopicLink { color: var(--theme-accent-text, #0754d7); font-weight: 500; &:active { opacity: 0.8; } }
 
   .notificationContent {
     margin-top: 16rpx;
@@ -149,8 +149,8 @@
       color: var(--theme-text-sub, #34415d);
       .h5-p { margin: 0 0 8rpx; }
       .h5-p:last-child { margin-bottom: 0; }
-      .h5-a, .html-link { color: #0754ee; font-size: 26rpx; }
-      .html-link--mention { background: transparent; padding: 0; border-radius: 0; }
+      .h5-a, .html-link { color: var(--theme-accent-text, #0754d7); font-size: 26rpx; }
+      .html-link--mention { background: var(--theme-accent-muted, #e8efff); padding: 0 6rpx; border-radius: 6rpx; }
     }
   }
 

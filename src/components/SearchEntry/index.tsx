@@ -1,6 +1,7 @@
-import { View, Text, Image } from "@tarojs/components";
+import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import SearchIcon from "../../assets/search.svg";
+import SearchIcon from "../../assets/search.svg?raw";
+import ThemedIcon from "../ThemedIcon";
 import { useSearchPlaceholder } from "../../hooks/useSearchPlaceholder";
 import { buildSearchRoute } from "../../utils/searchRoute";
 import "./index.scss";
@@ -20,7 +21,7 @@ export default function SearchEntry({ className = "", style, node, nodeName }: S
     <View className={`searchEntry ${className}`} style={style}
       onClick={() => Taro.navigateTo({ url })}
     >
-      <Image src={SearchIcon} svg className='searchIcon' />
+      <ThemedIcon src={SearchIcon} tone='muted' lightColor='#000000' className='searchIcon' />
       <Text className='searchText' overflow='ellipsis' maxLines={1}>{label}</Text>
     </View>
   );

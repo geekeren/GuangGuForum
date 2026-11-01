@@ -51,7 +51,7 @@
 }
 
 .md-link {
-  color: $color-brand;
+  color: var(--theme-accent-text, #0754d7);
   font-weight: 500;
 }
 
