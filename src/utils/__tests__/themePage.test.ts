@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import App from "../../app";
 import ThemePage from "../../components/ThemePage";
 
-vi.mock("@tarojs/components", () => ({ PageMeta: "PageMeta", NavigationBar: "NavigationBar" }));
+vi.mock("@tarojs/components", () => ({ PageMeta: "PageMeta", NavigationBar: "NavigationBar", View: "View" }));
 vi.mock("@tarojs/taro", () => ({ default: {} }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "dark", preference: "dark" }) }));
 vi.mock("../CacheService", () => ({ cacheService: {}, CacheCategory: { System: "system" } }));
@@ -39,7 +39,11 @@ describe("native theme metadata", () => {
     expect(meta.props.pageStyle).toContain("--theme-bg:#10141d");
     expect(meta.props.backgroundColor).toBe("#10141d");
     expect(meta.props.children.props.frontColor).toBe("#ffffff");
-    expect(content).toBe(body);
+    expect(content.type).toBe("View");
+    expect(content.props.className).toBe("themePageHost");
+    expect(content.props.style).toMatchObject({ "--theme-bg": "#10141d", "--theme-text-primary": "#edf2fc", width: "100%", minHeight: "100vh" });
+    expect(content.props.style).not.toHaveProperty("backgroundColor");
+    expect(content.props.children).toBe(body);
   });
   it("enables native metadata and dark configuration for every registered page", () => {
     const config = readFileSync("src/app.config.ts", "utf8");

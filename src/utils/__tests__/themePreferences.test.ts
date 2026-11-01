@@ -70,6 +70,8 @@ describe("appearance preferences", () => {
     expect(theme.themePageStyle("dark")).toContain("--theme-surface:#1b2230");
     expect(theme.themePageStyle("dark")).toContain("background-color:#10141d;color:#edf2fc");
     expect(theme.THEME_PALETTES.dark["icon-filter"]).not.toContain(" ");
+    expect(theme.themeVariables("dark")["--theme-bg"]).toBe("#10141d");
+    expect(Object.keys(theme.themeVariables("light"))).toEqual(Object.keys(theme.themeVariables("dark")));
   });
   it("falls back to light when system theme APIs are unavailable", async () => {
     vi.mocked(Taro.getAppBaseInfo).mockImplementation(() => { throw new Error("unsupported"); });

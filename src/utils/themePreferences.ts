@@ -95,6 +95,10 @@ export function startThemeListener(): () => void {
   };
   return stopSystemListener;
 }
+export function themeVariables(theme: ColorTheme): Record<string, string> {
+  return Object.fromEntries(Object.entries(THEME_PALETTES[theme])
+    .map(([name, value]) => [`--theme-${name}`, value]));
+}
 export function themePageStyle(theme: ColorTheme): string {
   const palette = THEME_PALETTES[theme];
   return Object.entries(palette).map(([name, value]) => `--theme-${name}:${value}`).join(";") +
