@@ -154,9 +154,12 @@ export default function Settings() {
       content: `确定要清除所有${label}吗？`,
     });
     if (confirm) {
-      cacheService.category(cat).clear();
-      refreshCacheStats();
-      Taro.showToast({ title: `${label}已清除`, icon: "success" });
+      try {
+        cacheService.category(cat).clear();
+        Taro.showToast({ title: `${label}已清除`, icon: "success" });
+      } catch {
+        Taro.showToast({ title: "部分缓存清理失败，请重试", icon: "none" });
+      } finally { refreshCacheStats(); }
     }
   };
 
@@ -166,9 +169,12 @@ export default function Settings() {
       content: "确定要清除缓存吗？登录状态等数据将保留。",
     });
     if (confirm) {
-      cacheService.clearAll(true);
-      refreshCacheStats();
-      Taro.showToast({ title: "缓存已清除", icon: "success" });
+      try {
+        cacheService.clearAll(true);
+        Taro.showToast({ title: "缓存已清除", icon: "success" });
+      } catch {
+        Taro.showToast({ title: "部分缓存清理失败，请重试", icon: "none" });
+      } finally { refreshCacheStats(); }
     }
   };
 
@@ -179,9 +185,12 @@ export default function Settings() {
       confirmColor: "#e74c3c",
     });
     if (confirm) {
-      cacheService.clearAll(false);
-      refreshCacheStats();
-      Taro.showToast({ title: "所有数据已清除", icon: "success" });
+      try {
+        cacheService.clearAll(false);
+        Taro.showToast({ title: "所有数据已清除", icon: "success" });
+      } catch {
+        Taro.showToast({ title: "数据清理失败，请重试", icon: "none" });
+      } finally { refreshCacheStats(); }
     }
   };
 

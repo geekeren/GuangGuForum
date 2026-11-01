@@ -24,7 +24,7 @@ function wrapPageElement(child: ReactNode): ReactNode {
 }
 import { setCacheService, setOnLoginRequired, setOnUnreadNotifications } from "guanggu-forum-api";
 import "./app.scss";
-import { cacheService, CACHE_UPGRADE_VERSION } from "./utils/CacheService";
+import { cacheService } from "./utils/CacheService";
 import { openLoginModal } from "./utils/auth";
 import { updateUnreadNotifications } from "./utils/unreadNotifications";
 
@@ -34,7 +34,7 @@ class App extends Component<{ children?: ReactNode }> {
   componentDidMount() {
     this.stopThemeListener = startThemeListener();
     setCacheService(cacheService);
-    cacheService.clearForUpgradeOnce(CACHE_UPGRADE_VERSION);
+    cacheService.migrateTopicCaches();
     setOnUnreadNotifications(updateUnreadNotifications);
     setOnLoginRequired(() => openLoginModal());
     if (cacheService.shouldRunDailyCleanup()) {

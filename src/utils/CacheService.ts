@@ -1,5 +1,6 @@
 import Taro from "@tarojs/taro";
 import type { ICacheService } from "guanggu-forum-api";
+import TopicFileCache, { isTopicFileKey } from "./TopicFileCache";
 
 const META_PREFIX = "__cache_meta_";
 const INDEX_KEY = "__cache_index__";
@@ -79,14 +80,7 @@ class CategoryAccessor {
   }
 
   clear(): number {
-    if (NON_CLEARABLE_CATEGORIES.has(this.category)) return 0;
-    const metas = this.cs.getAllMeta().filter((m) => m.category === this.category);
-    let removed = 0;
-    for (const meta of metas) {
-      this.cs.remove(meta.key);
-      removed++;
-    }
-    return removed;
+    return this.cs.clearCategory(this.category);
   }
 
   getAllMeta(): CacheMeta[] {
@@ -96,9 +90,11 @@ class CategoryAccessor {
 
 class CacheService implements ICacheService {
   private maxEntries: number;
+  private topicFiles: TopicFileCache;
 
   constructor(maxEntries = DEFAULT_MAX_ENTRIES) {
     this.maxEntries = maxEntries;
+    this.topicFiles = new TopicFileCache(maxEntries);
   }
 
   // ─── Category Access ───
@@ -116,6 +112,15 @@ class CacheService implements ICacheService {
   // ─── Core ───
 
   get<T = any>(key: string): T | null {
+    if (isTopicFileKey(key)) {
+      this.migrateTopicKey(key);
+      const entry = this.topicFiles.get(key);
+      if (!entry) {
+        this.reconcileFileIndex();
+        return null;
+      }
+      try { return JSON.parse(entry.payload) as T; } catch { return entry.payload as T; }
+    }
     this.ensureNotExpired(key);
     try {
       const raw = Taro.getStorageSync(key);
@@ -152,6 +157,19 @@ class CacheService implements ICacheService {
     const category = isSystemKey(key) ? CacheCategory.System : options.category;
     const clearable = !NON_CLEARABLE_CATEGORIES.has(category);
     const stored = typeof value === "string" ? value : JSON.stringify(value);
+
+    if (isTopicFileKey(key)) {
+      const success = this.topicFiles.set(key, stored, {
+        key, size: 0, createdAt: Date.now(), expiresAt: Date.now() + ttl,
+        priority, category: options.category,
+      });
+      if (success && this.topicFiles.getMeta(key)) {
+        this.removeLegacyTopicKey(key);
+        this.trackKey(key);
+        this.reconcileFileIndex();
+      }
+      return success;
+    }
 
     try {
       Taro.setStorageSync(key, stored);
@@ -193,6 +211,19 @@ class CacheService implements ICacheService {
     const clearable = !NON_CLEARABLE_CATEGORIES.has(category);
     const stored = typeof value === "string" ? value : JSON.stringify(value);
 
+    if (isTopicFileKey(key)) {
+      const success = await this.topicFiles.setAsync(key, stored, {
+        key, size: 0, createdAt: Date.now(), expiresAt: Date.now() + ttl,
+        priority, category: options.category,
+      });
+      if (success && this.topicFiles.getMeta(key)) {
+        this.removeLegacyTopicKey(key);
+        this.trackKey(key);
+        this.reconcileFileIndex();
+      }
+      return success;
+    }
+
     try {
       await Taro.setStorage({ key, data: stored });
     } catch (e) {
@@ -219,6 +250,15 @@ class CacheService implements ICacheService {
   }
 
   remove(key: string, force = false) {
+    if (isTopicFileKey(key)) {
+      // Cache invalidation must not turn a usable network response into an error.
+      if (!this.topicFiles.remove(key)) {
+        console.warn("[CacheService] topic invalidation deferred");
+        return;
+      }
+      this.removeLegacyTopicKey(key, false, true);
+      return;
+    }
     if (!force) {
       if (isSystemKey(key)) return;
       const meta = this.getMeta(key);
@@ -232,6 +272,14 @@ class CacheService implements ICacheService {
   // ─── Meta ───
 
   getMeta(key: string, strict = false): CacheMeta | null {
+    if (isTopicFileKey(key)) {
+      const meta = this.topicFiles.getMeta(key);
+      if (meta) return meta;
+    }
+    return this.getStorageMeta(key, strict);
+  }
+
+  private getStorageMeta(key: string, strict = false): CacheMeta | null {
     let raw: any;
     try {
       raw = Taro.getStorageSync(META_PREFIX + key);
@@ -260,7 +308,13 @@ class CacheService implements ICacheService {
       const meta = this.getMeta(key);
       if (meta) metas.push(meta);
     }
-    return metas;
+    for (const key of this.legacyTopicKeys()) {
+      const meta = this.getStorageMeta(key);
+      if (meta) metas.push(meta);
+    }
+    const byKey = new Map(metas.map(meta => [meta.key, meta]));
+    for (const meta of this.topicFiles.getAllMeta()) byKey.set(meta.key, meta);
+    return [...byKey.values()];
   }
 
   // ─── Expiration ───
@@ -277,6 +331,7 @@ class CacheService implements ICacheService {
     for (const meta of metas) {
       if (NON_CLEARABLE_CATEGORIES.has(meta.category)) continue;
       if (Date.now() > meta.expiresAt) {
+        if (isTopicFileKey(meta.key) && this.topicFiles.hasPending(meta.key)) continue;
         this.remove(meta.key);
         removed++;
       }
@@ -287,7 +342,13 @@ class CacheService implements ICacheService {
   // ─── Eviction ───
 
   evict(ratio = 0.2): number {
-    const metas = this.getAllMeta()
+    const storageMetas = this.getAllMeta().filter(m => !isTopicFileKey(m.key));
+    // Unmigrated legacy copies still occupy storage and are disposable there.
+    for (const key of new Set(this.legacyTopicKeys())) {
+      const meta = this.getStorageMeta(key);
+      if (meta) storageMetas.push(meta);
+    }
+    const metas = storageMetas
       .filter((m) => !NON_CLEARABLE_CATEGORIES.has(m.category))
       .sort((a, b) => {
         const p: Record<string, number> = { low: 0, normal: 1, high: 2 };
@@ -297,26 +358,50 @@ class CacheService implements ICacheService {
     const count = Math.max(10, Math.floor(metas.length * ratio));
     let removed = 0;
     for (let i = 0; i < count && i < metas.length; i++) {
-      this.remove(metas[i].key);
-      removed++;
+      const key = metas[i].key;
+      if (isTopicFileKey(key)) {
+        // Evict only the storage copy; never invalidate a file or pending write.
+        if (this.removeLegacyTopicKey(key)) removed++;
+      } else { this.remove(key); removed++; }
     }
     return removed;
   }
 
+  clearCategory(category: CacheCategory): number {
+    if (NON_CLEARABLE_CATEGORIES.has(category)) return 0;
+    const metas = this.getAllMeta().filter(meta => meta.category === category);
+    // Invalidate pending writes before enumerating/deleting published entries.
+    let removed = this.topicFiles.clear(category);
+    for (const meta of metas) {
+      if (isTopicFileKey(meta.key)) this.removeLegacyTopicKey(meta.key, true, true);
+      else { this.remove(meta.key); removed++; }
+    }
+    for (const key of this.legacyTopicKeys()) {
+      if (this.getStorageMeta(key)?.category === category) this.removeLegacyTopicKey(key, true, true);
+    }
+    this.reconcileFileIndex();
+    return removed;
+  }
+
   clearAll(onlyClearable = true): number {
+    const metas = this.getAllMeta();
+    // A failed file cleanup must not proceed to erase account storage.
+    let removed = this.topicFiles.clear();
     if (onlyClearable) {
-      const metas = this.getAllMeta();
-      let removed = 0;
       for (const meta of metas) {
         if (NON_CLEARABLE_CATEGORIES.has(meta.category)) continue;
-        this.remove(meta.key, false);
-        removed++;
+        if (isTopicFileKey(meta.key)) this.removeLegacyTopicKey(meta.key, true, true);
+        else { this.remove(meta.key, false); removed++; }
       }
+      for (const key of this.legacyTopicKeys()) {
+        if (this.getStorageMeta(key)?.category !== CacheCategory.System) this.removeLegacyTopicKey(key, true, true);
+      }
+      this.reconcileFileIndex();
       return removed;
     }
     Taro.clearStorageSync();
     this.saveIndex({ keys: [] });
-    return 0;
+    return removed;
   }
 
   clearForUpgradeOnce(version: string): boolean {
@@ -340,6 +425,7 @@ class CacheService implements ICacheService {
         // Untracked, unknown storage is not evidence that a value is disposable.
         if (meta || isLegacyBusinessKey(key)) disposable.push(key);
       }
+      this.topicFiles.clear();
       for (const key of disposable) {
         Taro.removeStorageSync(key);
         Taro.removeStorageSync(META_PREFIX + key);
@@ -361,7 +447,7 @@ class CacheService implements ICacheService {
   }
 
   getEntryCount(): number {
-    return this.getIndex().keys.length;
+    return new Set([...this.getIndex().keys, ...this.topicFiles.getAllMeta().map(meta => meta.key)]).size;
   }
 
   getStats(): { entryCount: number; totalSize: number; clearableCount: number; nonClearableCount: number; expiredCount: number } {
@@ -374,6 +460,83 @@ class CacheService implements ICacheService {
       nonClearableCount: metas.filter((m) => NON_CLEARABLE_CATEGORIES.has(m.category)).length,
       expiredCount: metas.filter((m) => now > m.expiresAt).length,
     };
+  }
+
+  // Move only disposable reading payloads; indexes remain in storage.
+  migrateTopicCaches() {
+    let keys: string[];
+    try {
+      keys = [...new Set([...Taro.getStorageInfoSync().keys, ...this.getIndex().keys])]
+        .filter(isTopicFileKey);
+    } catch { return; }
+    let cursor = 0;
+    const batch = () => {
+      for (let end = Math.min(cursor + 10, keys.length); cursor < end; cursor++) {
+        this.migrateTopicKey(keys[cursor]);
+      }
+      if (cursor < keys.length) setTimeout(batch, 0);
+      else this.reconcileFileIndex();
+    };
+    setTimeout(batch, 0);
+  }
+
+  private legacyTopicKeys(): string[] {
+    try {
+      return Taro.getStorageInfoSync().keys
+        .map(key => key.startsWith(META_PREFIX) ? key.slice(META_PREFIX.length) : key)
+        .filter(isTopicFileKey);
+    } catch { return []; }
+  }
+
+  private migrateTopicKey(key: string) {
+    if (this.topicFiles.hasPending(key)) return;
+    // Never remove the migration source based only on cached disk metadata.
+    const current = this.topicFiles.get(key);
+    if (current) {
+      this.removeLegacyTopicKey(key);
+      this.trackKey(key);
+      return;
+    }
+    const meta = this.getStorageMeta(key);
+    if (!meta || meta.category === CacheCategory.System) return;
+    if (Date.now() > meta.expiresAt) {
+      this.removeLegacyTopicKey(key);
+      return;
+    }
+    try {
+      const raw = Taro.getStorageSync(key);
+      if (!raw) return;
+      const payload = typeof raw === "string" ? raw : JSON.stringify(raw);
+      if (this.topicFiles.set(key, payload, meta)) {
+        this.removeLegacyTopicKey(key);
+        this.trackKey(key);
+      }
+    } catch { console.warn("[CacheService] topic migration deferred"); }
+  }
+
+  private removeLegacyTopicKey(key: string, strict = false, untrack = false): boolean {
+    try {
+      Taro.removeStorageSync(key);
+      Taro.removeStorageSync(META_PREFIX + key);
+      if (untrack) this.untrackKey(key);
+      return true;
+    } catch {
+      if (strict) throw new Error("旧帖子缓存清理失败");
+      console.warn("[CacheService] legacy topic cleanup deferred");
+      return false;
+    }
+  }
+
+  private reconcileFileIndex() {
+    try {
+      const fileKeys = this.topicFiles.getAllMeta().map(meta => meta.key);
+      const index = this.getIndex(true);
+      index.keys = [...new Set([
+        ...index.keys.filter(key => !isTopicFileKey(key) || fileKeys.includes(key) || this.getStorageMeta(key, true)),
+        ...fileKeys,
+      ])];
+      this.saveIndex(index);
+    } catch { console.warn("[CacheService] file index reconciliation deferred"); }
   }
 
   // ─── Daily cleanup ───
@@ -392,7 +555,8 @@ class CacheService implements ICacheService {
 
   dailyCleanup() {
     setTimeout(() => {
-      this.removeExpired();
+      this.topicFiles.cleanup();
+      try { this.removeExpired(); } catch { console.warn("[CacheService] cleanup incomplete"); }
       const index = this.getIndex();
       const validKeys: string[] = [];
       for (const key of index.keys) {
@@ -400,8 +564,9 @@ class CacheService implements ICacheService {
         if (!meta) continue;
         if (NON_CLEARABLE_CATEGORIES.has(meta.category)) { validKeys.push(key); continue; }
         try {
-          const val = Taro.getStorageSync(key);
-          if (val) validKeys.push(key);
+          if (isTopicFileKey(key)) {
+            if (this.topicFiles.getMeta(key) || this.getStorageMeta(key)) validKeys.push(key);
+          } else if (Taro.getStorageSync(key)) validKeys.push(key);
         } catch (e) {
           console.warn("[CacheService] dailyCleanup check failed", key, e);
         }
@@ -466,7 +631,9 @@ class CacheService implements ICacheService {
   }
 
   private trackKey(key: string) {
-    const index = this.getIndex();
+    let index: CacheIndex;
+    try { index = this.getIndex(true); }
+    catch { console.warn("[CacheService] index update deferred"); return; }
     const idx = index.keys.indexOf(key);
     if (idx !== -1) index.keys.splice(idx, 1);
     index.keys.push(key);
@@ -478,7 +645,9 @@ class CacheService implements ICacheService {
   }
 
   private untrackKey(key: string) {
-    const index = this.getIndex();
+    let index: CacheIndex;
+    try { index = this.getIndex(true); }
+    catch { console.warn("[CacheService] index removal deferred"); return; }
     const idx = index.keys.indexOf(key);
     if (idx !== -1) {
       index.keys.splice(idx, 1);
