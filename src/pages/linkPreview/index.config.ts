@@ -1,4 +1,5 @@
 export default definePageConfig({
+  enablePageMeta: true,
   navigationStyle: "custom",
   renderer: "skyline",
   disableScroll: true,

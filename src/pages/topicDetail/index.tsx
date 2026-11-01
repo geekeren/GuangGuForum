@@ -28,7 +28,8 @@ import Navbar from "../../components/Navbar";
 import { getFromLocalCache } from "../../utils/localAssets";
 import { cacheService, CacheCategory } from "../../utils/CacheService";
 import { rpxToPx } from "../../utils/dimension";
-import { SURFACE_RGB } from "../../utils/theme";
+import { useTheme } from "../../hooks/useTheme";
+import { getThemeSnapshot, subscribeTheme } from "../../utils/themePreferences";
 import { isSkyline } from "../../utils/renderer";
 import { trimStrings } from "../../utils/trimStrings";
 import { formatReplySummary } from "../../utils/replySummary";
@@ -66,6 +67,8 @@ const Index = () => {
   const locatedRouteRef = useRef("");
   const workletReady = useRef(false);
   const scrollProgressSV = useRef<any>(null);
+  const navbarDarkSV = useRef<any>(null);
+  const { theme } = useTheme();
   const pullDownRef = useRef<PullDownRefreshRef>(null);
   const router = useRouter();
   const skyline = isSkyline();
@@ -82,6 +85,8 @@ const Index = () => {
       const sv = (Taro as any).worklet.shared(0);
       page._scrollProgress = sv;
       scrollProgressSV.current = sv;
+      const dark = (Taro as any).worklet.shared(getThemeSnapshot().theme === "dark");
+      navbarDarkSV.current = dark;
 
       Taro.nextTick(() => {
         page.applyAnimatedStyle(".customNavbar", () => {
@@ -89,7 +94,7 @@ const Index = () => {
           const p = Math.min(Math.max(sv.value, 0), 1);
           return {
             backdropFilter: `blur(${p * 20}px)`,
-            backgroundColor: `rgba(${SURFACE_RGB}, ${p * 0.85})`,
+            backgroundColor: `rgba(${dark.value ? "27, 34, 48" : "255, 255, 255"}, ${p * 0.85})`,
           };
         });
 
@@ -97,6 +102,13 @@ const Index = () => {
       });
     }
   });
+  useEffect(() => {
+    const updateNavbarTheme = () => {
+      if (navbarDarkSV.current) navbarDarkSV.current.value = getThemeSnapshot().theme === "dark";
+    };
+    updateNavbarTheme();
+    return subscribeTheme(updateNavbarTheme);
+  }, [theme]);
   const { p, replyId, floor, commentMessage } = router.params;
   const replyRouteKey = JSON.stringify([tid, p, replyId, floor, commentMessage, refreshTime]);
 

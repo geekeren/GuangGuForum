@@ -12,7 +12,10 @@ const config = {
   plugins: [require.resolve("./viteHooks")],
   defineConstants: {},
   copy: {
-    patterns: [{ from: "sitemap.json", to: "dist/sitemap.json" }],
+    patterns: [
+      { from: "sitemap.json", to: "dist/sitemap.json" },
+      { from: "src/theme.json", to: "dist/theme.json" },
+    ],
     options: {},
   },
   framework: "react",

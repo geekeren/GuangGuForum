@@ -31,7 +31,7 @@
     overflow: hidden;
 
     &:active {
-      background: #f9fbff;
+      background: var(--theme-surface-hover, #f9fbff);
     }
 
     .titleContent {
@@ -44,7 +44,7 @@
       font-size: 30rpx;
       font-weight: 600;
       line-height: 1.4;
-      color: #080d18;
+      color: var(--theme-text-primary, #080d18);
       overflow: hidden;
       text-overflow: ellipsis;
       display: -webkit-box;
@@ -82,7 +82,7 @@
         font-size: 22rpx;
         font-weight: 600;
         color: #0754d7;
-        background: #e4eeff;
+        background: var(--theme-brand-soft, #e4eeff);
         padding: 4rpx 10rpx;
         border-radius: 24rpx;
         line-height: 1.4;
@@ -130,7 +130,7 @@
           flex-shrink: 1;
           margin-left: 8rpx;
           font-size: 23rpx;
-          color: #50576a;
+          color: var(--theme-text-sub, #50576a);
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -141,7 +141,7 @@
         min-width: 0;
         flex-shrink: 1;
         font-size: 22rpx;
-        color: #656c85;
+        color: var(--theme-text-muted, #656c85);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -152,7 +152,7 @@
         flex-direction: row;
         align-items: center;
         flex-shrink: 0;
-        color: #242b43;
+        color: var(--theme-text-sub, #242b43);
         font-size: 23rpx;
 
         .commentCount {
@@ -162,6 +162,7 @@
       }
 
       .commentIcon {
+        filter: var(--theme-icon-filter, none);
         width: 30rpx;
         height: 30rpx;
         margin-right: 10rpx;
@@ -182,7 +183,7 @@
   padding: 18rpx 26rpx;
   border-radius: 24rpx;
   overflow: hidden;
-  background: linear-gradient(115deg, #f8fbff 0%, #e5efff 55%, #c7e8ff 100%);
+  background: linear-gradient(115deg, var(--theme-surface, #f8fbff) 0%, var(--theme-surface-soft, #e5efff) 55%, var(--theme-brand-soft, #c7e8ff) 100%);
 
   .homeAnnouncementIllustration {
     position: absolute;
@@ -214,7 +215,7 @@
 
   .homeAnnouncementTitle {
     display: block;
-    color: #080d18;
+    color: var(--theme-text-primary, #080d18);
     font-size: 30rpx;
     font-weight: 600;
     line-height: 1.4;
@@ -227,7 +228,7 @@
     margin-top: 6rpx;
     font-size: 22rpx;
     line-height: 1.4;
-    color: #353d51;
+    color: var(--theme-text-sub, #353d51);
   }
 }
 

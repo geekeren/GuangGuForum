@@ -26,7 +26,7 @@
   }
 
   &--topics {
-    background: linear-gradient(180deg, #e7efff 0%, #f4f7ff 36%, #edf3ff 100%);
+    background: linear-gradient(180deg, var(--theme-brand-soft, #e7efff) 0%, var(--theme-surface-soft, #f4f7ff) 36%, var(--theme-bg, #edf3ff) 100%);
 
     .navContent {
       justify-content: flex-start;
@@ -36,14 +36,14 @@
     .navTitle {
       font-size: 34rpx;
       padding: 0;
-      color: #080d18;
+      color: var(--theme-text-primary, #080d18);
     }
 
     .searchEntry {
-      background: rgba(255, 255, 255, 0.78);
+      background: rgba(var(--theme-surface-rgb, 255, 255, 255), 0.78);
       border: none;
       padding: 0 28rpx;
-      color: #656c7e;
+      color: var(--theme-text-muted, #656c7e);
       font-size: 24rpx;
 
       .searchIcon { width: 28rpx; height: 28rpx; }
@@ -52,10 +52,10 @@
   }
 
   &--discovery {
-    background: linear-gradient(180deg, #eef3ff 0%, #f4f7ff 100%);
+    background: linear-gradient(180deg, var(--theme-brand-soft, #eef3ff) 0%, var(--theme-surface-soft, #f4f7ff) 100%);
 
     .navContent { justify-content: flex-start; }
-    .navTitle { padding: 0; color: #080d18; }
+    .navTitle { padding: 0; color: var(--theme-text-primary, #080d18); }
   }
 
   .tabContent {
@@ -126,12 +126,13 @@
     .tabIcon {
       width: 44rpx;
       height: 44rpx;
+      filter: var(--theme-icon-filter, none);
     }
 
     .tabTitle {
       font-size: 24rpx;
       line-height: 1.3;
-      color: #656c7e;
+      color: var(--theme-text-muted, #656c7e);
       margin-top: 6rpx;
       font-weight: 400;
       transition: color 160ms ease-out;
@@ -139,6 +140,8 @@
 
     &--active {
       position: relative;
+
+      .tabIcon { filter: none; }
 
       .tabTitle {
         color: $color-brand;

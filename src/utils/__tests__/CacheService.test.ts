@@ -108,6 +108,7 @@ describe("CacheService", () => {
       const history = ["真实查询"];
       store.set("search_preferences", preferences);
       store.set("search_history", history);
+      store.set("theme_preference", "dark");
       store.set("password", "fixture-only");
       store.set("access_token", "fixture-only");
       store.set("custom_state", { keep: true });
@@ -116,6 +117,7 @@ describe("CacheService", () => {
       expect(cs.clearForUpgradeOnce("v3")).toBe(true);
       expect(store.get("search_preferences")).toBe(preferences);
       expect(store.get("search_history")).toBe(history);
+      expect(store.get("theme_preference")).toBe("dark");
       expect(store.has("password")).toBe(true);
       expect(store.has("access_token")).toBe(true);
       expect(store.has("refresh_token")).toBe(true);

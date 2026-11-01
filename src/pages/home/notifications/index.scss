@@ -3,7 +3,7 @@
 .notificationsPage {
   display: flex;
   flex-direction: column;
-  background: #f5f8ff;
+  background: var(--theme-surface-soft, #f5f8ff);
   overflow: hidden;
   min-height: 0;
 
@@ -18,8 +18,8 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-    background: #fff;
-    border-bottom: 1rpx solid #e8edf5;
+    background: var(--theme-surface, #fff);
+    border-bottom: 1rpx solid var(--theme-border, #e8edf5);
     margin-bottom: 18rpx;
   }
 
@@ -52,7 +52,7 @@
   }
 
   .notificationTabIcon { width: 34rpx; height: 34rpx; flex-shrink: 0; }
-  .notificationTabLabel { font-size: 27rpx; line-height: 1.4; font-weight: 500; color: #8792a6; }
+  .notificationTabLabel { font-size: 27rpx; line-height: 1.4; font-weight: 500; color: var(--theme-text-faint, #8792a6); }
   .notificationTabDot { width: 12rpx; height: 12rpx; border-radius: 50%; background: #ff5149; }
 
   .loginPromptWrap {
@@ -94,11 +94,11 @@
     align-items: flex-start;
     margin: 0 22rpx 18rpx;
     padding: 26rpx 22rpx;
-    background: #fff;
+    background: var(--theme-surface, #fff);
     border-radius: 28rpx;
-    box-shadow: 0 6rpx 20rpx rgba(64, 93, 150, 0.04);
+    box-shadow: var(--theme-shadow-sm, 0 6rpx 20rpx rgba(64, 93, 150, 0.04));
     animation: notificationReveal 180ms ease-out;
-    &:active { background: #fbfdff; }
+    &:active { background: var(--theme-surface-hover, #fbfdff); }
   }
 
   .notificationAvatar {    flex-shrink: 0;
@@ -110,7 +110,7 @@
       width: 70rpx;
       height: 70rpx;
       border-radius: 24rpx;
-      background: #eff3fb;
+      background: var(--theme-surface-alt, #eff3fb);
     }
   }
 
@@ -120,7 +120,7 @@
     display: block;
     min-width: 0;
     flex-shrink: 1;
-    color: #10182d;
+    color: var(--theme-text-primary, #10182d);
     font-size: 29rpx;
     font-weight: 700;
     line-height: 1.4;
@@ -129,24 +129,24 @@
     text-overflow: ellipsis;
     &:active { color: #0754ee; }
   }
-  .notificationBadge { flex-shrink: 0; padding: 4rpx 12rpx; border-radius: 10rpx; background: #eaf2ff; color: #0754ee; font-size: 21rpx; line-height: 1.4; }
-  .notificationTitle { display: block; font-size: 25rpx; color: #68758d; line-height: 1.55; word-break: break-all; }
-  .notificationAction { color: #68758d; }
-  .notificationTopicLink { color: #34415d; font-weight: 500; &:active { color: #0754ee; } }
+  .notificationBadge { flex-shrink: 0; padding: 4rpx 12rpx; border-radius: 10rpx; background: var(--theme-brand-soft, #eaf2ff); color: #0754ee; font-size: 21rpx; line-height: 1.4; }
+  .notificationTitle { display: block; font-size: 25rpx; color: var(--theme-text-muted, #68758d); line-height: 1.55; word-break: break-all; }
+  .notificationAction { color: var(--theme-text-muted, #68758d); }
+  .notificationTopicLink { color: var(--theme-text-sub, #34415d); font-weight: 500; &:active { color: #0754ee; } }
 
   .notificationContent {
     margin-top: 16rpx;
     padding: 18rpx 20rpx;
-    background: #f0f5fd;
+    background: var(--theme-surface-alt, #f0f5fd);
     border-radius: 18rpx;
     font-size: 26rpx;
-    color: #34415d;
+    color: var(--theme-text-sub, #34415d);
     overflow: hidden;
 
     .htmlWrap .html {
       font-size: 26rpx;
       line-height: 1.55;
-      color: #34415d;
+      color: var(--theme-text-sub, #34415d);
       .h5-p { margin: 0 0 8rpx; }
       .h5-p:last-child { margin-bottom: 0; }
       .h5-a, .html-link { color: #0754ee; font-size: 26rpx; }

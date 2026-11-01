@@ -1,7 +1,8 @@
 import { View, Text, Image, ShareElement } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { getNavInfo } from "../../utils/dimension";
-import { SURFACE_RGB } from "../../utils/theme";
+import { useTheme } from "../../hooks/useTheme";
+import { THEME_PALETTES } from "../../utils/themePreferences";
 import { isSkyline } from "../../utils/renderer";
 import ChevronLeftIcon from "../../assets/chevron-left.svg";
 import HomeIcon from "../../assets/nav-home.svg";
@@ -24,6 +25,8 @@ interface Props {
 
 const Navbar = (props: Props) => {
   const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, left = false, shareKey, shared = true, leftAction, children } = props;
+  const { theme } = useTheme();
+  const surfaceRGB = THEME_PALETTES[theme]["surface-rgb"];
   const { capsulePaddingTop, capsuleHeight, capsuleWidth, capsuleLeft, screenWidth, statusBarHeight, marginSides } = getNavInfo();
   const paddingRight = screenWidth - capsuleLeft + Math.max(marginSides, 12);
   const singleBtnWidth = (capsuleWidth - 0.5) / 2;
@@ -39,7 +42,7 @@ const Navbar = (props: Props) => {
     : {
         paddingTop: inModal ? 0 : statusBarHeight + "px",
         backdropFilter: `blur(${p * 20}px)`,
-        backgroundColor: `rgba(${SURFACE_RGB}, ${p * 0.85})`,
+        backgroundColor: `rgba(${surfaceRGB}, ${p * 0.85})`,
       };
 
   const defaultTitleStyle = workletDriven

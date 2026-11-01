@@ -56,6 +56,7 @@ vi.mock("../../components/MarkdownRender", () => ({ default: "MarkdownRender" })
 vi.mock("../../components/Loading", () => ({ default: "Loading" }));
 vi.mock("../../components/Tag", () => ({ default: "Tag" }));
 vi.mock("../../components/AddToDesktopGuide", () => ({ default: "Guide", checkMiniProgramAdded: vi.fn() }));
+vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
 vi.mock("../../hooks/useSearchPlaceholder", () => ({ useSearchPlaceholder: () => ({ placeholder: "热议标题" }) }));
 vi.mock("../../hooks/useCurrentUsername", () => ({ useCurrentUsername: () => ({ username: harness.username, loading: harness.checkingLogin, error: harness.loginError }) }));
 vi.mock("../../hooks/useDataWithCache", () => ({ useDataWithCache: () => ({ data: harness.profile, request: vi.fn() }) }));

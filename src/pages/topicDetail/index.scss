@@ -1,7 +1,7 @@
 @import "../../vars.scss";
 
 .topicDetail {
-  background: linear-gradient(180deg, #eff3fc 0%, #f5f7fc 100%);
+  background: linear-gradient(180deg, var(--theme-surface-soft, #eff3fc) 0%, var(--theme-bg, #f5f7fc) 100%);
   height: 100vh;
   flex-direction: column;
   display: flex;
@@ -182,13 +182,13 @@
       max-width: 180rpx;
       padding: 6rpx 12rpx;
       border-radius: 12rpx;
-      background: #eaf0ff;
+      background: var(--theme-brand-soft, #eaf0ff);
       color: $color-brand-dark;
       font-size: 23rpx;
       font-weight: 600;
       line-height: 1.4;
       box-sizing: border-box;
-      &:active { background: #dce7ff; }
+      &:active { background: var(--theme-surface-hover, #dce7ff); }
     }
 
     .topicCategoryLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -247,6 +247,7 @@
         }
 
         .sortIcon {
+          filter: var(--theme-icon-filter, none);
           width: 28rpx;
           height: 28rpx;
         }
@@ -314,7 +315,7 @@
           flex-shrink: 0;
           padding: 2rpx 8rpx;
           border-radius: 8rpx;
-          background: #f0f2f7;
+          background: var(--theme-surface-alt, #f0f2f7);
           color: $text-muted;
           font-size: 21rpx;
           line-height: 1.4;
@@ -364,6 +365,7 @@
             }
 
             image {
+              filter: var(--theme-icon-filter, none);
               margin-right: 4rpx;
               width: 28rpx;
               height: 28rpx;
@@ -432,7 +434,7 @@
     min-height: 112rpx;
     height: calc(88rpx + env(safe-area-inset-bottom));
     flex-shrink: 0;
-    box-shadow: 0 -4rpx 16rpx rgba(15, 22, 38, 0.06);
+    box-shadow: var(--theme-shadow-sm, 0 -4rpx 16rpx rgba(15, 22, 38, 0.06));
     display: flex;
     flex-direction: row;
     justify-content: center;
@@ -467,6 +469,7 @@
       margin-left: 16rpx;
 
       .commentIcon {
+        filter: var(--theme-icon-filter, none);
         width: 40rpx;
         height: 40rpx;
         display: inline-block;

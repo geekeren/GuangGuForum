@@ -4,7 +4,7 @@
   // 保留蓝色个人页头，以更轻的渐变衬托资料。
   .profileCard {
     position: relative;
-    background: linear-gradient(180deg, #e0eaff 0%, #edf3ff 60%, $bgColor 100%);
+    background: linear-gradient(180deg, var(--theme-brand-soft, #e0eaff) 0%, var(--theme-surface-soft, #edf3ff) 60%, $bgColor 100%);
     padding: 60rpx 32rpx 32rpx;
     overflow: hidden;
 
@@ -23,8 +23,8 @@
       height: 152rpx;
       border-radius: 76rpx;
       padding: 6rpx;
-      background: #fff;
-      box-shadow: 0 8rpx 24rpx rgba(15, 22, 38, 0.08);
+      background: var(--theme-surface, #fff);
+      box-shadow: var(--theme-shadow-md, 0 8rpx 24rpx rgba(15, 22, 38, 0.08));
       box-sizing: border-box;
 
       image {
@@ -91,7 +91,7 @@
       flex-shrink: 0;
       padding: 12rpx 24rpx;
       border-radius: 28rpx;
-      background: #fff;
+      background: var(--theme-surface, #fff);
       color: $color-brand;
       border: 1rpx solid rgba(28, 134, 209, 0.25);
       font-size: 24rpx;
@@ -100,6 +100,7 @@
     }
 
     .settingsIcon {
+      filter: var(--theme-icon-filter, none);
       flex-shrink: 0;
       width: 42rpx;
       height: 42rpx;
@@ -287,6 +288,7 @@
         flex-shrink: 0;
 
         image {
+          filter: var(--theme-icon-filter, none);
           width: 24rpx;
           height: 24rpx;
         }

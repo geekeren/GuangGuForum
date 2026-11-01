@@ -39,7 +39,7 @@ describe("search reference presentation", () => {
     expect(page.indexOf("<View className='searchFilters'")).toBeLessThan(page.indexOf("<View className='searchHistory'"));
     expect(css).not.toContain("searchFilterPicker--scope");
     const shared = css.match(/\.searchNodeSelector,\s*\.searchFilter\s*\{([^}]+)\}/)![1];
-    for (const style of ["height: 64rpx;", "padding: 0 18rpx;", "border-radius: 32rpx;", "background: #eaf0fc;", "font-size: 27rpx;", "font-weight: 600;", "gap: 10rpx;"]) expect(shared).toContain(style);
+    for (const style of ["height: 64rpx;", "padding: 0 18rpx;", "border-radius: 32rpx;", "background: var(--theme-surface-alt, #eaf0fc);", "font-size: 27rpx;", "font-weight: 600;", "gap: 10rpx;"]) expect(shared).toContain(style);
     expect(css).toContain(".searchNodeIcon, .searchFilterIcon { width: 32rpx; height: 32rpx;");
     expect(css).toContain(".searchNodeValue, .searchFilterValue {");
     expect(css).toContain(".searchNodeSelector { flex: 0 0 240rpx; width: 240rpx; }");

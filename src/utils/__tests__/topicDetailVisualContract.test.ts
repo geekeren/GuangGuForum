@@ -25,6 +25,7 @@ vi.mock("guanggu-forum-api", () => ({
   getTopicDetail: vi.fn(), commentUpvote: vi.fn(), createNewComment: vi.fn(), URLS: {},
   urlPathVaiable: () => () => ({ params: { node: "tech" } }),
 }));
+vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
 vi.mock("../../hooks/useDataWithCache", () => ({
   useDataWithCache: () => ({
     request: vi.fn(), setData: vi.fn(),
@@ -64,7 +65,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("compact topic detail reference contracts", () => {
   it("uses local rounded cards and smaller author rows without altering shared HTML semantics", () => {
     const css = styles();
-    expect(css).toContain("background: linear-gradient(180deg, #eff3fc");
+    expect(css).toContain("background: linear-gradient(180deg, var(--theme-surface-soft, #eff3fc) 0%, var(--theme-bg, #f5f7fc) 100%);");
     expect(css).toContain("margin: 12rpx 16rpx 0;");
     expect(css).toContain("padding: 20rpx 24rpx 16rpx;");
     expect(css).toContain("margin: 14rpx 16rpx 0;");

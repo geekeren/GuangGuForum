@@ -37,3 +37,19 @@ $radius-sm: 12rpx;
 $radius-md: 20rpx;
 $radius-lg: 28rpx;
 $radius-xl: 36rpx;
+
+// Runtime theme overrides retain the original light palette as fallbacks.
+// Keep brand colors as Sass colors because existing rgba($color-brand, ...) uses them.
+$bgColor: var(--theme-bg, #{$bgColor});
+$surface: var(--theme-surface, #{$surface});
+$surfaceAlt: var(--theme-surface-alt, #{$surfaceAlt});
+$color-brand-soft: var(--theme-brand-soft, #{$color-brand-soft});
+$color-accent-soft: var(--theme-accent-soft, #{$color-accent-soft});
+$text-primary: var(--theme-text-primary, #{$text-primary});
+$text-sub: var(--theme-text-sub, #{$text-sub});
+$text-muted: var(--theme-text-muted, #{$text-muted});
+$text-faint: var(--theme-text-faint, #{$text-faint});
+$border-color: var(--theme-border, #{$border-color});
+$border-strong: var(--theme-border-strong, #{$border-strong});
+$shadow-sm: var(--theme-shadow-sm, #{$shadow-sm});
+$shadow-md: var(--theme-shadow-md, #{$shadow-md});

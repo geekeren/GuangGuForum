@@ -32,7 +32,7 @@
 .tab-item {
   display: inline-block;
   flex-shrink: 0;
-  color: #080d18;
+  color: var(--theme-text-primary, #080d18);
   font-size: 24rpx;
   font-weight: 600;
   padding: 0 28rpx;
@@ -41,8 +41,8 @@
   line-height: 54rpx;
   position: relative;
   border-radius: 30rpx;
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 4rpx 12rpx rgba(71, 112, 194, 0.04);
+  background: rgba(var(--theme-surface-rgb, 255, 255, 255), 0.78);
+  box-shadow: var(--theme-shadow-sm, 0 4rpx 12rpx rgba(71, 112, 194, 0.04));
   transition: color 0.2s ease, background-color 0.2s ease;
   box-sizing: border-box;
 

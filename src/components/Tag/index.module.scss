@@ -17,6 +17,6 @@
   word-break: break-all;
 
   &:active {
-    background: #dce7ff;
+    background: var(--theme-surface-hover, #dce7ff);
   }
 }

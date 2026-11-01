@@ -9,6 +9,8 @@ import { cacheService, CacheCategory, type CategoryStats } from "../../utils/Cac
 import AddToDesktopGuide, { checkMiniProgramAdded } from "../../components/AddToDesktopGuide";
 import Navbar from "../../components/Navbar";
 import { isSkyline } from "../../utils/renderer";
+import { useTheme } from "../../hooks/useTheme";
+import { setThemePreference, THEME_LABELS, type ThemePreference } from "../../utils/themePreferences";
 import "./index.scss";
 
 const FEEDBACK_URL = "https://www.guozaoke.com/t/91893";
@@ -37,6 +39,17 @@ function isAdDisabled(): boolean {
 
 export default function Settings() {
   const skyline = isSkyline();
+  const { preference: themePreference } = useTheme();
+  const handleThemeChange = async () => {
+    const choices: ThemePreference[] = ["system", "light", "dark"];
+    try {
+      const { tapIndex } = await Taro.showActionSheet({ itemList: choices.map(choice => THEME_LABELS[choice]) });
+      const selected = choices[tapIndex];
+      if (selected && !setThemePreference(selected)) {
+        Taro.showToast({ title: "外观设置保存失败，请重试", icon: "none" });
+      }
+    } catch { /* The user dismissed the choice sheet. */ }
+  };
   const [showGuide, setShowGuide] = useState(false);
   const [miniProgramAdded, setMiniProgramAdded] = useState(false);
   const [adEnabled, setAdEnabled] = useState(!isAdDisabled());
@@ -238,6 +251,7 @@ export default function Settings() {
   const isLoggedIn = !!getCachedUsername();
 
   const sections: MenuItem[][] = [
+    [{ label: "外观", desc: THEME_LABELS[themePreference], action: handleThemeChange }],
     [
       { label: "意见反馈", desc: FEEDBACK_URL, action: () => handleExternalUrl(FEEDBACK_URL) },
       { label: "开源地址", desc: "GitHub", action: () => handleExternalUrl(GITHUB_URL) },

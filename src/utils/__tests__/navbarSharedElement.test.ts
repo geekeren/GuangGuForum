@@ -15,6 +15,7 @@ vi.mock("@tarojs/taro", () => ({
     reLaunch: vi.fn(),
   },
 }));
+vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
 vi.mock("../dimension", () => ({
   getNavInfo: () => ({
     capsulePaddingTop: 6, capsuleHeight: 32, capsuleWidth: 88,
@@ -36,11 +37,12 @@ afterEach(() => {
 describe("navbar shared-element opt-out", () => {
   it.each(["skyline", "webview"])("keeps settings actions outside ShareElement under %s", renderer => {
     vi.stubGlobal("getCurrentPages", () => [{ renderer }]);
-    const action = createElement("image", { onClick: () => Taro.navigateTo({ url: "/pages/settings/index" }) });
+    const openSettings = () => Taro.navigateTo({ url: "/pages/settings/index" });
+    const action = createElement("image", { onClick: openSettings });
     const tree = Navbar({ shared: false, leftAction: action });
     expect(tree.props.className).toBe("customNavbar");
     expect(elements(tree).some(element => element.type === "ShareElement" || element.props?.mapkey)).toBe(false);
-    action.props.onClick();
+    openSettings();
     expect(Taro.navigateTo).toHaveBeenCalledWith({ url: "/pages/settings/index" });
   });
 

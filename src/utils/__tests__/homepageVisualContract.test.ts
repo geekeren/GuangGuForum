@@ -9,8 +9,8 @@ describe("homepage reference geometry", () => {
     const home = source("pages/home/index.tsx");
     const css = source("pages/home/index.scss");
     expect(home).toContain('this.state.selectedTabIndex === 0 ? "root root--topics"');
-    expect(css).toMatch(/&--topics\s*\{\s*background: linear-gradient\(180deg, #e7efff/);
-    expect(css).toContain("background: rgba(255, 255, 255, 0.78);");
+    expect(css).toMatch(/&--topics\s*\{\s*background: linear-gradient\(180deg, var\(--theme-brand-soft, #e7efff\)/);
+    expect(css).toContain("background: rgba(var(--theme-surface-rgb, 255, 255, 255), 0.78);");
     expect(home).toContain('height: getNavInfo().capsuleHeight + "px"');
     expect(source("components/SearchEntry/index.tsx")).toContain("useSearchPlaceholder(!node)");
   });

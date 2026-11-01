@@ -1,4 +1,5 @@
 export default definePageConfig({
+  enablePageMeta: true,
   navigationBarTitleText: "登录",
   enableShareAppMessage: false,
   renderer: "skyline",

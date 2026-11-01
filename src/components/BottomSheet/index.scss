@@ -16,13 +16,13 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #fff;
+  background: var(--theme-surface, #fff);
   border-radius: 28rpx 28rpx 0 0;
   animation: bottomSheetSlideUp 220ms ease-out;
 }
 .bottomSheetHeader { display: flex; flex-direction: row; align-items: center; justify-content: space-between; padding: 22rpx 28rpx 12rpx; flex-shrink: 0; }
-.bottomSheetTitle { font-size: 30rpx; font-weight: 700; color: #080d18; }
-.bottomSheetClose { width: 48rpx; height: 48rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; color: #656c85; font-size: 26rpx; }
+.bottomSheetTitle { font-size: 30rpx; font-weight: 700; color: var(--theme-text-primary, #080d18); }
+.bottomSheetClose { width: 48rpx; height: 48rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; color: var(--theme-text-muted, #656c85); font-size: 26rpx; }
 .bottomSheetBody { width: 100%; flex: 1; height: 0; min-height: 0; box-sizing: border-box; }
 .bottomSheetFooter { padding: 16rpx 28rpx 20rpx; flex-shrink: 0; }
 .bottomSheetMask--closing { animation: bottomSheetFadeOut 250ms ease forwards; }

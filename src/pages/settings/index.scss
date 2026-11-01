@@ -49,7 +49,7 @@
     }
 
     &:active {
-      background: #fef2f2;
+      background: var(--theme-accent-soft, #fef2f2);
     }
   }
 }
@@ -76,6 +76,7 @@
 }
 
 .settingsItemArrow {
+  filter: var(--theme-icon-filter, none);
   flex-shrink: 0;
   width: 28rpx;
   height: 28rpx;

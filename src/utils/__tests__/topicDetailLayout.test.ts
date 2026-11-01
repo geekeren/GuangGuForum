@@ -25,6 +25,7 @@ vi.mock("@tarojs/taro", () => ({
   useReady: vi.fn(), useDidShow: vi.fn(), useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(),
 }));
 vi.mock("guanggu-forum-api", () => ({ getTopicDetail: vi.fn(), commentUpvote: vi.fn(), createNewComment: vi.fn(), URLS: {}, urlPathVaiable: vi.fn() }));
+vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
 vi.mock("../../hooks/useDataWithCache", () => ({
   useDataWithCache: () => ({
     request: vi.fn(), setData: vi.fn(),

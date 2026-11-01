@@ -171,6 +171,14 @@ describe("WeChat template generation config", () => {
     }
     expect(root.textContent).toBe("deep");
   });
+  it("emits native page metadata even when the Vite emitter omits page config", () => {
+    vi.stubEnv("TARO_ENV", "weapp");
+    const template = createWeappTemplate();
+    expect(template.buildPageTemplate("../../base.wxml")).not.toContain("<page-meta");
+    applyProjectViteHook({}, template);
+    expect(template.buildPageTemplate("../../base.wxml")).toContain("<page-meta");
+    expect(template.buildPageTemplate("../../base.wxml", { content: { enablePageMeta: false } })).not.toContain("<page-meta");
+  });
   it("preserves double-colon CSS without changing JavaScript minification on weapp", () => {
     vi.stubEnv("TARO_ENV", "weapp");
     const template = createWeappTemplate();

@@ -2,7 +2,7 @@
 
 .loginPage {
   min-height: 100vh;
-  background: linear-gradient(180deg, #e0eaff 0%, #edf3ff 30%, $bgColor 60%);
+  background: linear-gradient(180deg, var(--theme-brand-soft, #e0eaff) 0%, var(--theme-surface-soft, #edf3ff) 30%, $bgColor 60%);
   box-sizing: border-box;
   padding-bottom: 48rpx;
 
@@ -119,7 +119,7 @@
     right: 0;
     background: $surface;
     border-radius: 0 0 $radius-md $radius-md;
-    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+    box-shadow: var(--theme-shadow-md, 0 8rpx 24rpx rgba(0, 0, 0, 0.08));
     z-index: 10;
     overflow: hidden;
   }

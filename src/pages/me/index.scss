@@ -30,11 +30,13 @@
 }
 
 .navSettingsIcon {
+  filter: var(--theme-icon-filter, none);
   width: 42rpx;
   height: 42rpx;
 }
 
 .settingsIcon {
+  filter: var(--theme-icon-filter, none);
   width: 42rpx;
   height: 42rpx;
 }
