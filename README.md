@@ -148,6 +148,12 @@ createTopic(node, title, content) → 清除草稿 → 返回列表
 | HTML 解析 | [node-html-parser](https://github.com/taoqf/node-html-parser) |
 | 登录代理 | 阿里云 Serverless |
 
+### 阅读字号
+
+微信构建在 Taro 单位转换后，通过 `config/fixedReadingFonts.js` 将主要阅读区域的字号固定为逻辑 `px`。基准是 iPhone 15 Pro Max 的 430px 逻辑宽度，沿用微信的 rpx 整数取值：正文 `28rpx → 16px`，列表标题 `30rpx → 17px`，详情标题 `34rpx → 19px`。因此基准机型的字号保持不变，窄屏阅读文字不再按屏幕宽度缩小。
+
+该规则覆盖帖子、评论、列表、发现、搜索、通知和用户资料等阅读区域，只转换 `font-size`，布局和间距保留原单位。原生输入框及其提及文字叠层继续共用响应式字号。新增阅读组件时应核对插件的选择器范围；修改转换顺序时需运行 `fixedReadingFonts.test.ts` 并检查最终 WXSS，避免固定字号被再次转换成 rpx。
+
 ### Monorepo 结构
 
 ```
