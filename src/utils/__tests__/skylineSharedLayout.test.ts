@@ -94,6 +94,18 @@ function generatedTemplates(template: any) {
 }
 
 describe("WeChat template generation config", () => {
+  it("disables the legacy URL PostCSS plugin while preserving Vite asset handling", () => {
+    const loadConfig = projectRequire("./config/index.js");
+    const config = loadConfig((_target: any, base: any) => base);
+    expect(config.mini.postcss.url.enable).toBe(false);
+    const { getPostcssPlugins } = projectRequire("@tarojs/vite-runner/dist/utils");
+    // The disabled legacy name must not try to invoke Node's URL module as a plugin.
+    expect(getPostcssPlugins(process.cwd(), [["url", config.mini.postcss.url]])).toEqual([]);
+    const viteConfig: any = {};
+    config.modifyViteConfig(viteConfig);
+    expect(viteConfig.build.assetsInlineLimit).toBe(0);
+  });
+
   it("reproduces the default seventh static Text hole and generates the missing floors through the project hook", () => {
     vi.stubEnv("TARO_ENV", "weapp");
     const template = createWeappTemplate();

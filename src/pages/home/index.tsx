@@ -78,6 +78,14 @@ export default class Index extends Component<{}, State> {
     this.stopUnreadSubscription?.();
   }
 
+  onShareAppMessage() {
+    return { title: "过早客 - 武汉本地生活社区", path: "/pages/home/index" };
+  }
+
+  onShareTimeline() {
+    return { title: "过早客 - 武汉本地生活社区", query: "" };
+  }
+
   private stopUnreadSubscription?: () => void;
 
   private handleClick(value: number): void {

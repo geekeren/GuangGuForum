@@ -31,6 +31,7 @@ export const getHotNodes: CacheAPIFunc<void, HotNodes[]> = (
   const cache = options?.cache ?? true;
   return request("/", {
     cache,
+    cacheApi: "getHotNodes",
     onRefresh: options?.onRefresh
       ? (body) => options.onRefresh!(getDataFromHtml(body, domStructure) as HotNodes[])
       : undefined,

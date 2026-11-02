@@ -94,6 +94,7 @@ export const getRecentTopics: CacheAPIFunc<GetTopicsParam, TopicSummary[]> = (
 
   return request("/", {
     cache,
+    cacheApi: "getRecentTopics",
     query: {
       p: String(page),
       tab: tabUrlValue[type],

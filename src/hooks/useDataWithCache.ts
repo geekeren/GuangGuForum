@@ -10,12 +10,12 @@ export function useDataWithCache<P, R>(
   const [loading, setLoading] = useState(false);
   const requestIdRef = useRef(0);
 
-  const request = useCallback(
-    (...args: RequestParams<P>) => {
+  const runRequest = useCallback(
+    (params: P, cache: boolean) => {
       const id = ++requestIdRef.current;
       setLoading(true);
-      const params = (args.length > 0 ? args[0] : undefined) as P;
       return apiFunc(params, {
+        ...(cache ? {} : { cache: false }),
         onRefresh: (freshData: R) => {
           if (id === requestIdRef.current) {
             setData(freshData);
@@ -37,5 +37,14 @@ export function useDataWithCache<P, R>(
     [apiFunc],
   );
 
-  return { data, loading, request, setData };
+  const request = useCallback(
+    (...args: RequestParams<P>) => runRequest(args[0] as P, true),
+    [runRequest],
+  );
+  const requestFresh = useCallback(
+    (...args: RequestParams<P>) => runRequest(args[0] as P, false),
+    [runRequest],
+  );
+
+  return { data, loading, request, requestFresh, setData };
 }

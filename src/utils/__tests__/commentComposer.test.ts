@@ -4,11 +4,12 @@ import { readFileSync } from "node:fs";
 import { isSkyline } from "../renderer";
 import CommentComposer from "../../pages/topicDetail/CommentComposer";
 import { STICKERS } from "../stickers";
-import { getCommonEmojiUsage } from "../emojiUsage";
+import { getCommonEmojiUsage, recordCommentEmojiUsage } from "../emojiUsage";
 import { compressCommentPhoto } from "../commentPhotos";
 
 const harness = vi.hoisted(() => ({ state: [] as any[], cursor: 0, refs: [] as any[], refCursor: 0 }));
 vi.mock("react", () => ({
+  useEffect: () => {},
   useRef: (initial: any) => { const i = harness.refCursor++; if (!(i in harness.refs)) harness.refs[i] = { current: initial }; return harness.refs[i]; },
   useState: (initial: any) => {
     const index = harness.cursor++;
@@ -27,6 +28,7 @@ vi.mock("../commentPhotos", () => ({ compressCommentPhoto: vi.fn() }));
 vi.mock("../emojiUsage", async (importOriginal) => ({
   ...await importOriginal<typeof import('../emojiUsage')>(),
   getCommonEmojiUsage: vi.fn(),
+  recordCommentEmojiUsage: vi.fn(),
 }));
 
 function elements(tree: any): any[] {
@@ -427,4 +429,18 @@ describe("Skyline comment sheet with WebView fallback", () => {
     tree = render();
     expect(find(tree, 'commentPopupPanelEmoji').children.props.children).toBe('❤️');
   });
+});
+
+
+it('records selected emoji and sticker immediately and refreshes common without sending', () => {
+  find(render(), 'commentPopupEmoji').onClick();
+  const editor = find(render(), 'MentionTextarea').editorRef;
+  editor.current = { insertText: vi.fn() };
+  vi.mocked(getCommonEmojiUsage).mockReturnValue({ emojis: ['😂'], stickers: [STICKERS[1]] });
+  elements(render()).find(e => e.props?.ariaLabel === '插入表情👍')!.props.onClick();
+  expect(recordCommentEmojiUsage).toHaveBeenCalledWith('👍', []);
+  expect(elements(render()).some(e => e.props?.ariaLabel === '插入表情😂')).toBe(true);
+  find(render(), 'commentPopupSticker').onClick();
+  expect(recordCommentEmojiUsage).toHaveBeenCalledWith('', [STICKERS[1]]);
+  expect(props.onSend).not.toHaveBeenCalled();
 });

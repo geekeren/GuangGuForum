@@ -2,7 +2,8 @@ import { getScrollViewType } from "../../../../utils/renderer";
 import React, { Component, createRef } from "react";
 import { OpenContainer, ScrollView, ShareElement, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { TopicSummary, URLS } from "guanggu-forum-api";
+import { TopicSummary, URLS, type ApiOptions } from "guanggu-forum-api";
+import { mergeTopicIndex } from "../../../../utils/topicIndex";
 import Loading from "../../../../components/Loading";
 import { cacheService, CacheCategory } from "../../../../utils/CacheService";
 import "./index.scss";
@@ -81,83 +82,113 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
 interface TopicListProps {
   cacheKey?: string;
   style?: React.CSSProperties;
-  getTopics: (page: number) => Promise<TopicSummary[]>;
+  getTopics: (page: number, options?: ApiOptions<TopicSummary[]>) => Promise<TopicSummary[]>;
+  freshOnMount?: boolean;
+  onFreshLoad?: () => void;
   onPullDownRefresh?: () => void;
 }
 
 interface State {
   topics: TopicSummary[];
   loadingPage: number;
+  loading: boolean;
+  scrollTop?: number;
 }
 
 export default class TopicList extends Component<TopicListProps, State> {
   pullDownRef = createRef<PullDownRefreshRef>();
+  requestRevision = 0;
+  loading = true;
 
   constructor(props, state) {
     super(props, state);
     this.state = {
       topics: [],
       loadingPage: 1,
+      loading: true,
     };
   }
 
-  getRecentTopics(page: number): Promise<TopicSummary[]> {
-    return this.props.getTopics(page);
+  componentDidMount() {
+    void this.refreshTopics(this.props.freshOnMount ?? false);
   }
 
-  componentDidMount() {
-    console.time("[TopicList] request -> render");
-    this.refreshTopics();
+  componentWillUnmount() {
+    this.requestRevision += 1;
   }
 
   componentDidUpdate(prevProps: TopicListProps) {
     if (prevProps.cacheKey !== this.props.cacheKey) {
-      this.refreshTopics();
+      void this.refreshTopics(false);
     }
   }
 
   updateTopicIndex(topics: TopicSummary[]) {
     try {
-      const existing = cacheService.get<TopicSummary[]>("topic_index") || [];
-      const map = new Map(existing.map((t) => [t.link, t]));
-      for (const t of topics) map.set(t.link, t);
-      const all = Array.from(map.values());
-      cacheService.set("topic_index", all, { category: CacheCategory.Topic, priority: "low" });
+      const entry = mergeTopicIndex(cacheService.get("topic_index"), topics);
+      if (entry) cacheService.set("topic_index", entry, { category: CacheCategory.Topic, priority: "low" });
     } catch {}
   }
 
-  refreshTopics() {
+  async refreshTopics(fresh = true) {
+    const revision = ++this.requestRevision;
     this.loading = true;
+    this.setState({ loading: true });
     Taro.showNavigationBarLoading();
-    console.time("[TopicList] request only");
-    this.getRecentTopics(1).then((topics) => {
-      console.timeEnd("[TopicList] request only");
-      this.loading = false;
+    let refreshed = false;
+    const apply = (topics: TopicSummary[], resetScroll: boolean) => {
+      if (revision !== this.requestRevision) return;
       this.updateTopicIndex(topics);
-      this.setState({ topics, loadingPage: 1 }, () => {
-        console.timeEnd("[TopicList] request -> render");
+      this.setState({ topics, loadingPage: 1, ...(resetScroll ? { scrollTop: 0 } : {}) });
+    };
+    try {
+      const topics = await this.props.getTopics(1, {
+        ...(fresh ? { cache: false } : {}),
+        onRefresh: (next) => { refreshed = true; apply(next, false); },
       });
-    });
+      if (!refreshed) apply(topics, true);
+      if (fresh && revision === this.requestRevision) this.props.onFreshLoad?.();
+    } catch {
+      if (revision === this.requestRevision) {
+        Taro.showToast({ title: '帖子列表加载失败，请重试', icon: 'none' });
+      }
+    } finally {
+      if (revision === this.requestRevision) {
+        this.loading = false;
+        this.setState({ loading: false });
+        Taro.hideNavigationBarLoading();
+      }
+    }
   }
 
   scrollToTop() {
-    this.refreshTopics();
+    return this.refreshTopics();
   }
 
-  loading = true;
-
-  listReachBottom() {
-    if (this.state.topics.length >= 200) return;
+  async listReachBottom() {
+    if (this.loading || this.state.topics.length >= 200) return;
+    const revision = ++this.requestRevision;
     const page = this.state.loadingPage + 1;
     this.loading = true;
-    this.props.getTopics(page).then((newTopics) => {
-      this.loading = false;
+    this.setState({ loading: true });
+    try {
+      const newTopics = await this.props.getTopics(page, { cache: false });
+      if (revision !== this.requestRevision) return;
       this.updateTopicIndex(newTopics);
       this.setState((prev) => ({
         topics: prev.topics.concat(newTopics),
         loadingPage: page,
       }));
-    });
+    } catch {
+      if (revision === this.requestRevision) {
+        Taro.showToast({ title: '更多帖子加载失败，请重试', icon: 'none' });
+      }
+    } finally {
+      if (revision === this.requestRevision) {
+        this.loading = false;
+        this.setState({ loading: false });
+      }
+    }
   }
 
   render() {
@@ -175,6 +206,7 @@ export default class TopicList extends Component<TopicListProps, State> {
             type={getScrollViewType()}
             className={isSkyline() ? 'topicList topicList--skyline' : 'topicList'}
             scrollY
+            scrollTop={this.state.scrollTop}
             enhanced
             showScrollbar
             scrollbarFadingEnabled={false}
@@ -183,11 +215,12 @@ export default class TopicList extends Component<TopicListProps, State> {
             onScrollToLower={() => this.listReachBottom()}
             lowerThreshold={300}
             onScroll={(e: any) => {
+              if (this.state.scrollTop !== undefined) this.setState({ scrollTop: undefined });
               this.pullDownRef.current?.onScroll(e.detail.scrollTop);
             }}
             onTouchStart={(e: any) => this.pullDownRef.current?.onTouchStart(e)}
             onTouchMove={(e: any) => this.pullDownRef.current?.onTouchMove(e)}
-            onTouchEnd={() => this.pullDownRef.current?.onTouchEnd()}
+            onTouchEnd={(e) => this.pullDownRef.current?.onTouchEnd(e)}
           >
             <View className='topicListTopSpacer' />
             {announcement && <PinnedTopicCard topic={announcement} />}
@@ -200,7 +233,7 @@ export default class TopicList extends Component<TopicListProps, State> {
           </ScrollView>
         ) : (
           <View className='topicListEmpty'>
-            {this.loading ? (
+            {this.state.loading ? (
               <Loading size={32} />
             ) : (
               <>
@@ -210,7 +243,7 @@ export default class TopicList extends Component<TopicListProps, State> {
             )}
           </View>
         )}
-        {this.loading && topics.length > 0 && <Loading size={40} />}
+        {this.state.loading && topics.length > 0 && <Loading size={40} />}
       </PullDownRefresh>
     );
   }

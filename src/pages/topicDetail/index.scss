@@ -675,9 +675,15 @@
     &--active, &:active { background: $color-brand-soft; }
   }
   .commentPopupToolIcon { width: 46rpx; height: 46rpx; }
+  .commentPopupSubmit { flex: none; }
+  .commentPopupTools { min-width: 0; flex-shrink: 1; }
   .commentPopupMinimum { color: $text-faint; font-size: 22rpx; margin-right: 16rpx; }
   .commentPopupSend {
     display: flex;
+    flex-direction: row;
+    flex: none;
+    box-sizing: border-box;
+    text { display: block; flex: none; height: 40rpx; line-height: 40rpx; white-space: nowrap; }
     align-items: center;
     justify-content: center;
     min-width: 124rpx;

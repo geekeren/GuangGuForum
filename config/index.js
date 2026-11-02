@@ -33,8 +33,10 @@ const config = {
         enable: true,
         config: {},
       },
+      // Vite resolves this legacy bare plugin name to Node's built-in `url`.
+      // Asset handling already uses build.assetsInlineLimit = 0 above.
       url: {
-        enable: true,
+        enable: false,
         config: {
           limit: 1024, // 设定转换尺寸上限
         },

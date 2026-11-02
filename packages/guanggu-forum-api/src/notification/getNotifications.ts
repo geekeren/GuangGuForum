@@ -67,6 +67,7 @@ export const getNotifications: CacheAPIFunc<GetNotificationsParam, Notification[
 
   return request("/notifications", {
     cache,
+    cacheApi: "getNotifications",
     query: {
       p: String(page),
     },

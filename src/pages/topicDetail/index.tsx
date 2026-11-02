@@ -36,7 +36,7 @@ import { getThemeSnapshot, subscribeTheme } from "../../utils/themePreferences";
 import { isSkyline } from "../../utils/renderer";
 import { trimStrings } from "../../utils/trimStrings";
 import { formatReplySummary } from "../../utils/replySummary";
-import { findTargetComment, getCommentElementId } from "../../utils/topicReplyRoute";
+import { findLatestComment, findTargetComment, getCommentElementId } from "../../utils/topicReplyRoute";
 import { startCommentScroll } from "../../utils/commentScroll";
 import HtmlRender from "../../components/HtmlRender";
 import CommentComposer from "./CommentComposer";
@@ -58,7 +58,6 @@ import { getCommentBody } from "../../utils/mentions";
 import { MAX_COMMENT_ATTACHMENTS } from "../../utils/stickers";
 import { buildAttachmentComment, photoAttachment, stickerAttachment, type CommentAttachment } from "../../utils/commentAttachments";
 import { useCommentPhotoUploads } from '../../hooks/useCommentPhotoUploads';
-import { recordCommentEmojiUsage } from "../../utils/emojiUsage";
 import { openLoginModal } from "../../utils/auth";
 
 const Index = () => {
@@ -76,6 +75,7 @@ const Index = () => {
   const [locatingComment, setLocatingComment] = useState(false);
   const [scrollRequest, setScrollRequest] = useState<{ id: string } | null>(null);
   const [pageReady, setPageReady] = useState(false);
+  const showLatestComments = useRef(false);
   const cancelScrollRef = useRef<(() => void) | undefined>(undefined);
   const locatedRouteRef = useRef("");
   const workletReady = useRef(false);
@@ -88,7 +88,7 @@ const Index = () => {
 
   const tid = router.params.tid;
 
-  const { data: topicDetail, request: fetchTopicDetail, setData: setTopicDetail } = useDataWithCache(getTopicDetail);
+  const { data: topicDetail, request: fetchTopicDetail, requestFresh: fetchFreshTopicDetail, setData: setTopicDetail } = useDataWithCache(getTopicDetail);
   const { username, loading: checkingLogin, error: loginError, retry: retryLogin } = useCurrentUsername();
   useCommentPhotoUploads(commentAttachments, setCommentAttachments, username);
   const recordedVisit = useRef('');
@@ -145,13 +145,14 @@ const Index = () => {
       Taro.navigateBack().then();
       return;
     }
-    fetchTopicDetail({ tid, page: p, replyId }).catch(() => {
+    const params = showLatestComments.current ? { tid, latest: true } : { tid, page: p, replyId };
+    fetchTopicDetail(params).catch(() => {
       Taro.showToast({ title: "帖子加载失败，请重试", icon: "none" });
     });
   }, [tid, p, replyId, refreshTime, fetchTopicDetail]);
 
   useEffect(() => {
-    if (!topicDetail || !pageReady || locatedRouteRef.current === replyRouteKey) return;
+    if (showLatestComments.current || !topicDetail || !pageReady || locatedRouteRef.current === replyRouteKey) return;
     const matched = findTargetComment(topicDetail.comments, { replyId, floor, commentMessage });
     if (!matched) return; // Fresh cache data can supply the reply missing from the initial render.
     locatedRouteRef.current = replyRouteKey;
@@ -190,11 +191,13 @@ const Index = () => {
 
   useDidShow(() => {
     if (isSkyline() && tid) {
-      fetchTopicDetail({ tid, page: router.params.p, replyId: router.params.replyId });
+      fetchTopicDetail(showLatestComments.current ? { tid, latest: true }
+        : { tid, page: router.params.p, replyId: router.params.replyId });
     }
   });
 
-  const pageUrl = `${router.path}?${queryString.stringify(router.params)}`;
+  const pageQuery = queryString.stringify(router.params);
+  const pageUrl = `${router.path}?${pageQuery}`;
 
   const shareImageUrl = topicDetail?.content?.match(/<img[^>]+src=["']([^"']+)["']/)?.[1];
 
@@ -206,7 +209,7 @@ const Index = () => {
 
   useShareTimeline(() => ({
     title: topicDetail?.title,
-    path: pageUrl,
+    query: pageQuery,
     ...(shareImageUrl ? { imageUrl: shareImageUrl } : {}),
   }));
 
@@ -540,20 +543,33 @@ const Index = () => {
             let xsrf = topicDetail.createCommentXSRF;
             if (!xsrf) {
               // A restored session or cached topic can lack the current reply form.
-              const freshDetail = await getTopicDetail({ tid, page: p, replyId }, { cache: false });
-              setTopicDetail(freshDetail);
+              const freshDetail = await fetchFreshTopicDetail(showLatestComments.current
+                ? { tid, latest: true } : { tid, page: p, replyId });
               xsrf = freshDetail.createCommentXSRF;
             }
             if (!xsrf) {
               Taro.showToast({ title: "暂时无法评论，请刷新后重试", icon: "none" });
               return;
             }
-            await createNewComment({ tid, _xsrf: xsrf, content: buildAttachmentComment(commentContent, commentAttachments) });
-            recordCommentEmojiUsage(commentContent, commentStickers);
+            const result = await createNewComment({ tid, _xsrf: xsrf, content: buildAttachmentComment(commentContent, commentAttachments) });
             setIsCommenting(false);
             setCommentContent("");
             setCommentAttachments([]);
-            setRefreshTime(Date.now());
+            showLatestComments.current = true;
+            cancelScrollRef.current?.();
+            setHighlightFloor(null);
+            setScrollRequest(null);
+            setLocatingComment(false);
+            try {
+              const freshDetail = await fetchFreshTopicDetail({ tid, latest: true });
+              const latestComment = findLatestComment(freshDetail.comments);
+              if (freshDetail.commentTotalCount.trim() && !result?.moderated && latestComment) {
+                setHighlightFloor(latestComment.floor);
+                setScrollRequest({ id: getCommentElementId(latestComment) });
+              }
+            } catch {
+              Taro.showToast({ title: '回复已发送，最新回复加载失败，请下拉刷新', icon: 'none' });
+            }
           } catch (error) {
             Taro.showToast({ title: error instanceof CommentSubmissionError ? error.message : "评论发送失败，请重试", icon: "none" });
           } finally {

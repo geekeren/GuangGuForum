@@ -220,8 +220,8 @@ describe("homepage reference geometry", () => {
   it("continues to render live topics, hot nodes, search labels and server unread counts", () => {
     const topics = source("pages/home/topics/index.tsx");
     const list = source("pages/home/topics/topicList/index.tsx");
-    expect(topics).toContain("getNodeTopics({ node: tab.node, page })");
-    expect(topics).toContain("getRecentTopics({ type: tab.type, page })");
+    expect(topics).toContain("getNodeTopics({ node: tab.node, page }, options)");
+    expect(topics).toContain("getRecentTopics({ type: tab.type, page }, options)");
     expect(topics).toContain("nodes.map((node)");
     expect(list).toContain("{title}</Text>");
     expect(list).toContain("{username}</Text>");

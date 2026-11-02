@@ -284,7 +284,8 @@ yarn build:weapp
 所有本地存储**必须**通过 `CacheService` 操作，禁止直接调用 `Taro.setStorageSync`：
 
 ```ts
-// 写入 — category 必传，priority/ttl 可选（默认 normal / 30min）
+// 写入 — category 必传，priority 默认 normal；不传 ttl 时保留到容量淘汰
+// 显式 ttl 仍按毫秒设置到期时间，供真正需要到期删除的临时数据使用
 cacheService.set(key, value, { category: CacheCategory.Topic });
 
 // 读取 — 自动反序列化，自动检查过期
@@ -301,6 +302,18 @@ cacheService.getAllCategoryStats();                      // 全部分类统计
 ```
 
 `CacheCategory.System` 类别（cookies、current_username、saved_accounts）不可被常规清理删除，退出登录时通过 `remove(key, true)` 强制清除。
+
+缓存策略分层：
+
+- `src/utils/cachePolicy.ts`：定义保留语义与容量预算，不负责联网更新。
+- `CacheService`：普通 storage 按 `getStorageInfoSync()` 获取本小程序总用量；预计写入超过 80% 时按过期、优先级、最近访问顺序淘汰到约 60%，未知数据和系统数据受保护。超大业务条目跳过缓存，写入失败可淘汰重试，不影响已获取的网络数据。
+- `TopicFileCache`：详情／回复定位／用户资料 HTML 文件缓存预算 150MiB，默认 1000 条；计入临时文件与并发写入占用。共享索引持久化最近访问顺序，读取不改变联网刷新时间。
+- `topicIndex`：帖子摘要索引有界合并，最多 1000 条且版本包装后的 UTF-8 内容不超过 512KiB；异常／超大条目不挤掉全部有效数据。
+- API 层：缓存优先、后台联网更新；主动刷新跳过旧 HTML 读取，并写回成功的读取结果。节点导航按一天的重新验证间隔更新，失败保留旧数据；外链摘要命中后也后台更新。重新验证间隔不等于存储到期时间。
+- 每个 API 校验自己的缓存版本及解析依赖版本；处理逻辑／结构变更时手动升级版本，旧包装不会作为有效数据使用。
+- 新请求抑制旧响应发起写入及页面回调；已开始的文件提交可在新请求失败时保留可用数据，但不能覆盖已成功提交的更新数据。账号切换后不把旧账号结果送回页面。
+
+无默认时间过期的策略只适用于新写入的数据，已有显式或旧缓存期限仍按原元数据处理；不会为迁移而清空用户数据。每日启动清理仍处理这些到期条目、文件垃圾与索引。平台可用空间不足时，即使应用预算未达到也可能无法缓存。
 
 ### 样式
 

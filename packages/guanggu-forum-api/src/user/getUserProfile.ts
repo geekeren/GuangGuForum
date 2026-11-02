@@ -318,6 +318,7 @@ export const getUserProfile: CacheAPIFunc<GetUserProfileParam, UserProfile> = (
   const cache = options?.cache ?? true;
   return request(profileUrl, {
     cache,
+    cacheApi: "getUserProfile",
     onRefresh: options?.onRefresh
       ? (body) => {
           const profile = parseProfile(body);

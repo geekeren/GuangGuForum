@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CacheService, { CacheCategory } from "../CacheService";
 import Taro from "@tarojs/taro";
-import { request, setCacheService, setOnLoginRequired } from "../../../packages/guanggu-forum-api/src/client";
+import { request as rawRequest, type RequestConfig, setCacheService, setOnLoginRequired } from "../../../packages/guanggu-forum-api/src/client";
+
+import { API_CACHE_VERSIONS, createApiCacheEntry } from "../../../packages/guanggu-forum-api/src/cacheVersions";
+
+function request(path: string, config?: RequestConfig) { return rawRequest(path, { cacheApi: "getTopicDetail", ...config }); }
 
 const env = vi.hoisted(() => ({
   storage: new Map<string, any>(), files: new Map<string, string>(),
@@ -102,7 +106,7 @@ vi.mock("guanggu-forum-api", () => ({ URLS: { ROOT_URL: "https://www.guozaoke.co
 const liveHtml = '<html><body><main>新正文</main></body></html>';
 const cachedHtml = '<html><body><main>缓存正文</main></body></html>';
 const settle = async () => { for (let i = 0; i < 150; i++) await Promise.resolve(); };
-const key = (path = "/t/123", user = "test_user") => `html_v2_develop_${user}_https://www.guozaoke.com${path}`;
+const key = (path = "/t/123", user = "test_user") => `html_v2_develop_${user}_https://www.guozaoke.com${path}#api=getTopicDetail`;
 const index = () => JSON.parse(env.storage.get("__cache_index__") || '{"keys":[]}').keys as string[];
 function seedLegacy(k: string, value = "<body>旧正文</body>") {
   const meta = { key: k, size: value.length * 2, createdAt: Date.now() - 10000,
@@ -129,6 +133,31 @@ beforeEach(() => {
 });
 
 describe("topic content files with persistent storage indexes", () => {
+  it("preserves a read detail over an untouched detail on capacity eviction after restart", async () => {
+    const first = new CacheService(2);
+    await first.setAsync(key('/t/1'), 'recently visited', { category: CacheCategory.Topic });
+    await first.setAsync(key('/t/2'), 'untouched', { category: CacheCategory.Topic });
+    expect(await first.getAsync(key('/t/1'))).toBe('recently visited');
+    const restarted = new CacheService(2);
+    await restarted.setAsync(key('/t/3'), 'newest', { category: CacheCategory.Topic });
+    await settle();
+    expect(await restarted.getAsync(key('/t/1'))).toBe('recently visited');
+    expect(await restarted.getAsync(key('/t/2'))).toBeNull();
+    expect(await restarted.getAsync(key('/t/3'))).toBe('newest');
+  });
+
+  it("keeps default files and storage HTML usable after a year and daily cleanup", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(100000);
+    const cs = new CacheService();
+    await cs.setAsync(key(), 'retained detail', { category: CacheCategory.Topic });
+    cs.set(key('/node/city'), 'retained list', { category: CacheCategory.Node });
+    vi.setSystemTime(100000 + 365 * 24 * 60 * 60 * 1000);
+    await cs.dailyCleanupAsync();
+    const restarted = new CacheService();
+    expect(await restarted.getAsync(key())).toBe('retained detail');
+    expect(restarted.get(key('/node/city'))).toBe('retained list');
+  });
+
   it("keeps both indexes in storage while HTML payload and metadata live in files", () => {
     const cs = new CacheService();
     cs.set("topic_index", [{ link: "/t/123" }], { category: CacheCategory.Topic });
@@ -139,7 +168,7 @@ describe("topic content files with persistent storage indexes", () => {
     expect(index()).toContain(key());
     expect(index()).toContain("topic_index");
     expect(new CacheService().get(key())).toBe("<body>正文</body>");
-    expect(cs.getMeta(key())!.expiresAt - cs.getMeta(key())!.createdAt).toBe(3 * 24 * 60 * 60 * 1000);
+    expect(cs.getMeta(key())!.expiresAt).toBe(Number.MAX_SAFE_INTEGER);
   });
   it("routes only paged topic details and exact replies, keeping lists and drafts in storage", () => {
     const cs = new CacheService();
@@ -238,7 +267,7 @@ describe("topic content files with persistent storage indexes", () => {
   it("serves persisted detail immediately, then refreshes the same file without writing HTML to storage", async () => {
     const cs = new CacheService();
     cs.set("current_username", "test_user", { category: CacheCategory.System });
-    cs.set(key(), cachedHtml, { category: CacheCategory.Topic });
+    cs.set(key(), createApiCacheEntry("getTopicDetail", cachedHtml), { category: CacheCategory.Topic });
     setCacheService(new CacheService()); // Drop parsed-memory state to simulate restart.
     let respond!: (value: any) => void;
     vi.mocked(Taro.request).mockImplementationOnce(() => new Promise(resolve => { respond = resolve; }) as any);
@@ -249,36 +278,67 @@ describe("topic content files with persistent storage indexes", () => {
     expect(refresh).not.toHaveBeenCalled();
     respond({ statusCode: 200, data: liveHtml }); await settle();
     expect(refresh).toHaveBeenCalledTimes(1);
-    expect(new CacheService().get(key())).toBe(liveHtml);
+    expect(new CacheService().get(key())).toEqual(createApiCacheEntry("getTopicDetail", liveHtml));
     expect(env.storage.has(key())).toBe(false);
     expect(index()).toContain(key());
   });
-  it("cache:false neither reads nor replaces an existing detail file", async () => {
+  it("retains an already-started disk refresh when a newer network request fails without stale callbacks", async () => {
+    const cs = new CacheService();
+    cs.set('current_username', 'test_user', { category: CacheCategory.System });
+    cs.set(key(), createApiCacheEntry('getTopicDetail', cachedHtml), { category: CacheCategory.Topic });
+    setCacheService(cs);
+    env.delayed = true;
+    const refresh = vi.fn();
+    expect((await request('/t/123', { cache: true, onRefresh: refresh })).fromCache).toBe(true);
+    await settle();
+    expect(env.writes.length).toBe(1);
+    vi.mocked(Taro.request).mockRejectedValueOnce(new Error('offline'));
+    await expect(request('/t/123', { cache: false })).rejects.toThrow('offline');
+    finishWrites(); await settle();
+    expect(new CacheService().get(key())).toEqual(createApiCacheEntry('getTopicDetail', liveHtml));
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("rejects old-account foreground data if the account switches during pending disk publication", async () => {
+    const cs = new CacheService();
+    cs.set('current_username', 'test_user', { category: CacheCategory.System });
+    setCacheService(cs); env.delayed = true;
+    const pending = request('/t/123', { cache: false });
+    const rejected = expect(pending).rejects.toThrow('账号已切换');
+    await settle(); expect(env.writes.length).toBe(1);
+    cs.set('current_username', 'other_user', { category: CacheCategory.System });
+    finishWrites(); await rejected;
+    expect(cs.get('current_username')).toBe('other_user');
+  });
+
+  it("cache:false bypasses cached HTML reads and persists fresh detail for later opening", async () => {
     const cs = new CacheService();
     cs.set("current_username", "test_user", { category: CacheCategory.System });
-    cs.set(key(), cachedHtml, { category: CacheCategory.Topic });
+    cs.set(key(), createApiCacheEntry("getTopicDetail", cachedHtml), { category: CacheCategory.Topic });
     setCacheService(cs);
+    const reads = vi.spyOn(cs, "getAsync");
     expect((await request("/t/123", { cache: false })).fromCache).toBe(false);
     await settle();
-    expect(cs.get(key())).toBe(cachedHtml);
+    expect(reads).not.toHaveBeenCalledWith(key());
+    expect(cs.get(key())).toEqual(createApiCacheEntry("getTopicDetail", liveHtml));
     expect(Taro.request).toHaveBeenCalledTimes(1);
   });
   it("keeps API account/environment/pagination scopes and list storage routing", async () => {
     const cs = new CacheService();
     cs.set("current_username", "test_user", { category: CacheCategory.System });
-    cs.set(key(), cachedHtml, { category: CacheCategory.Topic });
+    cs.set(key(), createApiCacheEntry("getTopicDetail", cachedHtml), { category: CacheCategory.Topic });
     setCacheService(cs);
     expect((await request("/t/123", { cache: true, query: { p: "2" } })).fromCache).toBe(false);
     await settle();
-    expect(cs.get(key("/t/123?p=2"))).toBe(liveHtml);
+    expect(cs.get(key("/t/123?p=2"))).toEqual(createApiCacheEntry("getTopicDetail", liveHtml));
     cs.set("current_username", "other_user", { category: CacheCategory.System });
     expect((await request("/t/123", { cache: true })).fromCache).toBe(false);
     await settle();
-    expect(cs.get(key("/t/123", "other_user"))).toBe(liveHtml);
+    expect(cs.get(key("/t/123", "other_user"))).toEqual(createApiCacheEntry("getTopicDetail", liveHtml));
     vi.mocked(Taro.getAccountInfoSync).mockReturnValue({ miniProgram: { envVersion: "release" } } as any);
     expect((await request("/t/123", { cache: true })).fromCache).toBe(false);
     await settle();
-    expect(cs.get(key("/t/123", "other_user").replace("_develop_", "_release_"))).toBe(liveHtml);
+    expect(cs.get(key("/t/123", "other_user").replace("_develop_", "_release_"))).toEqual(createApiCacheEntry("getTopicDetail", liveHtml));
     await request("/node/city", { cache: true }); await settle();
     expect(env.storage.has(key("/node/city", "other_user").replace("_develop_", "_release_"))).toBe(true);
   });
@@ -287,7 +347,7 @@ describe("topic content files with persistent storage indexes", () => {
     expect((await request("/search/reply/456", { cache: true })).fromCache).toBe(false);
     await settle();
     const k = key("/search/reply/456", "guest");
-    expect(cs.get(k)).toBe(liveHtml);
+    expect(cs.get(k)).toEqual(createApiCacheEntry("getTopicDetail", liveHtml));
     expect(cs.getMeta(k)!.category).toBe(CacheCategory.Other);
     expect(env.storage.has(k)).toBe(false);
     expect(index()).toContain(k);
@@ -296,7 +356,7 @@ describe("topic content files with persistent storage indexes", () => {
     const cs = new CacheService(); setCacheService(cs);
     await request("/t/123", { cache: true }); await settle();
     const k = key("/t/123", "guest");
-    cs.set(k, cachedHtml, { category: CacheCategory.Topic, ttl: -1 });
+    cs.set(k, createApiCacheEntry("getTopicDetail", cachedHtml), { category: CacheCategory.Topic, ttl: -1 });
     vi.mocked(Taro.request).mockResolvedValueOnce({ statusCode: 200,
       data: '<html><body><main>过期后新正文</main></body></html>' } as any);
     const result = await request("/t/123", { cache: true });
@@ -316,14 +376,14 @@ describe("topic content files with persistent storage indexes", () => {
   it("a background login failure preserves cached detail and does not interrupt the page", async () => {
     const cs = new CacheService();
     cs.set("current_username", "test_user", { category: CacheCategory.System });
-    cs.set(key(), cachedHtml, { category: CacheCategory.Topic });
+    cs.set(key(), createApiCacheEntry("getTopicDetail", cachedHtml), { category: CacheCategory.Topic });
     setCacheService(cs);
     const login = vi.fn(); setOnLoginRequired(login);
     vi.mocked(Taro.request).mockResolvedValueOnce({ statusCode: 200,
       data: '<html><body><ul class="alert alert-danger"><li>请先登录社区再完成操作</li></ul></body></html>' } as any);
     expect((await request("/t/123", { cache: true })).fromCache).toBe(true);
     await settle();
-    expect(cs.get(key())).toBe(cachedHtml);
+    expect(cs.get(key())).toEqual(createApiCacheEntry("getTopicDetail", cachedHtml));
     expect(login).not.toHaveBeenCalled();
   });
   it("retains account storage when a fresh file backend cannot scan its existing directory", () => {
@@ -371,18 +431,18 @@ describe("topic content files with persistent storage indexes", () => {
     expect(await write).toBe(true);
     expect(cs.get(key())).toBe("fresh");
   });
-  it("uses three-day defaults only for details, profiles and the storage topic index", async () => {
+  it("retains file and storage entries until eviction while honoring explicit deadlines", async () => {
     const cs = new CacheService();
     for (const k of [key(), key("/search/reply/456"), key("/u/test_user?p=2"), "topic_index"]) {
       expect(await cs.setAsync(k, "data", { category: CacheCategory.User })).toBe(true);
       const meta = cs.getMeta(k)!;
-      expect(meta.expiresAt - meta.createdAt).toBe(259200000);
+      expect(meta.expiresAt).toBe(Number.MAX_SAFE_INTEGER);
       expect(env.storage.has(k)).toBe(k === "topic_index");
     }
     for (const k of [key("/"), key("/node/city"), "topic_draft_city", key("/u/test_user/favorites"), key("/notifications")]) {
       cs.set(k, "data", { category: CacheCategory.Topic });
       const meta = cs.getMeta(k)!;
-      expect(meta.expiresAt - meta.createdAt).toBe(1800000);
+      expect(meta.expiresAt).toBe(Number.MAX_SAFE_INTEGER);
       expect(env.storage.has(k)).toBe(true);
     }
     await cs.setAsync(key(), "override", { category: CacheCategory.Topic, ttl: 0 });
@@ -391,13 +451,13 @@ describe("topic content files with persistent storage indexes", () => {
   it("cold API hits, stats, migration and cleanup use async reads only", async () => {
     const seed = new CacheService();
     seed.set("current_username", "test_user", { category: CacheCategory.System });
-    seed.set(key(), cachedHtml, { category: CacheCategory.Topic });
-    seed.set(key("/u/test_user"), cachedHtml, { category: CacheCategory.User });
+    seed.set(key(), createApiCacheEntry("getTopicDetail", cachedHtml), { category: CacheCategory.Topic });
+    seed.set(key("/u/test_user"), createApiCacheEntry("getTopicDetail", cachedHtml), { category: CacheCategory.User });
     const cs = new CacheService(); setCacheService(cs);
     env.noSync = true; env.syncReads = 0;
     expect((await request("/t/123", { cache: true })).fromCache).toBe(true);
     await settle();
-    expect(await cs.getAsync(key("/u/test_user"))).toBe(cachedHtml);
+    expect(await cs.getAsync(key("/u/test_user"))).toEqual(createApiCacheEntry("getTopicDetail", cachedHtml));
     expect((await cs.getAllCategoryStatsAsync()).some(stat => stat.category === CacheCategory.User)).toBe(true);
     await cs.migrateTopicCachesAsync(); await cs.dailyCleanupAsync();
     expect(env.syncReads).toBe(0);
@@ -514,7 +574,7 @@ describe("topic content files with persistent storage indexes", () => {
     const cs = new CacheService(); setCacheService(cs);
     cs.set("current_username", "test_user", { category: CacheCategory.System });
     cs.set("cookies", { sid: "A" }, { category: CacheCategory.System });
-    cs.set(key(), cachedHtml, { category: CacheCategory.Topic });
+    cs.set(key(), createApiCacheEntry("getTopicDetail", cachedHtml), { category: CacheCategory.Topic });
     env.delayedReads = true;
     const result = request("/t/123", { cache: true }); await settle();
     cs.set("current_username", "other_user", { category: CacheCategory.System });
@@ -523,8 +583,8 @@ describe("topic content files with persistent storage indexes", () => {
     for (const finish of env.reads.splice(0)) finish();
     expect((await result).fromCache).toBe(false); await settle();
     expect((Taro.request as any).mock.calls[0][0].header.cookie).toContain("B");
-    expect(await cs.getAsync(key())).toBe(cachedHtml);
-    expect(await cs.getAsync(key("/t/123", "other_user"))).toBe(liveHtml);
+    expect(await cs.getAsync(key())).toEqual(createApiCacheEntry("getTopicDetail", cachedHtml));
+    expect(await cs.getAsync(key("/t/123", "other_user"))).toEqual(createApiCacheEntry("getTopicDetail", liveHtml));
   });
   it("storage deletion failure preserves references and makes settings clear fail", async () => {
     const cs = new CacheService();
@@ -568,4 +628,30 @@ describe("topic content files with persistent storage indexes", () => {
     expect(cs.get(key())).toBe("正文");
     expect(cs.get("cached_user")).toBeNull();
   });
+});
+
+
+it('rejects an obsolete version persisted in a detail file after restarting', async () => {
+  const cs = new CacheService();
+  const k = key('/t/123', 'guest');
+  await cs.setAsync(k, { apiVersions: { getTopicDetail: 0 }, data: cachedHtml }, { category: CacheCategory.Topic });
+  setCacheService(new CacheService());
+  const result = await request('/t/123', { cache: true });
+  expect(result.fromCache).toBe(false);
+  expect(result.body!.textContent).toContain('新正文');
+  await settle();
+  expect(await new CacheService().getAsync(k)).toEqual(createApiCacheEntry('getTopicDetail', liveHtml));
+});
+
+it('invalidates a parsed detail when its on-disk API version changes', async () => {
+  const cs = new CacheService(); setCacheService(cs);
+  await request('/t/123', { cache: true }); await settle();
+  const original = API_CACHE_VERSIONS.getTopicDetail;
+  API_CACHE_VERSIONS.getTopicDetail++;
+  try {
+    const result = await request('/t/123', { cache: true });
+    expect(result.fromCache).toBe(false);
+    await settle();
+    expect((await cs.getAsync<any>(key('/t/123', 'guest'))).apiVersions.getTopicDetail).toBe(original + 1);
+  } finally { API_CACHE_VERSIONS.getTopicDetail = original; }
 });

@@ -18,7 +18,6 @@ import { TOPIC_TYPE_REGISTRY, ALL_TYPES, ALL_HIDDEN_NODES } from "./topicTypes/r
 import type { TopicType } from "./topicTypes/registry";
 import { isSkyline } from "../../utils/renderer";
 import TopicEditor, { restoreTopicAttachments, type TopicAttachment } from './TopicEditor';
-import { recordCommentEmojiUsage } from '../../utils/emojiUsage';
 import "./index.scss";
 
 const LAST_NODE_KEY = "last_selected_node";
@@ -124,7 +123,7 @@ export default function CreateTopic() {
       return null;
     })() || "water";
     const exists = groups.some((g) => g.nodes.some((n) => n.slug === target));
-    setSelectedNodeSlug(exists ? target : "water");
+    setSelectedNodeSlug(!groups.length || exists ? target : "water");
   };
 
   const router = useRouter();
@@ -132,17 +131,20 @@ export default function CreateTopic() {
 
   useEffect(() => {
     const cached = getCachedNodeNavigation();
-    if (cached.length) {
-      setNodeGroups(cached);
-      restoreNodeSelection(cached, nodeSlug);
-    }
+    if (cached.length) setNodeGroups(cached);
+    restoreNodeSelection(cached, nodeSlug);
+    let active = true;
     fetchAndCacheNodeNavigation().then((groups) => {
+      if (!active) return;
       setNodeGroups(groups);
-      restoreNodeSelection(groups, nodeSlug);
-    });
-    if (!getCachedUsername()) {
-      setTimeout(() => openLoginModal(), 500);
-    }
+      // A delayed refresh must not undo a node the user or draft selected meanwhile.
+      setSelectedNodeSlug(current => !groups.length || groups.some(group => group.nodes.some(node => node.slug === current)) ? current : "water");
+    }).catch(() => {});
+    const loginTimer = !getCachedUsername() ? setTimeout(() => openLoginModal(), 500) : undefined;
+    return () => {
+      active = false;
+      clearTimeout(loginTimer);
+    };
   }, []);
 
   // Validate selected node when switching to normal type
@@ -366,7 +368,6 @@ export default function CreateTopic() {
         title: title.trim(),
         content: finalContent,
       });
-      recordCommentEmojiUsage(content, attachments.flatMap(item => item.kind === 'sticker' ? [item.sticker] : []));
       published.current = true;
       Taro.hideLoading();
       const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");

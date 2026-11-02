@@ -22,3 +22,5 @@ export * from "./utils/urls";
 export * from "./urls";
 export * from "./types";
 export { setCacheService, getCacheService, setOnLoginRequired, setOnUnreadNotifications } from "./client";
+
+export * from "./cacheVersions";

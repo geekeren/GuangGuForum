@@ -49,5 +49,6 @@ export async function createNewComment(payload: CreateNewConmmentPayload) {
       icon: "success",
       duration: 2000,
     });
+    return { moderated };
   });
 }

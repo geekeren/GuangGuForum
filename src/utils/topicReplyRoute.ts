@@ -56,6 +56,14 @@ export function getCommentElementId(comment: ReplyComment): string {
   return replyId ? `reply-${replyId}` : `comment-${comment.floor.replace(/[^\d]/g, "")}`;
 }
 
+export function findLatestComment<T extends ReplyComment>(comments: T[]): T | undefined {
+  return comments.reduce<T | undefined>((latest, comment) => {
+    const floor = Number(comment.floor.match(/\d+/)?.[0] || 0);
+    const previousFloor = Number(latest?.floor.match(/\d+/)?.[0] || 0);
+    return !latest || floor >= previousFloor ? comment : latest;
+  }, undefined);
+}
+
 export function findTargetComment<T extends ReplyComment>(comments: T[], target: TopicReplyTarget): T | undefined {
   // Never jump to another reply because its prefix/floor happens to match a missing exact anchor.
   if (target.replyId) return comments.find((comment) => getCommentReplyId(comment) === target.replyId);

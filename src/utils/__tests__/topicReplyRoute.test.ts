@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildTopicReplyRoute, decodeReplyRouteValue, findTargetComment, getCommentElementId,
+  buildTopicReplyRoute, decodeReplyRouteValue, findLatestComment, findTargetComment, getCommentElementId,
   getCommentReplyId, parseTopicReplyLink, replyPlainText,
 } from "../topicReplyRoute";
 
@@ -30,6 +30,20 @@ describe("notification reply routes", () => {
     const route = buildTopicReplyRoute({ tid: "123", commentMessage: text });
     expect(decodeReplyRouteValue(route.split("commentMessage=")[1])).toBe(text);
     expect(decodeReplyRouteValue("100%完成")).toBe("100%完成");
+  });
+});
+
+describe('latest comment after publishing', () => {
+  it('selects the same newest floor for chronological and reverse ordering', () => {
+    expect(findLatestComment(comments)).toBe(comments[1]);
+    expect(findLatestComment([...comments].reverse())).toBe(comments[1]);
+    expect(findLatestComment([
+      { ...comments[0], floor: '#9' }, { ...comments[1], floor: '#10' },
+    ])?.floor).toBe('#10');
+  });
+  it('handles the first reply and an empty or moderated reply list', () => {
+    expect(findLatestComment([comments[0]])).toBe(comments[0]);
+    expect(findLatestComment([])).toBeUndefined();
   });
 });
 

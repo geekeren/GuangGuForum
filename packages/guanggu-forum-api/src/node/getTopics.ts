@@ -16,6 +16,7 @@ export const getNodeTopics: CacheAPIFunc<GetNodeTopicsParam, TopicSummary[]> = (
 
   return request(`/node/${node}`, {
     cache,
+    cacheApi: "getNodeTopics",
     query: {
       p: String(page),
     },

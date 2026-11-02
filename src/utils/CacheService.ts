@@ -1,17 +1,12 @@
 import Taro from "@tarojs/taro";
 import type { ICacheService } from "guanggu-forum-api";
 import TopicFileCache, { isTopicFileKey } from "./TopicFileCache";
+import { expirationFor, evictionComparator, STORAGE_HIGH_WATER, STORAGE_LOW_WATER, utf8Size } from "./cachePolicy";
 
 const META_PREFIX = "__cache_meta_";
 const INDEX_KEY = "__cache_index__";
 const LAST_CLEANUP_KEY = "__cache_cleanup_date__";
 const DEFAULT_MAX_ENTRIES = 1000;
-const DEFAULT_TTL = 30 * 60 * 1000; // 30 min
-const FILE_AND_TOPIC_INDEX_TTL = 3 * 24 * 60 * 60 * 1000;
-
-function cacheTTL(key: string, ttl?: number): number {
-  return ttl ?? (isTopicFileKey(key) || key === "topic_index" ? FILE_AND_TOPIC_INDEX_TTL : DEFAULT_TTL);
-}
 
 type CachePriority = "low" | "normal" | "high";
 
@@ -111,7 +106,7 @@ class CacheService implements ICacheService {
       this.confirmedMissing.delete(key);
       this.removeLegacyTopicKey(key);
       this.trackKey(key);
-    });
+    }, () => this.getIndex().keys);
   }
 
   private onFileRemoved(key: string, reason: "missing" | "deleted") {
@@ -165,6 +160,7 @@ class CacheService implements ICacheService {
         this.reconcileFileIndex();
         return null;
       }
+      this.touchKey(key);
       try { return JSON.parse(entry.payload) as T; } catch { return entry.payload as T; }
     }
     this.ensureNotExpired(key);
@@ -178,10 +174,11 @@ class CacheService implements ICacheService {
       if (isSystemKey(key) && this.getMeta(key)?.category !== CacheCategory.System) {
         this.saveMeta(key, {
           key, size: this.approxSize(raw), createdAt: Date.now(),
-          expiresAt: Date.now() + DEFAULT_TTL, priority: "normal", category: CacheCategory.System,
+          expiresAt: expirationFor(undefined, Date.now()), priority: "normal", category: CacheCategory.System,
         });
         this.trackKey(key);
       }
+      if (this.getStorageMeta(key)) this.touchKey(key);
       return value as T;
     } catch (e) {
       console.warn("[CacheService] get failed", key, e);
@@ -233,7 +230,7 @@ class CacheService implements ICacheService {
     const current = this.topicFiles.getMetaCached(key);
     if (!current || current.createdAt !== entry.meta.createdAt || this.topicFiles.hasPending(key)) return null;
     this.removeLegacyTopicKey(key);
-    this.trackKey(key);
+    this.touchKey(key);
     try { return JSON.parse(entry.payload) as T; } catch { return entry.payload as T; }
   }
 
@@ -246,7 +243,7 @@ class CacheService implements ICacheService {
       priority?: CachePriority;
     },
   ): boolean {
-    const ttl = cacheTTL(key, options.ttl);
+    const expiresAt = expirationFor(options.ttl, Date.now());
     const priority = options.priority ?? "normal";
     const category = isSystemKey(key) ? CacheCategory.System : options.category;
     const clearable = !NON_CLEARABLE_CATEGORIES.has(category);
@@ -254,7 +251,7 @@ class CacheService implements ICacheService {
 
     if (isTopicFileKey(key)) {
       const success = this.topicFiles.set(key, stored, {
-        key, size: 0, createdAt: Date.now(), expiresAt: Date.now() + ttl,
+        key, size: 0, createdAt: Date.now(), expiresAt,
         priority, category: options.category,
       });
       if (success && this.topicFiles.getMetaCached(key)) {
@@ -265,11 +262,12 @@ class CacheService implements ICacheService {
       return success;
     }
 
+    if (!this.prepareStorageWrite(key, stored, clearable)) return false;
     try {
       Taro.setStorageSync(key, stored);
     } catch (e) {
       console.warn("[CacheService] set failed, evicting and retrying", key, e);
-      this.evict(clearable ? 0.2 : 0.1);
+      this.evict(clearable ? 0.2 : 0.1, key);
       try {
         Taro.setStorageSync(key, stored);
       } catch (e2) {
@@ -278,14 +276,15 @@ class CacheService implements ICacheService {
       }
     }
 
-    this.saveMeta(key, {
+    const metadataSaved = this.saveMeta(key, {
       key,
       size: this.approxSize(stored),
       createdAt: Date.now(),
-      expiresAt: Date.now() + ttl,
+      expiresAt,
       priority,
       category,
     });
+    if (!metadataSaved) return false;
     this.trackKey(key);
     return true;
   }
@@ -299,43 +298,22 @@ class CacheService implements ICacheService {
       priority?: CachePriority;
     },
   ): Promise<boolean> {
-    const ttl = cacheTTL(key, options.ttl);
+    const expiresAt = expirationFor(options.ttl, Date.now());
     const priority = options.priority ?? "normal";
-    const category = isSystemKey(key) ? CacheCategory.System : options.category;
-    const clearable = !NON_CLEARABLE_CATEGORIES.has(category);
     const stored = typeof value === "string" ? value : JSON.stringify(value);
 
     if (isTopicFileKey(key)) {
       const write = this.topicFiles.setAsync(key, stored, {
-        key, size: 0, createdAt: Date.now(), expiresAt: Date.now() + ttl,
+        key, size: 0, createdAt: Date.now(), expiresAt,
         priority, category: options.category,
       });
       return await write;
     }
 
-    try {
-      await Taro.setStorage({ key, data: stored });
-    } catch (e) {
-      console.warn("[CacheService] setAsync failed, evicting and retrying", key, e);
-      this.evict(clearable ? 0.2 : 0.1);
-      try {
-        await Taro.setStorage({ key, data: stored });
-      } catch (e2) {
-        console.warn("[CacheService] setAsync retry failed", key, e2);
-        return false;
-      }
-    }
-
-    this.saveMeta(key, {
-      key,
-      size: this.approxSize(stored),
-      createdAt: Date.now(),
-      expiresAt: Date.now() + ttl,
-      priority,
-      category,
-    });
-    this.trackKey(key);
-    return true;
+    // Keep storage writes ordered without yielding between quota checks,
+    // payload and metadata. Multiple storage keys are not a durable transaction.
+    // File payloads above retain fully asynchronous I/O.
+    return this.set(key, value, options);
   }
 
   remove(key: string, force = false) {
@@ -476,16 +454,53 @@ class CacheService implements ICacheService {
 
   // ─── Eviction ───
 
-  evict(ratio = 0.2): number {
-    // Storage pressure must not initialize/scan the file backend.
-    const storageMetas = this.storageMetas();
-    const metas = storageMetas
-      .filter((m) => !NON_CLEARABLE_CATEGORIES.has(m.category))
-      .sort((a, b) => {
-        const p: Record<string, number> = { low: 0, normal: 1, high: 2 };
-        if (p[a.priority] !== p[b.priority]) return p[a.priority] - p[b.priority];
-        return a.createdAt - b.createdAt;
-      });
+  private storageEvictionCandidates(exclude?: string): CacheMeta[] {
+    // Storage pressure must not initialize or scan the file backend.
+    return this.storageMetas()
+      .filter(meta => meta.key !== exclude && !isSystemKey(meta.key) &&
+        !NON_CLEARABLE_CATEGORIES.has(meta.category))
+      .sort(evictionComparator(this.getIndex().keys));
+  }
+
+  private storageUsage(): { used: number; limit: number } | null {
+    try {
+      const { currentSize, limitSize } = Taro.getStorageInfoSync();
+      if (!Number.isFinite(currentSize) || currentSize < 0 ||
+        !Number.isFinite(limitSize) || limitSize <= 0) return null;
+      return { used: currentSize * 1024, limit: limitSize * 1024 };
+    } catch { return null; }
+  }
+
+  private prepareStorageWrite(key: string, stored: string, clearable: boolean): boolean {
+    const usage = this.storageUsage();
+    if (!usage) return true; // Quota failure still has eviction/retry fallback.
+    let previous = 0;
+    try {
+      const raw = Taro.getStorageSync(key);
+      if (raw !== "" && raw !== undefined && raw !== null) {
+        previous = utf8Size(typeof raw === "string" ? raw : JSON.stringify(raw));
+      }
+    } catch {}
+    const size = utf8Size(stored);
+    // Reserve room for metadata, the new index key and storage accounting.
+    const overhead = utf8Size(key) * 4 + 1024;
+    if (clearable && size + overhead > usage.limit * STORAGE_HIGH_WATER) return false;
+    const growth = Math.max(0, size - previous) + overhead;
+    if (usage.used + growth <= usage.limit * STORAGE_HIGH_WATER) return true;
+    for (const meta of this.storageEvictionCandidates(key)) {
+      if (isTopicFileKey(meta.key)) this.removeLegacyTopicKey(meta.key);
+      else this.remove(meta.key);
+      const current = this.storageUsage();
+      if (current && current.used + growth <= current.limit * STORAGE_LOW_WATER) break;
+    }
+    const current = this.storageUsage();
+    // Never evict the old value of an oversized/failed replacement.
+    // Protected system writes still attempt the platform quota.
+    return !clearable || !current || current.used + growth <= current.limit * STORAGE_HIGH_WATER;
+  }
+
+  evict(ratio = 0.2, exclude?: string): number {
+    const metas = this.storageEvictionCandidates(exclude);
     const count = Math.max(10, Math.floor(metas.length * ratio));
     let removed = 0;
     for (let i = 0; i < count && i < metas.length; i++) {
@@ -792,11 +807,13 @@ class CacheService implements ICacheService {
 
   // ─── Internal ───
 
-  private saveMeta(key: string, meta: CacheMeta) {
+  private saveMeta(key: string, meta: CacheMeta): boolean {
     try {
       Taro.setStorageSync(META_PREFIX + key, JSON.stringify(meta));
+      return true;
     } catch (e) {
       console.warn("[CacheService] saveMeta failed", key, e);
+      return false;
     }
   }
 
@@ -838,6 +855,19 @@ class CacheService implements ICacheService {
     }
   }
 
+  private touchKey(key: string) {
+    // Protected data never participates in LRU. Never replace a failed index
+    // read with an empty snapshot: it would orphan still-usable payloads.
+    if (isSystemKey(key) || this.getStorageMeta(key)?.category === CacheCategory.System) return;
+    let index: CacheIndex;
+    try { index = this.getIndex(true); } catch { return; }
+    if (index.keys[index.keys.length - 1] === key) return;
+    const at = index.keys.indexOf(key);
+    if (at !== -1) index.keys.splice(at, 1);
+    index.keys.push(key);
+    this.saveIndex(index);
+  }
+
   private trackKey(key: string) {
     let index: CacheIndex;
     try { index = this.getIndex(true); }
@@ -849,8 +879,11 @@ class CacheService implements ICacheService {
     // Keep references until deletion succeeds; never shift before file removal.
     const attempted = new Set<string>();
     while (this.getIndex().keys.length > this.maxEntries) {
-      const oldest = this.getIndex().keys.find(candidate => !attempted.has(candidate) &&
-        !isSystemKey(candidate) && this.getStorageMeta(candidate)?.category !== CacheCategory.System);
+      const oldest = this.getIndex().keys.find(candidate => {
+        const meta = this.getStorageMeta(candidate) || this.topicFiles.getMetaCached(candidate);
+        return !attempted.has(candidate) && !isSystemKey(candidate) &&
+          (meta ? meta.category !== CacheCategory.System : isTopicFileKey(candidate) || isLegacyBusinessKey(candidate));
+      });
       if (!oldest) break;
       attempted.add(oldest);
       if (isTopicFileKey(oldest)) {
@@ -866,8 +899,11 @@ class CacheService implements ICacheService {
     const run = async () => {
       const attempted = new Set<string>();
       while (this.getIndex(true).keys.length > this.maxEntries) {
-        const oldest = this.getIndex(true).keys.find(key => !attempted.has(key) &&
-          !isSystemKey(key) && (this.getStorageMeta(key) || this.topicFiles.getMetaCached(key))?.category !== CacheCategory.System);
+        const oldest = this.getIndex(true).keys.find(key => {
+          const meta = this.getStorageMeta(key) || this.topicFiles.getMetaCached(key);
+          return !attempted.has(key) && !isSystemKey(key) &&
+            (meta ? meta.category !== CacheCategory.System : isTopicFileKey(key) || isLegacyBusinessKey(key));
+        });
         if (!oldest) break;
         attempted.add(oldest);
         if (isTopicFileKey(oldest) && this.topicFiles.hasPending(oldest)) continue;

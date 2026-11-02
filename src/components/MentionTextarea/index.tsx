@@ -12,6 +12,7 @@ export interface MentionEditorHandle {
 }
 
 type Props = ComponentProps<typeof Textarea> & {
+  candidatesStyle?: ComponentProps<typeof View>["style"];
   mentionUsers?: string[];
   mentionAvatars?: Record<string, string>;
   topicAuthor?: string;
@@ -23,7 +24,7 @@ type CandidateTouchEvent = { touches?: Array<{ clientX: number }> };
 type MentionSelection = { start: number; end: number };
 type NativeTextarea = { value: string; setAttribute: (name: string, value: number) => void };
 
-export default function MentionTextarea({ value = "", onInput, onBlur, onSelectionChange, className, style, mentionUsers = [], mentionAvatars = {}, topicAuthor, editorRef, ...props }: Props) {
+export default function MentionTextarea({ value = "", onInput, onBlur, onSelectionChange, className, style, mentionUsers = [], mentionAvatars = {}, topicAuthor, editorRef, candidatesStyle, ...props }: Props) {
   const textRef = useRef(value);
   const lastValue = useRef(value);
   const caretRef = useRef({ start: value.length, end: value.length });
@@ -107,7 +108,7 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
 
   return (
     <View className={`mentionEditor${isSkyline() ? " mentionEditor--skyline" : ""} ${className || ""}`} style={style}>
-      <View className={`mentionCandidates${query ? ' mentionCandidates--visible' : ''}`} ariaHidden={!query}>
+      <View className={`mentionCandidates${query ? ' mentionCandidates--visible' : ''}`} ariaHidden={!query} style={candidatesStyle}>
         {query && <>
           <Text className='mentionCandidatesTitle'>提及用户</Text>
           <View

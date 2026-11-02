@@ -12,7 +12,7 @@ import TopicList from "./topicList";
 import Taro, { useReady } from "@tarojs/taro";
 import { ScrollView, Text, View } from "@tarojs/components";
 import { rpxToPx } from "../../../utils/dimension";
-import { fetchAndCacheNodeNavigation, getCachedNodeNavigation } from "../../../utils/nodeNavigation";
+import { fetchAndCacheNodeNavigation } from "../../../utils/nodeNavigation";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
 
 interface TabConfig {
@@ -35,6 +35,8 @@ export default function Topics({ initialTab }: { initialTab?: string }) {
   const [loadedTabs, setLoadedTabs] = useState<Record<number, boolean>>({ 0: true });
   const [refreshKey, setRefreshKey] = useState(0);
   const [scrollIntoView, setScrollIntoView] = useState("tab_0");
+  const [publishGeneration, setPublishGeneration] = useState(0);
+  const consumedPublications = useRef<Record<string, number>>({});
   const listRefs = useRef<Record<number, any>>({});
   const lastTapTime = useRef(0);
   const { data: hotNodesData, request: fetchHotNodes } = useDataWithCache(getHotNodes);
@@ -49,9 +51,7 @@ export default function Topics({ initialTab }: { initialTab?: string }) {
 
   useEffect(() => {
     fetchHotNodes();
-    if (!getCachedNodeNavigation().length) {
-      fetchAndCacheNodeNavigation();
-    }
+    void fetchAndCacheNodeNavigation().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -71,18 +71,17 @@ export default function Topics({ initialTab }: { initialTab?: string }) {
 
   useEffect(() => {
     const handler = () => {
-      setLoadedTabs({ 0: true });
+      setPublishGeneration((generation) => generation + 1);
       setRefreshKey((k) => k + 1);
     };
     Taro.eventCenter.on("refreshTopics", handler);
-    return () => Taro.eventCenter.off("refreshTopics", handler);
+    return () => { Taro.eventCenter.off("refreshTopics", handler); };
   }, []);
 
   const handleClick = (value: number) => {
     const now = Date.now();
     if (value === currentTabIndex && now - lastTapTime.current < 300) {
       listRefs.current[value]?.scrollToTop?.();
-      setRefreshKey((k) => k + 1);
       lastTapTime.current = 0;
       return;
     }
@@ -168,11 +167,16 @@ export default function Topics({ initialTab }: { initialTab?: string }) {
                   : `recent_topics_${tab.type}`
               }
               style={{ height: tabPaneHeight }}
-              getTopics={(page: number) => {
+              freshOnMount={(consumedPublications.current[`${tab.type}_${tab.node || ''}`] ?? 0) < publishGeneration}
+              onFreshLoad={() => {
+                const key = `${tab.type}_${tab.node || ''}`;
+                consumedPublications.current[key] = Math.max(consumedPublications.current[key] ?? 0, publishGeneration);
+              }}
+              getTopics={(page, options) => {
                 if (tab.node) {
-                  return getNodeTopics({ node: tab.node, page });
+                  return getNodeTopics({ node: tab.node, page }, options);
                 }
-                return getRecentTopics({ type: tab.type, page });
+                return getRecentTopics({ type: tab.type, page }, options);
               }}
             />
           )}

@@ -33,7 +33,7 @@ export interface InterestNode {
 }
 
 export function getHotTopics(): Promise<HotTopic[]> {
-  return request("/", { cache: true }).then(({ body }) => {
+  return request("/", { cache: true, cacheApi: "getHotTopics" }).then(({ body }) => {
     if (!body) return [];
     const topics = getDataFromHtml(body, {
       _selector: ".hot-topics .cell",
@@ -61,7 +61,7 @@ export function getHotTopics(): Promise<HotTopic[]> {
 export async function getHotTopicMetadata(topicLink: string): Promise<{ category: string; commentCount?: string }> {
   const tid = topicLink.match(/^\/t\/(\d+)(?:[?#].*)?$/)?.[1];
   if (!tid) throw new Error("热议链接无效");
-  const { body } = await request(`/t/${tid}`, { cache: true, timeout: 15000 });
+  const { body } = await request(`/t/${tid}`, { cache: true, cacheApi: "getHotTopicMetadata", timeout: 15000 });
   const category = body?.querySelector('.topic-detail .meta .node')?.textContent.trim();
   if (!category) throw new Error("板块信息暂不可用");
   const summary = body?.querySelector('.topic-reply .ui-header')?.textContent || "";
@@ -83,6 +83,7 @@ export function getInterestTopics(
   const { page = 1 } = param || {};
   return request("/", {
     cache: true,
+    cacheApi: "getInterestTopics",
     // Discovery is browseable without authentication; don't redirect its whole page.
     notifyLoginRequired: false,
     query: {

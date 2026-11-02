@@ -1,10 +1,10 @@
 import Taro from "@tarojs/taro";
 import type { CacheCategory, CacheMeta } from "./CacheService";
+import { FILE_CACHE_MAX_BYTES, evictionComparator } from "./cachePolicy";
 
 const DIRECTORY = "guozaoke-topic-cache-v1";
 const VERSION = 1;
 const CATEGORIES = ["topic", "node", "user", "link", "system", "other"];
-const PRIORITIES: Record<string, number> = { low: 0, normal: 1, high: 2 };
 
 // Shared only to protect in-flight files from another instance's recovery scan.
 const activeTemps = new Map<string, number>();
@@ -79,7 +79,7 @@ function validMeta(meta: unknown): meta is CacheMeta {
   const m = meta as CacheMeta;
   return isTopicFileKey(m.key) && Number.isFinite(m.size) && Number.isInteger(m.size) && m.size >= 0 &&
     Number.isFinite(m.createdAt) && m.createdAt >= 0 && Number.isFinite(m.expiresAt) && m.expiresAt >= 0 &&
-    CATEGORIES.includes(m.category) && Object.prototype.hasOwnProperty.call(PRIORITIES, m.priority);
+    CATEGORIES.includes(m.category) && ["low", "normal", "high"].includes(m.priority);
 }
 
 function missing(error: unknown): boolean {
@@ -114,11 +114,24 @@ export default class TopicFileCache {
   private readonly maxEntries: number;
   private readonly maxBytes: number;
 
-  constructor(maxEntries = 1000, maxBytes = 20 * 1024 * 1024,
+  // File I/O stays storage-independent. The owner supplies persisted LRU order;
+  // standalone instances use successful reads/writes with creation-time fallback.
+  private accessOrder: string[] = [];
+
+  constructor(maxEntries = 1000, maxBytes = FILE_CACHE_MAX_BYTES,
     private readonly onRemoved?: (key: string, reason: RemovalReason) => void,
-    private readonly onPublished?: (key: string, meta: CacheMeta) => void) {
+    private readonly onPublished?: (key: string, meta: CacheMeta) => void,
+    private readonly getAccessOrder?: () => readonly string[]) {
     this.maxEntries = Number.isFinite(maxEntries) ? Math.max(0, Math.floor(maxEntries)) : 1000;
-    this.maxBytes = Number.isFinite(maxBytes) ? Math.max(0, Math.floor(maxBytes)) : 20 * 1024 * 1024;
+    this.maxBytes = Number.isFinite(maxBytes) ? Math.max(0, Math.floor(maxBytes)) : FILE_CACHE_MAX_BYTES;
+  }
+
+  private touch(key: string) {
+    if (this.getAccessOrder) return; // The owner already persists the shared order.
+    this.accessOrder = this.accessOrder.filter(candidate => this.entries.has(candidate));
+    const index = this.accessOrder.indexOf(key);
+    if (index !== -1) this.accessOrder.splice(index, 1);
+    this.accessOrder.push(key);
   }
 
   get(key: string): { payload: string; meta: CacheMeta } | null {
@@ -133,6 +146,7 @@ export default class TopicFileCache {
         if (!this.hasPending(key)) this.remove(key);
         return null;
       }
+      this.touch(key);
       return { payload: entry.payload, meta: { ...entry.meta } };
     } catch (error) {
       if (missing(error)) {
@@ -218,6 +232,7 @@ export default class TopicFileCache {
         if (!this.hasPending(key)) await this.removeAsync(key);
         return null;
       }
+      this.touch(key);
       return { payload: entry.payload, meta: { ...entry.meta } };
     } catch (error) {
       if (missing(error)) {
@@ -756,6 +771,7 @@ export default class TopicFileCache {
       }
     }
     this.entries = entries;
+    this.accessOrder = this.accessOrder.filter(key => entries.has(key));
     this.files = files;
     this.unsafeSize = unsafe;
     this.stateVersion++;
@@ -867,6 +883,7 @@ export default class TopicFileCache {
       if (bytes !== undefined) files.set(previous.name, bytes);
     }
     this.entries = entries;
+    this.accessOrder = this.accessOrder.filter(key => entries.has(key));
     this.files = files;
     this.unsafeSize = unsafe;
     this.stateVersion++;
@@ -909,6 +926,7 @@ export default class TopicFileCache {
     this.fs!.renameSync(this.path(write.name), this.path(name));
     this.files.set(name, write.bytes);
     this.entries.set(write.key, { meta: write.meta, name });
+    this.touch(write.key);
     // Reads begun during this pending write must become stale even after finish.
     this.invalidateKey(write.key);
     this.stateVersion++;
@@ -970,11 +988,10 @@ export default class TopicFileCache {
   }
 
   private evictionCandidates(key?: string): DiskEntry[] {
-    const now = Date.now();
-    return [...this.entries.values()].filter((entry) => entry.meta.key !== key && !this.hasPending(entry.meta.key)).sort((a, b) => {
-      const expired = Number(b.meta.expiresAt < now) - Number(a.meta.expiresAt < now);
-      return expired || PRIORITIES[a.meta.priority] - PRIORITIES[b.meta.priority] || a.meta.createdAt - b.meta.createdAt;
-    });
+    const compare = evictionComparator(this.getAccessOrder?.() ?? this.accessOrder);
+    return [...this.entries.values()]
+      .filter(entry => entry.meta.key !== key && !this.hasPending(entry.meta.key))
+      .sort((a, b) => compare(a.meta, b.meta));
   }
 
   private makeRoom(extraBytes: number, key?: string): boolean {
@@ -1001,6 +1018,7 @@ export default class TopicFileCache {
   private forget(name: string): void {
     this.files.delete(name);
     for (const [key, entry] of this.entries) if (entry.name === name) this.entries.delete(key);
+    this.accessOrder = this.accessOrder.filter(key => this.entries.has(key));
     this.stateVersion++;
   }
 
@@ -1008,6 +1026,7 @@ export default class TopicFileCache {
     const name = this.fileName(key);
     // A hash collision is never grounds to forget another key's metadata.
     this.entries.delete(key);
+    this.accessOrder = this.accessOrder.filter(candidate => candidate !== key);
     if (![...this.entries.values()].some((entry) => entry.name === name)) this.files.delete(name);
     this.stateVersion++;
     try { this.onRemoved?.(key, reason); }

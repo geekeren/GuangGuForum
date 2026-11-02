@@ -1,3 +1,4 @@
+import { createApiCacheEntry, readApiCacheEntry } from "../cacheVersions";
 import Taro from "@tarojs/taro";
 import { parse, HTMLElement } from "node-html-parser";
 import { matchContentRule } from "./linkContentRules";
@@ -16,7 +17,7 @@ export interface LinkSummary {
 }
 
 const LINK_CACHE_PREFIX = "link_html_";
-const HTML_CACHE_TTL = 30 * 60 * 1000;
+const pendingHtml = new Map<string, Promise<string>>();
 
 function metaContent(doc: HTMLElement, property: string): string {
   const el =
@@ -127,21 +128,27 @@ function parseSummary(html: string, url: string): LinkSummary {
   };
 }
 
-async function fetchHtml(url: string): Promise<string> {
-  try {
-    const res = await Taro.request({
-      url,
-      responseType: "text",
-      timeout: 8000,
-    });
-    const html = typeof res.data === "string" ? res.data : "";
-    if (html) {
-      getCacheService().set(LINK_CACHE_PREFIX + url, html, { category: "link", ttl: HTML_CACHE_TTL, priority: "low" });
-    }
-    return html;
-  } catch {
-    return "";
-  }
+function fetchHtml(url: string): Promise<string> {
+  const existing = pendingHtml.get(url);
+  if (existing) return existing;
+  const pending = Promise.resolve().then(() => Taro.request({
+    url,
+    responseType: "text",
+    timeout: 8000,
+  })).then(res => {
+    if (!(res.statusCode >= 200 && res.statusCode < 300)) return "";
+    return typeof res.data === "string" && res.data.trim() ? res.data : "";
+  }).catch(() => "").finally(() => {
+    if (pendingHtml.get(url) === pending) pendingHtml.delete(url);
+  });
+  pendingHtml.set(url, pending);
+  return pending;
+}
+
+function cacheHtml(url: string, html: string) {
+  if (!html) return;
+  const entry = createApiCacheEntry("fetchLinkSummary", html);
+  if (entry) getCacheService().set(LINK_CACHE_PREFIX + url, entry, { category: "link", priority: "low" });
 }
 
 function getCachedHtml(url: string): string {
@@ -150,7 +157,11 @@ function getCachedHtml(url: string): string {
     cs.remove(LINK_CACHE_PREFIX + url);
     return "";
   }
-  return cs.get<string>(LINK_CACHE_PREFIX + url) || "";
+  const cached = cs.get<unknown>(LINK_CACHE_PREFIX + url);
+  const html = readApiCacheEntry<unknown>("fetchLinkSummary", cached);
+  if (typeof html === 'string') return html;
+  if (cached !== null) cs.remove(LINK_CACHE_PREFIX + url);
+  return "";
 }
 
 export interface FetchLinkSummaryParam {
@@ -162,23 +173,23 @@ export const fetchLinkSummary: CacheAPIFunc<FetchLinkSummaryParam, LinkSummary> 
   options?,
 ) => {
   const emptySummary = { title: url, description: "", bodyText: "", bodyHtml: "", image: "", favicon: "", siteName: "", url };
-  const cachedHtml = getCachedHtml(url);
-  const html = cachedHtml || await fetchHtml(url);
-
-  if (!html) {
-    return emptySummary;
+  const cache = options?.cache ?? true;
+  const cachedHtml = cache ? getCachedHtml(url) : "";
+  if (cachedHtml) {
+    const summary = parseSummary(cachedHtml, url);
+    // Refresh retained HTML even when nobody subscribes to UI updates.
+    void fetchHtml(url).then(freshHtml => {
+      if (!freshHtml) return;
+      const freshSummary = parseSummary(freshHtml, url);
+      cacheHtml(url, freshHtml);
+      options?.onRefresh?.(freshSummary);
+    }).catch(() => {});
+    return summary;
   }
 
+  const html = await fetchHtml(url);
+  if (!html) return emptySummary;
   const summary = parseSummary(html, url);
-
-  if (cachedHtml && options?.onRefresh) {
-    fetchHtml(url).then((freshHtml) => {
-      if (freshHtml) {
-        const freshSummary = parseSummary(freshHtml, url);
-        options.onRefresh!(freshSummary);
-      }
-    });
-  }
-
+  if (cache) cacheHtml(url, html);
   return summary;
 }

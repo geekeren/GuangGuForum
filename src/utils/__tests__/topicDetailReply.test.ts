@@ -14,7 +14,7 @@ const fixture = `<div class="container"><div class="row">
   </div>
 </div></div>`;
 
-function result() { return { body: parse(fixture), rawRes: { statusCode: 200 } }; }
+function result(html = fixture) { return { body: parse(html), rawRes: { statusCode: 200 } }; }
 
 describe("topic detail precise reply data", () => {
   it("parses each actual reply id without losing individual timestamps or heading data", async () => {
@@ -72,6 +72,36 @@ describe("topic detail precise reply data", () => {
     vi.mocked(request).mockResolvedValueOnce(result());
     await getTopicDetail({ tid: "123", page: "2", replyId: "789" });
     expect(request).toHaveBeenLastCalledWith("/search/reply/789", expect.objectContaining({ query: {} }));
+  });
+  it('loads the latest reply page uncached instead of an old page or reply resolver', async () => {
+    const pagination = `<ul class="pagination">
+      <li><a href="/t/123?p=2">2</a></li><li><a href="?p=4">末页</a></li>
+      <li><a href="https://www.guozaoke.com/t/123?p=3">3</a></li>
+      <li><a href="/t/999?p=100">别的帖子</a></li><li><a href="https://example.com/t/123?p=99">外链</a></li>
+      <li><a href="/t/123?p=oops">无效页码</a></li>
+    </ul>`;
+    vi.mocked(request).mockResolvedValueOnce(result(fixture + pagination));
+    vi.mocked(request).mockResolvedValueOnce(result(fixture.replace('id="r789"', 'id="r999"')));
+    const start = vi.mocked(request).mock.calls.length;
+    const detail = await getTopicDetail({ tid: '123', page: '2', replyId: '456', latest: true });
+    expect(vi.mocked(request).mock.calls.slice(start)).toEqual([
+      ['/t/123', { cache: false, cacheApi: 'getTopicDetail', query: {} }],
+      ['/t/123', { cache: false, cacheApi: 'getTopicDetail', query: { p: '4' } }],
+    ]);
+    expect(detail.comments[1].id).toBe('r999');
+  });
+  it('uses a single fresh request for topics without reply pagination', async () => {
+    vi.mocked(request).mockResolvedValueOnce(result());
+    const start = vi.mocked(request).mock.calls.length;
+    const detail = await getTopicDetail({ tid: '123', latest: true });
+    expect(vi.mocked(request).mock.calls.slice(start)).toEqual([
+      ['/t/123', { cache: false, cacheApi: 'getTopicDetail', query: {} }],
+    ]);
+    expect(detail.comments.at(-1)?.id).toBe('r789');
+  });
+  it('rejects an unrelated response when locating the latest replies', async () => {
+    vi.mocked(request).mockResolvedValueOnce(result('<div>unavailable</div>'));
+    await expect(getTopicDetail({ tid: '123', latest: true })).rejects.toThrow();
   });
   it("does not interpolate a malformed reply route", async () => {
     vi.mocked(request).mockResolvedValueOnce(result());

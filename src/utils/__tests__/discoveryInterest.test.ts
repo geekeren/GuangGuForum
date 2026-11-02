@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Discovery from "../../pages/home/discovery";
 
 const harness = vi.hoisted(() => ({ topics: [] as any[], loggedIn: true, loginRequired: false }));
-vi.mock("react", () => ({ useState: (initial: any) => [typeof initial === "function" ? initial() : initial, vi.fn()], useEffect: vi.fn() }));
+vi.mock("react", () => ({ useState: (initial: any) => [typeof initial === "function" ? initial() : initial, vi.fn()], useEffect: vi.fn(), useMemo: (create: any) => create(), useRef: (initial: any) => ({ current: initial }) }));
+vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light" }) }));
 vi.mock("@tarojs/components", () => Object.fromEntries(["View", "Text", "Image", "ScrollView"].map(name => [name, name])));
 vi.mock("@tarojs/taro", () => ({ default: { navigateTo: vi.fn() } }));
 vi.mock("guanggu-forum-api", () => ({ getDiscoveryData: vi.fn() }));

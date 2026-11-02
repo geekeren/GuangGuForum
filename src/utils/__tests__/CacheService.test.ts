@@ -585,12 +585,20 @@ describe("CacheService", () => {
   // ─── default TTL ───
 
   describe("default TTL", () => {
-    it("uses default 30min TTL when not specified", () => {
-      const before = Date.now();
+    it("retains node navigation until eviction while honoring an explicit TTL", () => {
+      cs.set("node_navigation", [], { category: CacheCategory.Node });
+      expect(cs.getMeta("node_navigation")!.expiresAt).toBe(Number.MAX_SAFE_INTEGER);
+      cs.set("node_navigation", [], { category: CacheCategory.Node, ttl: 1000 });
+      expect(cs.getMeta("node_navigation")!.expiresAt - Date.now()).toBeLessThanOrEqual(1000);
+    });
+
+    it("retains default reading entries across restarts and daily cleanup", async () => {
       cs.set("k", "v", { category: CacheCategory.Topic });
       const meta = cs.getMeta("k");
-      expect(meta!.expiresAt - before).toBeGreaterThanOrEqual(29 * 60 * 1000);
-      expect(meta!.expiresAt - before).toBeLessThanOrEqual(31 * 60 * 1000);
+      expect(meta!.expiresAt).toBe(Number.MAX_SAFE_INTEGER);
+      const restarted = createService();
+      await restarted.dailyCleanupAsync();
+      expect(restarted.get("k")).toBe("v");
     });
   });
 

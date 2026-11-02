@@ -1,7 +1,7 @@
 import { getScrollViewType } from "../../../utils/renderer";
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getDiscoveryData, HotTopic } from "guanggu-forum-api";
 import { getCachedUsername } from "../../../utils/currentUser";
 import UserAvatar from '../../../components/UserAvatar';
@@ -61,6 +61,12 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
   const [groups, setGroups] = useState(getCachedNodeNavigation);
   const [nodesLoading, setNodesLoading] = useState(false);
   const [nodesError, setNodesError] = useState("");
+  const nodesActive = useRef(true);
+  const nodesPending = useRef(false);
+  useEffect(() => {
+    nodesActive.current = true;
+    return () => { nodesActive.current = false; };
+  }, []);
 
   const refresh = () => {
     setError(false);
@@ -98,10 +104,16 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
   }, [active, hotTopics]);
 
   const loadNodes = () => {
+    if (nodesPending.current || !nodesActive.current) return;
+    nodesPending.current = true;
     setNodesLoading(true);
     setNodesError("");
-    fetchAndCacheNodeNavigation().then(setGroups).catch(() => setNodesError("板块加载失败，请重试"))
-      .finally(() => setNodesLoading(false));
+    fetchAndCacheNodeNavigation().then(next => { if (nodesActive.current) setGroups(next); })
+      .catch(() => { if (nodesActive.current) setNodesError("板块加载失败，请重试"); })
+      .finally(() => {
+        nodesPending.current = false;
+        if (nodesActive.current) setNodesLoading(false);
+      });
   };
 
   const visibleTopics = getHotTopicPage(hotTopics || [], hotPage);
@@ -150,7 +162,7 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
           <View className='sectionHeader'>
             <Image src={FlameIcon} svg mode='aspectFit' className='sectionIcon' />
             <Text className='sectionTitle'>热门板块</Text>
-            <View className='sectionMore' onClick={() => { setShowNodes(true); if (!groups.length) loadNodes(); }}>
+            <View className='sectionMore' onClick={() => { setShowNodes(true); if (!nodesLoading) loadNodes(); }}>
               <Text>查看全部</Text><View className='sectionChevron sectionChevron--down' />
             </View>
           </View>

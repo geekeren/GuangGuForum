@@ -35,3 +35,7 @@
 .topicMoreIcon { width: 56rpx; height: 56rpx; }
 
 @keyframes topicUploadSpin { to { transform: rotate(360deg); } }
+
+.topicEditorDock { position: fixed; left: 0; right: 0; z-index: 101; background: $surface; padding-bottom: env(safe-area-inset-bottom); box-sizing: border-box; }
+.topicEditorDock .topicEditorToolbar { height: 92rpx; padding: 0 24rpx; margin: 0; box-sizing: border-box; }
+.topicEditorDock .topicEditorPanel { border-radius: 0; }

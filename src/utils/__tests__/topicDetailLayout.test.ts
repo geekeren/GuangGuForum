@@ -6,6 +6,7 @@ import TopicDetail from "../../pages/topicDetail";
 import CommentComposer from "../../pages/topicDetail/CommentComposer";
 import { STICKERS } from "../stickers";
 import { recordCommentEmojiUsage } from "../emojiUsage";
+import { cacheService } from '../CacheService';
 
 const harness = vi.hoisted(() => ({
   state: [] as any[], cursor: 0, xsrf: "fixture", username: "", checkingLogin: false, loginError: false, retryLogin: vi.fn(),
@@ -30,7 +31,7 @@ vi.mock("guanggu-forum-api", () => ({ CommentSubmissionError: class extends Erro
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
 vi.mock("../../hooks/useDataWithCache", () => ({
   useDataWithCache: () => ({
-    request: vi.fn(), setData: vi.fn(),
+    request: vi.fn(), requestFresh: (params: any) => getTopicDetail(params, { cache: false }), setData: vi.fn(),
     data: { title: "帖子", author: "tester", content: "内容", commentTotalCount: "1 回复", createCommentXSRF: harness.xsrf, relatingTopics: [], comments: [
       { id: "r1", floor: "#1", author: "recipient", content: "回复内容", replyMetas: [], upVoteCount: "0赞", upVoteUrl: "/replyVote?reply_id=1" },
     ] },
@@ -62,7 +63,8 @@ function find(tree: any, className: string) { return all(tree).find(e => e.props
 beforeEach(() => {
   harness.state = []; harness.xsrf = "fixture"; harness.username = ""; harness.checkingLogin = false; harness.loginError = false;
   vi.clearAllMocks(); vi.mocked(Taro.getCurrentInstance).mockReturnValue({});
-  vi.mocked(createNewComment).mockResolvedValue(undefined);
+  vi.mocked(createNewComment).mockResolvedValue({ moderated: false });
+  vi.mocked(getTopicDetail).mockResolvedValue({ comments: [], commentTotalCount: '' } as any);
   vi.stubGlobal("getCurrentPages", () => [{ renderer: "skyline" }]);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -84,7 +86,7 @@ describe("topic detail restored account and reply capability", () => {
     expect(composer.props.photos).toEqual(['/tmp/photo.jpg']);
     await composer.props.onSend();
     expect(createNewComment).not.toHaveBeenCalled();
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '图片上传开发中，请先移除照片后发送', icon: 'none' });
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '请等待图片上传完成，失败图片可点击重试', icon: 'none' });
     expect(all(render()).find(e => e.type === CommentComposer)!.props.photos).toEqual(['/tmp/photo.jpg']);
   });
   it('defensively caps the combined number of photos and stickers at five', () => {
@@ -113,8 +115,7 @@ describe("topic detail restored account and reply capability", () => {
     expect(recordCommentEmojiUsage).not.toHaveBeenCalled();
     await composer.props.onSend();
     expect(createNewComment).toHaveBeenLastCalledWith({ tid: '1', _xsrf: 'fixture', content: [STICKERS[0], STICKERS[1]].map(sticker => `![${sticker.name}](${sticker.url})`).join('\n\n') });
-    expect(recordCommentEmojiUsage).toHaveBeenCalledOnce();
-    expect(recordCommentEmojiUsage).toHaveBeenCalledWith('', [STICKERS[0], STICKERS[1]]);
+    expect(recordCommentEmojiUsage).not.toHaveBeenCalled();
     entry().props.onClick();
     expect(all(render()).find(e => e.type === CommentComposer)!.props.stickers).toEqual([]);
   });
@@ -200,9 +201,38 @@ describe("topic detail restored account and reply capability", () => {
     expect(Taro.showToast).toHaveBeenCalledWith({ title: "评论发送失败，请重试", icon: "none" });
   });
 
+  it.each([false, true])('locates the newest reply after sending with reverse sort=%s', async reverse => {
+    vi.mocked(cacheService.get).mockReturnValueOnce(reverse);
+    vi.mocked(getTopicDetail).mockResolvedValueOnce({ commentTotalCount: '10 回复', comments: [
+      { id: 'r10', floor: '#10', content: 'latest', upVoteUrl: '' },
+      { id: 'r9', floor: '#9', content: 'older', upVoteUrl: '' },
+    ] } as any);
+    await draft().props.onSend();
+    expect(harness.state).toContainEqual({ id: 'reply-10' });
+    expect(harness.state).toContain('#10');
+    expect(getTopicDetail).toHaveBeenCalledExactlyOnceWith({ tid: '1', latest: true }, { cache: false });
+  });
+  it('does not locate an unrelated reply when the submitted reply is awaiting moderation', async () => {
+    vi.mocked(createNewComment).mockResolvedValueOnce({ moderated: true });
+    vi.mocked(getTopicDetail).mockResolvedValueOnce({ commentTotalCount: '10 回复', comments: [
+      { id: 'r10', floor: '#10', content: 'someone else', upVoteUrl: '' },
+    ] } as any);
+    await draft().props.onSend();
+    expect(harness.state).not.toContainEqual({ id: 'reply-10' });
+    expect(all(render()).some(e => e.type === CommentComposer)).toBe(false);
+  });
+  it('keeps successful submission distinct from a failed latest-reply refresh', async () => {
+    vi.mocked(getTopicDetail).mockRejectedValueOnce(new Error('offline'));
+    await draft().props.onSend();
+    expect(all(render()).some(e => e.type === CommentComposer)).toBe(false);
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '回复已发送，最新回复加载失败，请下拉刷新', icon: 'none' });
+    expect(Taro.showToast).not.toHaveBeenCalledWith({ title: '评论发送失败，请重试', icon: 'none' });
+    expect(createNewComment).toHaveBeenCalledTimes(1);
+  });
+
   it("uses a supplied form token without an extra detail request", async () => {
     await draft().props.onSend();
-    expect(getTopicDetail).not.toHaveBeenCalled();
+    expect(getTopicDetail).toHaveBeenCalledExactlyOnceWith({ tid: '1', latest: true }, { cache: false });
     expect(createNewComment).toHaveBeenCalledWith({ tid: "1", _xsrf: "fixture", content: "synthetic reply" });
   });
 });

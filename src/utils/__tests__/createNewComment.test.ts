@@ -42,13 +42,19 @@ describe('image comment submission', () => {
 
   it('reports moderation as pending review rather than a failure', async () => {
     respond('<div class="topic-reply-create"><div class="alert alert-info">本站已开启回复审核模式</div></div>');
-    await createNewComment(payload);
+    expect(await createNewComment(payload)).toEqual({ moderated: true });
     expect(Taro.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '回复审核中' }));
   });
 
   it('accepts an explicit successful reply response', async () => {
     respond('<div class="topic-detail"></div><div class="topic-reply-create"><div class="alert alert-success">回复成功</div></div>');
-    await createNewComment(payload);
+    expect(await createNewComment(payload)).toEqual({ moderated: false });
+    expect(Taro.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '回复成功' }));
+  });
+
+  it('treats a duplicate submission as success and allows latest-reply positioning', async () => {
+    respond('<div class="topic-reply-create"><div class="alert alert-warning">回复重复提交</div></div>');
+    expect(await createNewComment(payload)).toEqual({ moderated: false });
     expect(Taro.showToast).toHaveBeenCalledWith(expect.objectContaining({ title: '回复成功' }));
   });
 

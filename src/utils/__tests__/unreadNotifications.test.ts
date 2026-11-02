@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parse } from "node-html-parser";
 import { parseUnreadNotifications } from "../../../packages/guanggu-forum-api/src/notification/unread";
+import { createApiCacheEntry } from "../../../packages/guanggu-forum-api/src/cacheVersions";
 import { request, setCacheService, setOnUnreadNotifications } from "../../../packages/guanggu-forum-api/src/client";
 import { getUnreadNotificationCount, subscribeUnreadNotifications, updateUnreadNotifications } from "../unreadNotifications";
 
@@ -51,10 +52,10 @@ describe("website unread notification metadata", () => {
   it("propagates only authenticated successful live bodies, never cached counts", async () => {
     const callback = vi.fn(); setOnUnreadNotifications(callback);
     runtime.store.set("current_username", runtime.username);
-    const key = "html_v2_develop_unread-test_https://www.guozaoke.com/notifications";
-    runtime.store.set(key, html("9"));
+    const key = "html_v2_develop_unread-test_https://www.guozaoke.com/notifications#api=getNotifications";
+    runtime.store.set(key, createApiCacheEntry("getNotifications", html("9")));
     runtime.request.mockReturnValueOnce(new Promise(() => {}));
-    expect((await request("/notifications", { cache: true })).fromCache).toBe(true);
+    expect((await request("/notifications", { cache: true, cacheApi: "getNotifications" })).fromCache).toBe(true);
     expect(callback).not.toHaveBeenCalled();
     runtime.request.mockResolvedValueOnce({ statusCode: 200, data: html("3") });
     await request("/", { cache: false });

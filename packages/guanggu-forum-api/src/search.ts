@@ -15,7 +15,7 @@ export * from "./searchParser";
 
 export async function getSearchNodes() {
   const { body, rawRes } = await request(URLS.SEARCH, {
-    cache: true, timeout: 15000, responseType: "text", dataType: "其他",
+    cache: true, cacheApi: "getSearchNodes", timeout: 15000, responseType: "text", dataType: "其他",
   });
   if (rawRes && rawRes.statusCode !== 200) throw new Error("板块筛选加载失败，请重试");
   return parseSearchNodes(body);

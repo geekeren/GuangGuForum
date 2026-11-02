@@ -50,7 +50,7 @@ export function getCommonEmojiUsage(): { emojis: string[]; stickers: Sticker[] }
   };
 }
 
-// Count each emoji once per successful comment, not draft taps or repeated characters.
+// Record a panel selection immediately. Callers must not record it again on submission.
 export function recordCommentEmojiUsage(content: string, selected: Sticker[]): boolean {
   const saved = readUsage();
   const now = Date.now();

@@ -58,6 +58,7 @@ export const getNodeNavigation: CacheAPIFunc<void, NodeGroup[]> = (
   const cache = options?.cache ?? true;
   return request("/", {
     cache,
+    cacheApi: "getNodeNavigation",
     onRefresh: options?.onRefresh
       ? (body) => options.onRefresh!(parseGroups(body))
       : undefined,

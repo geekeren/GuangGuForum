@@ -14,7 +14,7 @@ import CameraIcon from "../../assets/composer-camera.svg?raw";
 import PhotoIcon from "../../assets/composer-photo.svg?raw";
 import FavoriteIcon from "../../assets/composer-favorite.svg?raw";
 import { MAX_COMMENT_ATTACHMENTS, STICKERS, type Sticker } from "../../utils/stickers";
-import { EMOJIS, getCommonEmojiUsage } from "../../utils/emojiUsage";
+import { EMOJIS, getCommonEmojiUsage, recordCommentEmojiUsage } from "../../utils/emojiUsage";
 import { isImageCompressionEnabled } from "../../utils/imageCompressionPreferences";
 import { photoAttachment, stickerAttachment, type CommentAttachment } from "../../utils/commentAttachments";
 import { ensureImageHostBound } from '../../utils/imageUploadGuard';
@@ -150,7 +150,11 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, t
     }
   };
 
-  const insertEmoji = (emoji: string) => editorRef.current?.insertText(emoji);
+  const insertEmoji = (emoji: string) => {
+    editorRef.current?.insertText(emoji);
+    recordCommentEmojiUsage(emoji, []);
+    setCommonUsage(getCommonEmojiUsage());
+  };
   const selectSticker = (sticker: Sticker) => {
     if (sending) return;
     const current = attachments.current;
@@ -158,6 +162,8 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, t
       Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' });
       return;
     }
+    recordCommentEmojiUsage('', [sticker]);
+    setCommonUsage(getCommonEmojiUsage());
     const next = [...current.stickers, sticker];
     const nextPreviews = [...current.previews, stickerAttachment(sticker)];
     attachments.current = { ...current, stickers: next, previews: nextPreviews };
@@ -277,14 +283,14 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, t
           <ScrollView type={skyline ? 'custom' : undefined} scrollY className='commentPopupPanelScroll' {...{ 'keyboard-dismiss-mode': 'none' }}>
             <View className='commentPopupEmojiGrid'>
               {panelTab === 'common' && <Text className='commentPopupCommonHeading'>Emoji</Text>}
-              {panelTab === 'common' && panelEmojis.length === 0 && <Text className='commentPopupCommonEmpty'>发送评论后，常用 Emoji 会显示在这里</Text>}
+              {panelTab === 'common' && panelEmojis.length === 0 && <Text className='commentPopupCommonEmpty'>选择后，常用 Emoji 会显示在这里</Text>}
               {panelTab !== 'sticker' && Array.from({ length: Math.ceil(panelEmojis.length / 8) }, (_, row) => (
                 <View className='commentPopupPanelRow' key={row}>
                   {panelEmojis.slice(row * 8, row * 8 + 8).map(emoji => <View key={emoji} className='commentPopupPanelEmoji' ariaRole='button' ariaLabel={`插入表情${emoji}`} onClick={() => { if (!sending) insertEmoji(emoji); }}><Text>{emoji}</Text></View>)}
                 </View>
               ))}
               {panelTab === 'common' && <Text className='commentPopupCommonHeading'>自定义表情</Text>}
-              {panelTab === 'common' && panelStickers.length === 0 && <Text className='commentPopupCommonEmpty'>发送评论后，常用自定义表情会显示在这里</Text>}
+              {panelTab === 'common' && panelStickers.length === 0 && <Text className='commentPopupCommonEmpty'>选择后，常用自定义表情会显示在这里</Text>}
               {panelTab !== 'emoji' && Array.from({ length: Math.ceil(panelStickers.length / 5) }, (_, row) => (
                 <View className='commentPopupPanelRow' key={row}>
                   {panelStickers.slice(row * 5, row * 5 + 5).map(sticker => <View className='commentPopupSticker' key={sticker.filename} ariaRole='button' ariaLabel={`添加表情包${sticker.name}`} onClick={() => selectSticker(sticker)}><Image lazyLoad src={sticker.url} mode='aspectFit' className='commentPopupStickerImage' /></View>)}

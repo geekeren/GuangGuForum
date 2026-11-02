@@ -80,6 +80,7 @@ export const getUserFavorites: CacheAPIFunc<GetUserFavoritesParam, FavoriteTopic
 
   return request(`/u/${username}/favorites`, {
     cache,
+    cacheApi: "getUserFavorites",
     query: {
       p: String(page),
     },

@@ -1,7 +1,7 @@
 import { Text, View } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { getNodeTopics } from "guanggu-forum-api";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import TopicList from "../../home/topics/topicList";
 import Navbar from "../../../components/Navbar";
 import "./index.scss";
@@ -16,6 +16,13 @@ const NodeTopics = (props: NodeTopicsProps) => {
   const router = useRouter();
   const node = decodeSearchRouteValue(router.params.node);
   const nodeName = decodeSearchRouteValue(router.params.nodeName);
+  const listRef = useRef<TopicList>(null);
+
+  useEffect(() => {
+    const handler = () => listRef.current?.scrollToTop();
+    Taro.eventCenter.on('refreshTopics', handler);
+    return () => { Taro.eventCenter.off('refreshTopics', handler); };
+  }, []);
 
   useEffect(() => {
     if (!node) {
@@ -42,13 +49,14 @@ const NodeTopics = (props: NodeTopicsProps) => {
       <AutoHeight style={{ flex: 1 }}>
         {(height) => (
           <TopicList
+            ref={listRef}
             style={{ height }}
             cacheKey={`node_topics_${node}`}
-            getTopics={(page: number) => {
+            getTopics={(page, options) => {
               return getNodeTopics({
                 node,
                 page,
-              });
+              }, options);
             }}
           />
         )}

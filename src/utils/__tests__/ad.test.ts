@@ -55,7 +55,7 @@ describe("ad utilities", () => {
       expect(stored!).toBeLessThanOrEqual(expectedMax);
     });
 
-    it("keeps the reward beyond the ordinary 30-minute cache TTL and expires after 30 days", () => {
+    it("keeps the reward beyond the ordinary 1-day cache TTL and expires after 30 days", () => {
       expect(disableAd()).toBe(true);
       vi.setSystemTime(new Date("2026-11-02T00:00:00Z"));
       expect(isAdDisabled()).toBe(true);

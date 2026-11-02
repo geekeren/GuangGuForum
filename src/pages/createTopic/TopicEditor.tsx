@@ -11,7 +11,7 @@ import AddIcon from '../../assets/composer-add.svg?raw';
 import CameraIcon from '../../assets/composer-camera.svg?raw';
 import PhotoIcon from '../../assets/composer-photo.svg?raw';
 import FavoriteIcon from '../../assets/composer-favorite.svg?raw';
-import { EMOJIS, getCommonEmojiUsage } from '../../utils/emojiUsage';
+import { EMOJIS, getCommonEmojiUsage, recordCommentEmojiUsage } from '../../utils/emojiUsage';
 import { MAX_COMMENT_ATTACHMENTS, STICKERS, type Sticker } from '../../utils/stickers';
 import { compressCommentPhoto } from '../../utils/commentPhotos';
 import { isImageCompressionEnabled } from '../../utils/imageCompressionPreferences';
@@ -66,6 +66,18 @@ export default function TopicEditor({ value, placeholder, inputRef, previousRef,
   const [tab, setTab] = useState<'common' | 'emoji' | 'sticker'>('common');
   const [common, setCommon] = useState(getCommonEmojiUsage);
   const [focused, setFocused] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const awaitingKeyboard = useRef(false);
+  const panelRef = useRef(panel);
+  panelRef.current = panel;
+  const updateKeyboardHeight = (height: number) => {
+    if (!Number.isFinite(height)) return;
+    if (height > 0) setPanelHeight(height);
+    if (panelRef.current || (awaitingKeyboard.current && height === 0)) return;
+    awaitingKeyboard.current = false;
+    setKeyboardHeight(Math.max(0, height));
+  };
+  const dockVisible = focused || keyboardHeight > 0 || !!panel;
   const [panelHeight, setPanelHeight] = useState(300);
   const editor = useRef<MentionEditorHandle>(null);
   const currentAttachments = useRef(attachments);
@@ -79,7 +91,11 @@ export default function TopicEditor({ value, placeholder, inputRef, previousRef,
     currentAttachments.current = change(currentAttachments.current);
     onAttachmentsChange(change);
   };
-  const showKeyboard = () => { setPanel(null); setFocused(true); };
+  const showKeyboard = () => {
+    if (panelRef.current) { awaitingKeyboard.current = true; setKeyboardHeight(panelHeight); }
+    panelRef.current = null;
+    setPanel(null); setFocused(true);
+  };
   useImperativeHandle(inputRef, () => ({ focus: showKeyboard }));
   useEffect(() => {
     active.current = true;
@@ -170,12 +186,16 @@ export default function TopicEditor({ value, placeholder, inputRef, previousRef,
     if (currentAttachments.current.length >= MAX_COMMENT_ATTACHMENTS) { Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' }); return; }
     const selected: TopicAttachment = { id: attachmentId(), kind: 'sticker', sticker };
     update(items => [...items, selected]);
+    recordCommentEmojiUsage('', [sticker]);
+    setCommon(getCommonEmojiUsage());
   };
   const togglePanel = (next: 'emoji' | 'more') => {
     if (disabled) return;
     if (panel === next) { showKeyboard(); return; }
     if (next === 'emoji') setCommon(getCommonEmojiUsage());
     setFocused(false);
+    awaitingKeyboard.current = false;
+    panelRef.current = next;
     setPanel(next);
     void Taro.hideKeyboard();
   };
@@ -203,14 +223,16 @@ export default function TopicEditor({ value, placeholder, inputRef, previousRef,
     {failedPhoto && <Text className='topicUploadError'>{failedPhoto.error || '图片上传失败，点击图片重试或移除'}</Text>}
     <MentionTextarea editorRef={editor} className='contentInput topicEditorInput' value={value} placeholder={placeholder}
       mentionUsers={account.current ? [account.current] : []} disabled={disabled} autoHeight focus={focused && !panel} holdKeyboard={!panel}
-      cursorSpacing={100} adjustPosition showConfirmBar={false} maxlength={50000}
-      onFocus={event => { setFocused(true); setPanel(null); if (event.detail.height > 0) setPanelHeight(event.detail.height); }}
+      cursorSpacing={180} adjustPosition showConfirmBar={false} maxlength={50000}
+      onFocus={event => { setFocused(true); panelRef.current = null; setPanel(null); updateKeyboardHeight(event.detail.height); }}
       onBlur={() => setFocused(false)} onTouchStart={showKeyboard}
-      onKeyboardHeightChange={event => { if (event.detail.height > 0) setPanelHeight(event.detail.height); }}
+      onKeyboardHeightChange={event => updateKeyboardHeight(event.detail.height)}
+      candidatesStyle={dockVisible && !panel ? { position: 'fixed', left: 0, bottom: `calc(${keyboardHeight}px + 92rpx)`, zIndex: 102, background: 'var(--theme-surface, #fff)' } : { display: 'none' }}
       onInput={event => {
         if (!value && !event.detail.value) previousRef.current?.focus?.();
         onChange(event.detail.value);
       }} />
+    {dockVisible && <View className='topicEditorDock' style={{ bottom: (panel ? 0 : keyboardHeight) + 'px', paddingBottom: keyboardHeight > 0 && !panel ? '0px' : undefined }}>
     <View className='topicEditorToolbar'>
       <View className='topicEditorTool' ariaRole='button' ariaLabel='提及用户' onClick={() => { if (!disabled) { showKeyboard(); editor.current?.openMentions(); } }}><ThemedIcon src={MentionIcon} tone='secondary' className='topicEditorToolIcon' /></View>
       <View className='topicEditorTool' ariaRole='button' ariaLabel={panel === 'emoji' ? '切换到键盘' : '表情'} onClick={() => togglePanel('emoji')}><ThemedIcon src={panel === 'emoji' ? KeyboardIcon : EmojiIcon} tone={panel === 'emoji' ? 'accent' : 'secondary'} className='topicEditorToolIcon' /></View>
@@ -222,12 +244,12 @@ export default function TopicEditor({ value, placeholder, inputRef, previousRef,
         <View className='topicEditorTabs'>{(['common', 'emoji', 'sticker'] as const).map((item, index) => <View key={item} className={`topicEditorTab${tab === item ? ' topicEditorTab--active' : ''}`} ariaRole='button' onClick={() => setTab(item)}><Text>{['常用', '表情', '过早客'][index]}</Text></View>)}</View>
         <ScrollView type={getScrollViewType()} scrollY className='topicEditorPanelScroll' {...{ 'keyboard-dismiss-mode': 'none' }}>
           {tab === 'common' && <Text className='topicCommonHeading'>Emoji</Text>}
-          {tab === 'common' && emojis.length === 0 && <Text className='topicCommonEmpty'>发表后，常用 Emoji 会显示在这里</Text>}
+          {tab === 'common' && emojis.length === 0 && <Text className='topicCommonEmpty'>选择后，常用 Emoji 会显示在这里</Text>}
           {tab !== 'sticker' && Array.from({ length: Math.ceil(emojis.length / 8) }, (_, row) => <View className='topicPanelRow' key={`emoji-${row}`}>
-            {emojis.slice(row * 8, row * 8 + 8).map(emoji => <View className='topicPanelEmoji' key={emoji} ariaRole='button' ariaLabel={`插入表情${emoji}`} onClick={() => { if (!disabled) editor.current?.insertText(emoji); }}><Text>{emoji}</Text></View>)}
+            {emojis.slice(row * 8, row * 8 + 8).map(emoji => <View className='topicPanelEmoji' key={emoji} ariaRole='button' ariaLabel={`插入表情${emoji}`} onClick={() => { if (!disabled) { editor.current?.insertText(emoji); recordCommentEmojiUsage(emoji, []); setCommon(getCommonEmojiUsage()); } }}><Text>{emoji}</Text></View>)}
           </View>)}
           {tab === 'common' && <Text className='topicCommonHeading'>自定义表情</Text>}
-          {tab === 'common' && stickers.length === 0 && <Text className='topicCommonEmpty'>发表后，常用自定义表情会显示在这里</Text>}
+          {tab === 'common' && stickers.length === 0 && <Text className='topicCommonEmpty'>选择后，常用自定义表情会显示在这里</Text>}
           {tab !== 'emoji' && Array.from({ length: Math.ceil(stickers.length / 5) }, (_, row) => <View className='topicPanelRow' key={`sticker-${row}`}>
             {stickers.slice(row * 5, row * 5 + 5).map(sticker => <View className='topicPanelSticker' key={sticker.filename} ariaRole='button' ariaLabel={`添加表情包${sticker.name}`} onClick={() => addSticker(sticker)}><Image lazyLoad src={sticker.url} mode='aspectFit' className='topicPanelStickerImage' /></View>)}
           </View>)}
@@ -239,5 +261,6 @@ export default function TopicEditor({ value, placeholder, inputRef, previousRef,
         <View className='topicMoreAction' ariaRole='button' ariaLabel='收藏' onClick={() => { if (!disabled) Taro.showToast({ title: '开发中', icon: 'none' }); }}><View className='topicMoreSquare'><ThemedIcon src={FavoriteIcon} tone='secondary' className='topicMoreIcon' /></View><Text>收藏</Text></View>
       </View></View>}
     </View>
+    </View>}
   </View>;
 }

@@ -226,12 +226,44 @@ export interface GetTopicDetailParam {
   tid: string;
   page?: string;
   replyId?: string;
+  latest?: boolean;
+}
+
+function getLastCommentPage(body: HTMLElement | undefined, tid: string): string | undefined {
+  let lastPage = 1;
+  for (const link of body?.querySelectorAll('.pagination a[href]') || []) {
+    const href = link.getAttribute('href') || '';
+    const path = href.replace(/^https?:\/\/www\.guozaoke\.com(?=\/)/i, '');
+    const [pathname, query] = path.split('?');
+    if (pathname && pathname !== `/t/${tid}`) continue;
+    const value = query?.split('#')[0].split('&').find(pair => pair.startsWith('p='))?.slice(2);
+    const candidate = value && /^[1-9]\d*$/.test(value) ? Number(value) : 0;
+    if (Number.isSafeInteger(candidate)) lastPage = Math.max(lastPage, candidate);
+  }
+  return lastPage > 1 ? String(lastPage) : undefined;
 }
 
 export const getTopicDetail: CacheAPIFunc<GetTopicDetailParam, TopicDetail> = (
-  { tid, page, replyId },
+  { tid, page, replyId, latest },
   options?,
 ) => {
+  if (latest) {
+    // Start at the canonical topic, not a historical reply resolver or cached page.
+    const topicUrl = getUrl(URLS.TOPIC_DETAIL, { tid });
+    return request(topicUrl, { cache: false, cacheApi: 'getTopicDetail', query: {} })
+      .then(async ({ body }) => {
+        const lastPage = getLastCommentPage(body, tid);
+        if (lastPage) {
+          const result = await request(topicUrl, {
+            cache: false, cacheApi: 'getTopicDetail', query: { p: lastPage },
+          });
+          body = result.body;
+        }
+        const detail = parseTopicDetail(body, tid);
+        if (!detail?.title) throw new Error('帖子加载失败，请重试');
+        return detail;
+      });
+  }
   const cache = options?.cache ?? true;
   return request(
     replyId && /^\d+$/.test(replyId)
@@ -239,6 +271,7 @@ export const getTopicDetail: CacheAPIFunc<GetTopicDetailParam, TopicDetail> = (
       : getUrl(URLS.TOPIC_DETAIL, { tid }),
     {
       cache,
+      cacheApi: "getTopicDetail",
       query: page && /^\d+$/.test(page) && !replyId ? { p: page } : {},
       onRefresh: options?.onRefresh
         ? (body) => options.onRefresh!(parseTopicDetail(body, tid))
