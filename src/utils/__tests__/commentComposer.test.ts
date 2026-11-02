@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 import { isSkyline } from "../renderer";
 import CommentComposer from "../../pages/topicDetail/CommentComposer";
 
-const harness = vi.hoisted(() => ({ state: [] as any[], cursor: 0 }));
+const harness = vi.hoisted(() => ({ state: [] as any[], cursor: 0, refs: [] as any[], refCursor: 0 }));
 vi.mock("react", () => ({
+  useRef: (initial: any) => { const i = harness.refCursor++; if (!(i in harness.refs)) harness.refs[i] = { current: initial }; return harness.refs[i]; },
   useState: (initial: any) => {
     const index = harness.cursor++;
     if (!(index in harness.state)) harness.state[index] = initial;
@@ -15,7 +16,8 @@ vi.mock("react", () => ({
 vi.mock("@tarojs/taro", () => ({
   default: { getWindowInfo: vi.fn(() => ({ windowWidth: 390, windowHeight: 844, screenHeight: 844, safeArea: { bottom: 810 } })) },
 }));
-vi.mock("@tarojs/components", () => ({ View: "View", Text: "Text" }));
+vi.mock("@tarojs/components", () => ({ View: "View", Text: "Text", Button: "Button" }));
+vi.mock("../../components/ThemedIcon", () => ({ default: "ThemedIcon" }));
 vi.mock("../../components/MentionTextarea", () => ({ default: "MentionTextarea" }));
 vi.mock("../renderer", () => ({ isSkyline: vi.fn(() => true) }));
 
@@ -24,16 +26,17 @@ function elements(tree: any): any[] {
   if (!tree || typeof tree !== "object") return [];
   return [tree, ...elements(tree.props?.children)];
 }
-const props = { value: "@first 正文", sending: false, onChange: vi.fn(), onClose: vi.fn(), onSend: vi.fn() };
+const props = { value: "@first 正文内容", sending: false, onChange: vi.fn(), onClose: vi.fn(), onSend: vi.fn() };
 function render() {
-  harness.cursor = 0;
+  harness.cursor = 0; harness.refCursor = 0;
   return CommentComposer(props);
 }
 function find(tree: any, name: string) {
-  return elements(tree).find(e => e.type === name || e.props?.className === name).props;
+  return elements(tree).find(e => e.type === name || e.props?.className?.split(" ").includes(name)).props;
 }
 beforeEach(() => {
-  harness.state = [];
+  harness.state = []; harness.refs = [];
+  props.value = "@first 正文内容"; props.sending = false;
   vi.clearAllMocks();
   vi.mocked(isSkyline).mockReturnValue(true);
 });
@@ -89,14 +92,45 @@ describe("Skyline comment sheet with WebView fallback", () => {
     input.onInput({ detail: { value: "@second 正文" } });
     expect(props.onChange).toHaveBeenCalledWith("@second 正文");
   });
-  it("renders separate native Text nodes for the sheet header and explicit controls", () => {
+  it("keeps dismissal and send in the bottom toolbar", () => {
     const tree = render();
-    expect(find(tree, "commentPopupCancel").children.type).toBe("Text");
     find(tree, "commentPopupCancel").onClick();
     expect(props.onClose).toHaveBeenCalledOnce();
-    const send = elements(tree).find(e => e.props?.className?.startsWith("commentPopupSend"));
-    expect(send.props.children.type).toBe("Text");
-    send.props.onClick();
+    const send = find(tree, "commentPopupSend");
+    expect(send.children.type).toBe("Text");
+    expect(send.disabled).toBe(false);
+    send.onClick();
     expect(props.onSend).toHaveBeenCalledOnce();
+  });
+  it("prevents sending whitespace, only recipients, short text or an in-flight comment", () => {
+    for (const value of ["", "  ", "@first ", "@first 好的"]) {
+      props.value = value;
+      const send = find(render(), "commentPopupSend");
+      expect(send.disabled).toBe(true);
+      send.onClick();
+    }
+    props.value = "足够长的正文";
+    props.sending = true;
+    const send = find(render(), "commentPopupSend");
+    expect(send.disabled).toBe(true);
+    expect(send.loading).toBe(true);
+    send.onClick();
+    expect(props.onSend).not.toHaveBeenCalled();
+  });
+  it("connects mention and emoji tools to the editor and expands more emojis", () => {
+    let tree = render();
+    const controller = { openMentions: vi.fn(), insertText: vi.fn() };
+    find(tree, "MentionTextarea").editorRef.current = controller;
+    find(tree, "commentPopupMention").onClick();
+    expect(controller.openMentions).toHaveBeenCalledOnce();
+    find(tree, "commentPopupQuickEmoji").onClick();
+    expect(controller.insertText).toHaveBeenCalledWith("👍");
+    find(tree, "commentPopupEmoji").onClick();
+    tree = render();
+    expect(elements(tree).filter(e => e.props?.className === "commentPopupPanelEmoji")).toHaveLength(18);
+    find(tree, "commentPopupPanelEmoji").onClick();
+    expect(controller.insertText).toHaveBeenCalledWith("😊");
+    find(tree, "commentPopupMention").onClick();
+    expect(elements(render()).some(e => e.props?.className === "commentPopupEmojiPanel")).toBe(false);
   });
 });

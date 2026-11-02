@@ -50,6 +50,7 @@ import AddToDesktopGuide from "../../components/AddToDesktopGuide";
 import AdBanner from "../../components/AdBanner";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
 import { useCurrentUsername } from "../../hooks/useCurrentUsername";
+import { getCommentBody } from "../../utils/mentions";
 import { openLoginModal } from "../../utils/auth";
 
 const Index = () => {
@@ -482,12 +483,13 @@ const Index = () => {
       </View>
       {isCommenting && <CommentComposer
         value={commentContent}
+        mentionUsers={[topicDetail.author, ...topicDetail.comments.map((comment) => comment.author)]}
         sending={sending}
         onChange={setCommentContent}
         onClose={() => setIsCommenting(false)}
         onSend={async () => {
           if (sending || !tid) return;
-          if (commentContent.trim().length < 3) {
+          if (getCommentBody(commentContent).trim().length < 3) {
             Taro.showToast({ title: '评论内容至少3个字', icon: 'none' });
             return;
           }
