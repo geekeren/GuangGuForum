@@ -273,7 +273,12 @@ export default function Settings() {
   const isLoggedIn = !!getCachedUsername();
 
   const sections: MenuItem[][] = [
-    [{ label: "外观", desc: THEME_LABELS[themePreference], action: handleThemeChange }],
+    [
+      { label: "外观", desc: THEME_LABELS[themePreference], action: handleThemeChange },
+      { label: '图床设置', desc: 'ImgURL Token · 图片压缩', action: () => {
+        Taro.navigateTo({ url: '/pages/settings/image-setting' });
+      } },
+    ],
     [
       { label: "意见反馈", desc: FEEDBACK_URL, action: () => handleExternalUrl(FEEDBACK_URL) },
       { label: "开源地址", desc: "GitHub", action: () => handleExternalUrl(GITHUB_URL) },

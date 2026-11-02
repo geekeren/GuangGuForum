@@ -1,0 +1,5 @@
+.userAvatar { position: relative; display: block; flex: none; overflow: visible; }
+.userAvatarImage { display: block; border-radius: 50%; }
+.userAvatarTag { position: absolute; right: 0; bottom: 0; }
+.userAvatarTag--full { left: 50%; right: auto; bottom: -6rpx; transform: translateX(-50%); }
+.userAvatar--small .userAvatarTag { height: 16rpx; line-height: 16rpx; font-size: 12rpx; padding: 0 2rpx; }

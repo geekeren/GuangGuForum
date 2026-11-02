@@ -32,19 +32,20 @@ export async function createNewComment(payload: CreateNewConmmentPayload) {
       body?.querySelector(".alert-danger, .alert-warning");
     const response = alert?.text?.trim() || "";
     const moderated = response.includes("本站已开启回复审核模式");
+    const duplicate = response.includes('回复重复提交');
     if (rawRes?.statusCode !== 200 || !body) {
       throw new CommentSubmissionError(response || "评论发送失败，请重试");
     }
     // An HTTP 200 reply form can contain a validation/rate-limit error.
     // Reject it so the composer keeps its text and selected images for retry.
-    if (alert && !moderated && !alert.classList.contains("alert-success")) {
+    if (alert && !moderated && !duplicate && !alert.classList.contains("alert-success")) {
       throw new CommentSubmissionError(response || "评论发送失败，请重试");
     }
-    if (!moderated && !body.querySelector(".topic-detail")) {
+    if (!moderated && !duplicate && !body.querySelector(".topic-detail")) {
       throw new CommentSubmissionError("无法确认评论发送结果，请刷新帖子查看");
     }
     Taro.showToast({
-      title: moderated ? "回复审核中" : response || "回复成功",
+      title: moderated ? "回复审核中" : duplicate ? '回复成功' : response || "回复成功",
       icon: "success",
       duration: 2000,
     });

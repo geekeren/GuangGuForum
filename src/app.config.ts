@@ -9,6 +9,7 @@ export default defineAppConfig({
     "pages/webview/index",
     "pages/linkPreview/index",
     "pages/settings/index",
+    "pages/settings/image-setting",
     "pages/search/index",
   ],
   window: {

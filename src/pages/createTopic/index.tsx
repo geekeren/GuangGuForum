@@ -17,6 +17,8 @@ import NodePicker from "../../components/NodePicker";
 import { TOPIC_TYPE_REGISTRY, ALL_TYPES, ALL_HIDDEN_NODES } from "./topicTypes/registry";
 import type { TopicType } from "./topicTypes/registry";
 import { isSkyline } from "../../utils/renderer";
+import TopicEditor, { restoreTopicAttachments, type TopicAttachment } from './TopicEditor';
+import { recordCommentEmojiUsage } from '../../utils/emojiUsage';
 import "./index.scss";
 
 const LAST_NODE_KEY = "last_selected_node";
@@ -48,6 +50,10 @@ export default function CreateTopic() {
   const [bodyHeight, setBodyHeight] = useState("100vh");
   const [draftRestored, setDraftRestored] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState("");
+  const [attachmentDrafts, setAttachmentDrafts] = useState<Record<string, TopicAttachment[]>>({});
+  const [editorRevision, setEditorRevision] = useState(0);
+  const submitLock = useRef(false);
+  const published = useRef(false);
 
   const refMap = useRef<Record<string, any>>({});
   const getRef = (key: string) => {
@@ -63,6 +69,8 @@ export default function CreateTopic() {
   const nodeLocked = topicType !== "normal";
 
   const resolvedNodeSlug = nodeLocked ? currentDef.node! : selectedNodeSlug;
+  const attachmentDraftKey = getDraftKey(topicType, resolvedNodeSlug || 'water');
+  const attachments = attachmentDrafts[attachmentDraftKey] ?? [];
 
   const resolvedNodeName = (() => {
     if (!resolvedNodeSlug) return "选择板块";
@@ -155,7 +163,7 @@ export default function CreateTopic() {
     if (lastMeta?.topicType) draftType = lastMeta.topicType;
     if (lastMeta?.nodeSlug) draftNode = lastMeta.nodeSlug;
     const draftKey = getDraftKey(draftType, draftNode);
-    const d = cacheService.get<{ savedAt: string; title: string; content: string; typeFields: Record<string, any> }>(draftKey);
+    const d = cacheService.get<{ savedAt: string; title: string; content: string; typeFields: Record<string, any>; attachments?: unknown }>(draftKey);
     if (d) {
       setTopicType(draftType);
       if (draftType === "normal") setSelectedNodeSlug(draftNode);
@@ -163,29 +171,51 @@ export default function CreateTopic() {
       if (d.title) setTitle(d.title);
       if (d.content) setContent(d.content);
       if (d.typeFields) setTypeFields(d.typeFields);
+      setAttachmentDrafts(prev => ({ ...prev, [draftKey]: restoreTopicAttachments(d.attachments) }));
     }
     setDraftRestored(true);
   }, []);
 
+  useEffect(() => {
+    if (!draftRestored) return;
+    setAttachmentDrafts(prev => {
+      if (attachmentDraftKey in prev) return prev;
+      const saved = cacheService.get<{ attachments?: unknown }>(attachmentDraftKey);
+      return { ...prev, [attachmentDraftKey]: restoreTopicAttachments(saved?.attachments) };
+    });
+  }, [draftRestored, attachmentDraftKey]);
+
   // Auto-save draft — isolated by type + node
   useEffect(() => {
     if (!draftRestored) return;
-    if (!hasContent(title, content, typeFields)) { setDraftSavedAt(""); return; }
+    if (!hasContent(title, content, typeFields) && !attachments.length) { setDraftSavedAt(""); return; }
     const timer = setTimeout(() => {
       const savedAt = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
-      cacheService.set(draftKey, { savedAt, title, content, typeFields }, { category: CacheCategory.Topic });
+      cacheService.set(draftKey, { savedAt, title, content, typeFields, attachments }, { category: CacheCategory.Topic });
       cacheService.set(LAST_DRAFT_KEY, { topicType, nodeSlug: resolvedNodeSlug || "water" }, { category: CacheCategory.Topic });
       setDraftSavedAt(savedAt);
     }, 800);
     return () => clearTimeout(timer);
-  }, [draftRestored, topicType, title, content, resolvedNodeSlug, typeFields]);
+  }, [draftRestored, topicType, title, content, resolvedNodeSlug, typeFields, attachments]);
+
+  const saveOnLeave = () => {
+    if (published.current || !draftRestored || (!hasContent(title, content, typeFields) && !attachments.length)) return;
+    const savedAt = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    cacheService.set(attachmentDraftKey, { savedAt, title, content, typeFields, attachments }, { category: CacheCategory.Topic });
+    cacheService.set(LAST_DRAFT_KEY, { topicType, nodeSlug: resolvedNodeSlug || 'water' }, { category: CacheCategory.Topic });
+  };
+  Taro.useDidHide(saveOnLeave);
+  Taro.useUnload(saveOnLeave);
 
   const clearForm = () => {
+    if (submitting || submitLock.current) return;
     setTitle("");
     setContent("");
     setTypeFields(currentDef.initialFields);
     setDraftSavedAt("");
+    setAttachmentDrafts(prev => ({ ...prev, [attachmentDraftKey]: [] }));
+    setEditorRevision(prev => prev + 1);
     const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
     cacheService.remove(draftKey);
     cacheService.remove(LAST_DRAFT_KEY);
@@ -199,17 +229,20 @@ export default function CreateTopic() {
   const closeNodePicker = () => setShowNodePicker(false);
 
   const selectNode = (slug: string) => {
+    if (submitting || submitLock.current) return;
+    saveOnLeave();
     setSelectedNodeSlug(slug);
     cacheService.set(LAST_NODE_KEY, { slug }, { category: CacheCategory.Topic });
     closeNodePicker();
   };
 
   const handleTopicTypeChange = (type: TopicType) => {
+    if (submitting || submitLock.current || type === topicType) return;
     // Save current draft before switching
     const currentDraftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
-    if (hasContent(title, content, typeFields)) {
+    if (hasContent(title, content, typeFields) || attachments.length) {
       const savedAt = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-      cacheService.set(currentDraftKey, { savedAt, title, content, typeFields }, { category: CacheCategory.Topic });
+      cacheService.set(currentDraftKey, { savedAt, title, content, typeFields, attachments }, { category: CacheCategory.Topic });
     } else {
       cacheService.remove(currentDraftKey);
     }
@@ -255,7 +288,12 @@ export default function CreateTopic() {
   const nextFocusRef = useRef<any>(null);
 
   const buildContent = (): string => {
-    return currentDef.buildContent(typeFields, { title, content, fromMini: FROM_MINI });
+    const body = currentDef.buildContent(typeFields, { title, content, fromMini: '' });
+    const images = attachments.flatMap(item => {
+      if (item.kind === 'sticker') return [`![${item.sticker.name}](${item.sticker.url})`];
+      return item.phase === 'complete' && item.url ? [`![图片](${item.url.replace(/\(/g, '%28').replace(/\)/g, '%29')})`] : [];
+    });
+    return [body, ...images].filter(Boolean).join('\n\n') + FROM_MINI;
   };
 
   const validateForm = (): string | null => {
@@ -272,6 +310,14 @@ export default function CreateTopic() {
       Taro.showToast({ title: "请输入标题", icon: "none" });
       return null;
     }
+    if (attachments.some(item => item.kind === 'photo' && item.owner !== getCachedUsername())) {
+      Taro.showToast({ title: '图片所属账号已变化，请移除后重新上传', icon: 'none' });
+      return null;
+    }
+    if (attachments.some(item => item.kind === 'photo' && (item.phase !== 'complete' || !item.url))) {
+      Taro.showToast({ title: '请等待图片上传完成，失败图片可点击重试', icon: 'none' });
+      return null;
+    }
     const finalContent = buildContent().trim();
     if (!finalContent) {
       Taro.showToast({ title: "请输入内容", icon: "none" });
@@ -286,6 +332,7 @@ export default function CreateTopic() {
   };
 
   const handleSubmit = () => {
+    if (submitting || submitLock.current) return;
     const finalContent = validateForm();
     if (!finalContent) return;
     setPreviewContent(finalContent);
@@ -300,11 +347,18 @@ export default function CreateTopic() {
   };
 
   const confirmSubmit = async () => {
+    if (submitting || submitLock.current) return;
     const finalContent = previewContent;
     if (!finalContent) return;
+    if (!getCachedUsername() || attachments.some(item => item.kind === 'photo' && (item.owner !== getCachedUsername() || item.phase !== 'complete' || !item.url))) {
+      Taro.showToast({ title: '登录或图片状态已变化，请重新预览', icon: 'none' });
+      closePreview();
+      return;
+    }
     const resolvedNode = nodeLocked ? currentDef.node : selectedNodeSlug;
     setPreviewContent(null);
     setSubmitting(true);
+    submitLock.current = true;
     Taro.showLoading({ title: "发布中...", mask: true });
     try {
       await createTopic({
@@ -312,10 +366,13 @@ export default function CreateTopic() {
         title: title.trim(),
         content: finalContent,
       });
+      recordCommentEmojiUsage(content, attachments.flatMap(item => item.kind === 'sticker' ? [item.sticker] : []));
+      published.current = true;
       Taro.hideLoading();
       const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
       cacheService.remove(draftKey);
       cacheService.remove(LAST_DRAFT_KEY);
+      setAttachmentDrafts(prev => ({ ...prev, [attachmentDraftKey]: [] }));
       Taro.eventCenter.trigger("refreshTopics");
       Taro.navigateBack();
     } catch {
@@ -323,6 +380,7 @@ export default function CreateTopic() {
       Taro.showToast({ title: "发布失败", icon: "none" });
     } finally {
       setSubmitting(false);
+      submitLock.current = false;
     }
   };
 
@@ -365,6 +423,12 @@ export default function CreateTopic() {
         getRef,
         focusRef,
         handleTitleInput,
+        renderContentInput: (placeholder, previousRef) => <TopicEditor
+          key={`${attachmentDraftKey}:${editorRevision}`} inputRef={getRef('content')} previousRef={previousRef}
+          placeholder={placeholder} value={content} onChange={setContent} disabled={submitting}
+          attachments={attachments} onAttachmentsChange={update => setAttachmentDrafts(prev => ({
+            ...prev, [attachmentDraftKey]: update(prev[attachmentDraftKey] ?? []),
+          }))} />,
       })}
 
       </ScrollView>

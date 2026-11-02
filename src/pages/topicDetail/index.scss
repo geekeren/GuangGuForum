@@ -1,5 +1,7 @@
 @import "../../vars.scss";
 
+@keyframes commentPhotoSpin { to { transform: rotate(360deg); } }
+
 .topicDetail {
   background: linear-gradient(180deg, var(--theme-surface-soft, #eff3fc) 0%, var(--theme-bg, #f5f7fc) 100%);
   height: 100vh;
@@ -690,7 +692,13 @@
     font-weight: 600;
     line-height: 1;
     &::after { border: none; }
-    &--disabled { background: $color-brand-soft; color: $text-faint; }
+    &--disabled, &[disabled] {
+      background: var(--theme-surface-alt, #eef1f5);
+      color: var(--theme-text-muted, #667085);
+      opacity: 1;
+      box-shadow: inset 0 0 0 1rpx var(--theme-border, #d5dbe4);
+    }
+    &--disabled text, &[disabled] text { color: inherit; }
   }
   .commentPopupPanelEmoji {
     display: flex;
@@ -740,6 +748,16 @@
   .commentStickerPreviewTrack { display: flex; flex-direction: row; height: 144rpx; }
   .commentStickerPreview { position: relative; width: 144rpx; height: 144rpx; flex: none; padding: 12rpx; box-sizing: border-box; }
   .commentStickerPreviewImage { width: 120rpx; height: 120rpx; }
+  .commentPhotoUploadOverlay {
+    position: absolute; left: 12rpx; right: 12rpx; top: 12rpx; bottom: 12rpx;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: 12rpx; background: rgba(0, 0, 0, 0.45); color: #fff;
+  }
+  .commentPhotoUploadLabel { font-size: 20rpx; line-height: 1.4; padding: 0 4rpx; text-align: center; }
+  .commentPhotoUploadSpinner {
+    width: 32rpx; height: 32rpx; border: 3rpx solid rgba(255, 255, 255, 0.4); border-top-color: #fff;
+    border-radius: 50%; margin-bottom: 12rpx; animation: commentPhotoSpin 900ms linear infinite;
+  }
   .commentStickerRemove { position: absolute; top: 0; right: 0; width: 40rpx; height: 40rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; background: $surfaceAlt; color: $text-primary; font-size: 32rpx; }
 
 }

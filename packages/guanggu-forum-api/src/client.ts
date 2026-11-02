@@ -8,12 +8,12 @@ import { ICacheService, CacheCategory } from "./types";
 import { parseUnreadNotifications } from "./notification/unread";
 
 type TaroRequestConfig = Parameters<typeof Taro.request>[0];
-export interface RequestConfig extends Omit<TaroRequestConfig, "url" | "data"> {
+export interface RequestConfig extends Omit<TaroRequestConfig, "url" | "data" | "cache"> {
   useProxy?: boolean;
   useCookie?: boolean;
   notifyLoginRequired?: boolean;
   query?: Record<string, string | undefined>;
-  data?: Record<string, string | undefined>;
+  data?: Record<string, unknown>;
   method?: "POST" | "GET";
   cache?: boolean;
   onRefresh?: (body: HTMLElement) => void;
@@ -86,6 +86,7 @@ export class LoginRequiredError extends Error {
 }
 
 function parseHtmlResponse(resData: string, relativeUrl: string, live = false, success = false, notifyLoginRequired = true) {
+  if (typeof resData !== 'string') return null;
   const REG_BODY = /<body[^>]*>([\s\S]*)<\/body>/;
   const result = REG_BODY.exec(resData);
   if (result && result.length === 2) {

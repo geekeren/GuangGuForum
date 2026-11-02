@@ -1,0 +1,41 @@
+@import "../../vars.scss";
+
+.imageHostEditor { padding: 28rpx; }
+.imageHostTitle { display: block; color: $text-primary; font-size: 32rpx; font-weight: 600; }
+.imageHostIntro { display: block; color: $text-muted; font-size: 24rpx; line-height: 1.6; margin-top: 12rpx; }
+.imageHostLabel { display: block; color: $text-primary; font-size: 28rpx; font-weight: 600; }
+.imageHostStatusPanel {
+  display: flex; flex-direction: row; align-items: center; padding: 20rpx; margin: 24rpx 0; border-radius: 12rpx; background: $surfaceAlt;
+  &--bound { background: $color-brand-soft; }
+}
+.imageHostStatus { display: block; flex: 1; min-width: 0; color: $text-sub; font-size: 24rpx; line-height: 1.6; overflow-wrap: anywhere; }
+.imageHostRefresh {
+  flex: none; margin: 0 0 0 16rpx; padding: 8rpx 12rpx; background: transparent; color: $color-brand; font-size: 24rpx; line-height: 1.4;
+  &::after { border: none; }
+}
+.imageHostLabel { margin-bottom: 16rpx; }
+.imageHostTokenInput { width: 100%; height: 80rpx; padding: 0 20rpx; box-sizing: border-box; border-radius: 12rpx; background: $surfaceAlt; color: $text-primary; font-size: 26rpx; }
+.imageHostHint { display: block; color: $text-faint; font-size: 22rpx; line-height: 1.6; margin-top: 16rpx; }
+.imageHostError { display: block; color: var(--theme-danger, #c74646); font-size: 24rpx; line-height: 1.6; margin-bottom: 24rpx; }
+.imageHostPrivacy { padding-top: 4rpx; }
+.imageHostActions { display: flex; flex-direction: row; margin-top: 24rpx; }
+.imageHostSave, .imageHostRemove {
+  flex: 1; min-width: 0; margin: 0; padding: 20rpx; border-radius: 16rpx; font-size: 26rpx; line-height: 1.4;
+  &::after { border: none; }
+  &[disabled] {
+    background: $surfaceAlt;
+    color: $text-muted;
+    opacity: 1;
+    box-shadow: inset 0 0 0 1rpx var(--theme-border-strong, #d6dbe5);
+  }
+  text { color: inherit; }
+}
+.imageHostSave { background: $color-brand; color: #fff; }
+.imageHostRemove { margin-left: 16rpx; background: $surfaceAlt; color: $text-muted; }
+.imageCompressionSetting {
+  border-bottom: none;
+  &:active { background: transparent; }
+  .settingsItemLeft { margin-right: 20rpx; }
+  .settingsItemDesc { white-space: normal; line-height: 1.6; }
+}
+.imageCompressionHint { display: block; padding: 0 28rpx 28rpx; color: $text-faint; font-size: 22rpx; line-height: 1.6; }

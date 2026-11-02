@@ -32,7 +32,7 @@ const Me = ({ active }: { active?: boolean }) => {
     />
   );
 
-  if (!username || !profile || loginError) {
+  if (!username || !profile || profile.username !== username || loginError) {
     return (
       <View className='meProfile meProfile--notLoggedIn' style={{ height: "100%" }}>
         <Navbar
@@ -69,7 +69,7 @@ const Me = ({ active }: { active?: boolean }) => {
 
   return (
     <ScrollView type={getScrollViewType()} scrollY className='meProfile' style={{ height: "100%" }}>
-      <UserProfileDetail className='userProfileDetail--me' profile={profile} actions={settingsAction} navPaddingTop={navTopPadding} />
+      <UserProfileDetail className='userProfileDetail--me' profile={profile} actions={settingsAction} navPaddingTop={navTopPadding} showRecentlyViewed active={!!active} />
     </ScrollView>
   );
 };

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Image, Text, View } from "@tarojs/components";
+import { Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { UserProfile, URLS, urlPathVaiable, getUserFavorites, FavoriteTopic } from "guanggu-forum-api";
-import { getFromLocalCache } from "../../utils/localAssets";
+import UserAvatar from '../UserAvatar';
 import TopicTag from "../TopicTag";
 import CommentIcon from "../../assets/comment.svg?raw";
 import ThemedIcon from "../ThemedIcon";
 import Loading from "../Loading";
+import RecentlyViewedTopics from '../RecentlyViewedTopics';
 import { isSkyline } from "../../utils/renderer";
 import "./index.scss";
 
@@ -15,6 +16,8 @@ interface Props {
   className?: string;
   actions?: React.ReactNode;
   navPaddingTop?: number;
+  showRecentlyViewed?: boolean;
+  active?: boolean;
 }
 
 const TAB_LIST = [
@@ -23,15 +26,16 @@ const TAB_LIST = [
   { key: "favorites", label: "收藏" },
 ] as const;
 
-type TabKey = (typeof TAB_LIST)[number]["key"];
+type TabKey = (typeof TAB_LIST)[number]["key"] | 'recent';
 
-export default function UserProfileDetail({ profile, className = "", actions, navPaddingTop }: Props) {
+export default function UserProfileDetail({ profile, className = "", actions, navPaddingTop, showRecentlyViewed = false, active = true }: Props) {
   const skyline = isSkyline();
   const singleLine = skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {};
   const twoLines = skyline ? { overflow: "ellipsis", maxLines: 2 } as const : {};
   const [activeTab, setActiveTab] = useState<TabKey>("topics");
   const [favorites, setFavorites] = useState<FavoriteTopic[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const tabs = showRecentlyViewed ? [...TAB_LIST, { key: 'recent' as const, label: '最近浏览' }] : TAB_LIST;
 
   useEffect(() => {
     if (activeTab === "favorites" && favorites.length === 0) {
@@ -74,7 +78,7 @@ export default function UserProfileDetail({ profile, className = "", actions, na
       }}>
         <View className="topRow">
           <View className="avatar">
-            <Image src={getFromLocalCache(profile.avatarUrl)} svg={profile.avatarUrl?.endsWith('/m_default.png')} />
+            <UserAvatar username={profile.username} src={profile.avatarUrl} size={140} />
           </View>
           <View className="nameBlock">
             <View className="nameRow">
@@ -147,7 +151,7 @@ export default function UserProfileDetail({ profile, className = "", actions, na
       {/* Tab 卡片 */}
       <View className="tabCard">
         <View className="tabBar">
-          {TAB_LIST.map((tab) => (
+          {tabs.map((tab) => (
             <View
               key={tab.key}
               className={`tabItem ${activeTab === tab.key ? "tabItem--active" : ""}`}
@@ -160,6 +164,7 @@ export default function UserProfileDetail({ profile, className = "", actions, na
         </View>
 
         <View className="tabBody">
+          {activeTab === 'recent' && showRecentlyViewed && <RecentlyViewedTopics key={profile.username} username={profile.username} active={active} />}
           {activeTab === "topics" &&
             (profile.topics.length > 0 ? (
               profile.topics.map((topic, idx) => (

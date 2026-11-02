@@ -4,7 +4,7 @@ import Taro from "@tarojs/taro";
 import { useEffect, useMemo, useState } from "react";
 import { getDiscoveryData, HotTopic } from "guanggu-forum-api";
 import { getCachedUsername } from "../../../utils/currentUser";
-import { getFromLocalCache } from "../../../utils/localAssets";
+import UserAvatar from '../../../components/UserAvatar';
 import { getHotTopicPage, loadDiscoveryTopicMetadata, startHotTopicRotation } from "../../../utils/discoveryTopics";
 import { fetchAndCacheNodeNavigation, getCachedNodeNavigation } from "../../../utils/nodeNavigation";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
@@ -180,7 +180,7 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
             <View className='interestList'>
               {interestTopics.slice(0, 10).map(topic => (
                 <View key={topic.topicLink} className='interestItem' onClick={() => openTopic(topic.topicLink)}>
-                  <Image src={getFromLocalCache(topic.userAvatarUrl)} svg={topic.userAvatarUrl?.endsWith('/m_default.png')} className='interestAvatar' mode='aspectFill' />
+                  <UserAvatar username={topic.username} src={topic.userAvatarUrl} size={72} className='interestAvatar' />
                   <View className='interestMain'>
                     <Text className='interestTitle' overflow='ellipsis' maxLines={1}>{topic.title}</Text>
                     <View className='interestMeta'>

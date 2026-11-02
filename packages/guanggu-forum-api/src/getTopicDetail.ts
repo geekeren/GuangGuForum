@@ -6,6 +6,7 @@ import { DataDom, getDataFromHtml } from "./utils/getDataFromHtml";
 import { CacheAPIFunc } from "./types";
 
 export interface TopicDetail {
+  tid?: string;
   author: string;
   authorLevel?: string;
   authorAvatarUrl: string;
@@ -34,6 +35,7 @@ export interface TopicDetail {
   createCommentXSRF: string;
   relatingTopics: {
     authorAvatarUrl: string;
+    authorLink?: string;
     title: string;
     link: string;
   }[];
@@ -175,6 +177,11 @@ const domStructure: DataDom<TopicDetail> = {
       _attribute: "src",
       _selector: "tr > td:nth-child(1) > a > img",
     },
+    authorLink: {
+      _type: "string",
+      _attribute: "href",
+      _selector: "tr > td:nth-child(1) > a",
+    },
     link: {
       _type: "string",
       _attribute: "href",
@@ -202,9 +209,10 @@ function parseAuthor(node: HTMLElement | null | undefined, fallback: string) {
   return { author };
 }
 
-function parseTopicDetail(body: HTMLElement | undefined): TopicDetail {
+function parseTopicDetail(body: HTMLElement | undefined, tid: string): TopicDetail {
   const detail = getDataFromHtml<TopicDetail>(body, domStructure);
   if (!detail) return detail;
+  detail.tid = tid;
   const root = body?.querySelector(".container .row");
   Object.assign(detail, parseAuthor(root?.querySelector(".topic-detail .main .meta .username"), detail.author));
   const replies = root?.querySelectorAll(".topic-reply .reply-item") || [];
@@ -233,10 +241,10 @@ export const getTopicDetail: CacheAPIFunc<GetTopicDetailParam, TopicDetail> = (
       cache,
       query: page && /^\d+$/.test(page) && !replyId ? { p: page } : {},
       onRefresh: options?.onRefresh
-        ? (body) => options.onRefresh!(parseTopicDetail(body))
+        ? (body) => options.onRefresh!(parseTopicDetail(body, tid))
         : undefined,
     },
   ).then(({ body }) => {
-    return parseTopicDetail(body);
+    return parseTopicDetail(body, tid);
   });
 }

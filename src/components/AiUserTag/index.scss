@@ -1,0 +1,4 @@
+@import '../../vars.scss';
+
+.aiUserTag { display: block; flex: none; padding: 0 6rpx; border-radius: 6rpx; background: $color-brand; color: #fff; font-size: 18rpx; height: 24rpx; line-height: 24rpx; white-space: nowrap; }
+.aiUserTag--compact { font-size: 14rpx; height: 20rpx; line-height: 20rpx; padding: 0 4rpx; }

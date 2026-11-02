@@ -132,7 +132,7 @@ const repostDef: TopicTypeDefinition = {
   },
 
   renderForm(ctx: RenderFormContext) {
-    const { fields, setField, title, setTitle, content, setContent, getRef, focusRef, handleTitleInput } = ctx;
+    const { fields, setField, title, setTitle, setContent, getRef, focusRef, handleTitleInput } = ctx;
     const sourceUrlRef = getRef("sourceUrl");
     const titleRef = getRef("title");
     const contentRef = getRef("content");
@@ -234,19 +234,7 @@ const repostDef: TopicTypeDefinition = {
             </View>
           </View>
         ) : null}
-        <ClearableTextarea
-          ref={contentRef}
-          className="contentInput"
-          placeholder="补充说明（可选）..."
-          placeholderClass="contentPlaceholder"
-          cursorColor={BRAND_COLOR}
-          value={content}
-          onInput={(v) => setContent(v)}
-          autoHeight
-          cursorSpacing={100}
-          adjustPosition
-          onDeleteWhenEmpty={() => focusRef(titleRef)}
-        />
+        {ctx.renderContentInput('补充说明（可选）...', titleRef)}
 
         {fields.repostPreview && (
           <View className={`repostMask${isSkyline() ? " repostMask--skyline" : ""}${fields.repostClosing ? " repostMask--closing" : ""}`} onClick={cancelRepost}>

@@ -1,12 +1,12 @@
 import { getScrollViewType } from "../../../../utils/renderer";
 import React, { Component, createRef } from "react";
-import { Image, OpenContainer, ScrollView, ShareElement, Text, View } from "@tarojs/components";
+import { OpenContainer, ScrollView, ShareElement, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { TopicSummary, URLS } from "guanggu-forum-api";
 import Loading from "../../../../components/Loading";
 import { cacheService, CacheCategory } from "../../../../utils/CacheService";
 import "./index.scss";
-import { getFromLocalCache } from "../../../../utils/localAssets";
+import UserAvatar from '../../../../components/UserAvatar';
 import TopicTag from "../../../../components/TopicTag";
 import CommentIcon from "../../../../assets/comment.svg?raw";
 import ThemedIcon from "../../../../components/ThemedIcon";
@@ -60,7 +60,7 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
             <TopicTag label={category} announcement={category === "公告"} />
             <View className='user'>
               <View className='avatar'>
-                <Image src={getFromLocalCache(userAvatarUrl)} svg={userAvatarUrl?.endsWith('/m_default.png')} />
+                <UserAvatar username={username} src={userAvatarUrl} size={32} />
               </View>
               <Text className='userName' overflow='ellipsis' maxLines={1}>{username}</Text>
             </View>

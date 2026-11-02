@@ -28,7 +28,7 @@ import "./index.scss";
 import Loading from "../../components/Loading";
 import Navbar from "../../components/Navbar";
 import ThemedIcon from "../../components/ThemedIcon";
-import { getFromLocalCache } from "../../utils/localAssets";
+import UserAvatar from '../../components/UserAvatar';
 import { cacheService, CacheCategory } from "../../utils/CacheService";
 import { rpxToPx } from "../../utils/dimension";
 import { useTheme } from "../../hooks/useTheme";
@@ -52,8 +52,12 @@ import AddToDesktopGuide from "../../components/AddToDesktopGuide";
 import AdBanner from "../../components/AdBanner";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
 import { useCurrentUsername } from "../../hooks/useCurrentUsername";
+import { recordRecentlyViewedTopic } from '../../utils/recentlyViewedTopics';
+import { getCachedUsername } from '../../utils/currentUser';
 import { getCommentBody } from "../../utils/mentions";
-import { buildStickerComment, MAX_COMMENT_ATTACHMENTS, type Sticker } from "../../utils/stickers";
+import { MAX_COMMENT_ATTACHMENTS } from "../../utils/stickers";
+import { buildAttachmentComment, photoAttachment, stickerAttachment, type CommentAttachment } from "../../utils/commentAttachments";
+import { useCommentPhotoUploads } from '../../hooks/useCommentPhotoUploads';
 import { recordCommentEmojiUsage } from "../../utils/emojiUsage";
 import { openLoginModal } from "../../utils/auth";
 
@@ -62,8 +66,9 @@ const Index = () => {
   const [isCommenting, setIsCommenting] = useState(false);
   const [sending, setSending] = useState(false);
   const [commentContent, setCommentContent] = useState("");
-  const [commentStickers, setCommentStickers] = useState<Sticker[]>([]);
-  const [commentPhotos, setCommentPhotos] = useState<string[]>([]);
+  const [commentAttachments, setCommentAttachments] = useState<CommentAttachment[]>([]);
+  const commentStickers = commentAttachments.flatMap(item => item.kind === 'sticker' ? [item.sticker] : []);
+  const commentPhotos = commentAttachments.flatMap(item => item.kind === 'photo' ? [item.path] : []);
   const [commentAsc, setCommentAsc] = useState(() => cacheService.get<boolean>("commentSortAsc") || false);
   const [navScrollProgress, setNavScrollProgress] = useState(0);
   const [highlightFloor, setHighlightFloor] = useState<string | null>(null);
@@ -85,6 +90,21 @@ const Index = () => {
 
   const { data: topicDetail, request: fetchTopicDetail, setData: setTopicDetail } = useDataWithCache(getTopicDetail);
   const { username, loading: checkingLogin, error: loginError, retry: retryLogin } = useCurrentUsername();
+  useCommentPhotoUploads(commentAttachments, setCommentAttachments, username);
+  const recordedVisit = useRef('');
+  const [visitRevision, setVisitRevision] = useState(0);
+  useDidShow(() => {
+    recordedVisit.current = '';
+    setVisitRevision(value => value + 1);
+  });
+  useEffect(() => {
+    if (!tid || !topicDetail?.title || topicDetail.tid !== tid) return;
+    const account = getCachedUsername();
+    const visit = JSON.stringify([account, tid]);
+    if (recordedVisit.current === visit) return;
+    if (recordRecentlyViewedTopic({ tid, title: topicDetail.title, link: `/t/${tid}`,
+      avatarUrl: topicDetail.authorAvatarUrl, author: topicDetail.author }, account)) recordedVisit.current = visit;
+  }, [tid, topicDetail, username, visitRevision]);
 
   useReady(() => {
     setPageReady(true);
@@ -285,11 +305,7 @@ const Index = () => {
                     }}
                   >
                     <View className='avatar'>
-                      <Image
-                        lazyLoad
-                        src={getFromLocalCache(topicDetail.authorAvatarUrl)}
-                        svg={topicDetail.authorAvatarUrl?.endsWith('/m_default.png')}
-                      />
+                      <UserAvatar lazyLoad username={topicDetail.author} src={topicDetail.authorAvatarUrl} size={56} />
                     </View>
                     <View className='authorDetails'>
                       <View className='authorNameRow'>
@@ -374,11 +390,7 @@ const Index = () => {
                           });
                         }}
                       >
-                        <Image
-                          lazyLoad
-                          src={getFromLocalCache(comment.authorAvatarUrl)}
-                          svg={comment.authorAvatarUrl?.endsWith('/m_default.png')}
-                        />
+                        <UserAvatar lazyLoad username={comment.author} src={comment.authorAvatarUrl} size={54} />
                       </View>
                       <View className='comment-right'>
                         <View className='line1'>
@@ -492,9 +504,18 @@ const Index = () => {
       {isCommenting && <CommentComposer
         value={commentContent}
         stickers={commentStickers}
-        onStickersChange={(stickers) => setCommentStickers(stickers.slice(0, Math.max(0, MAX_COMMENT_ATTACHMENTS - commentPhotos.length)))}
+        onStickersChange={(stickers) => setCommentAttachments([
+          ...stickers.slice(0, Math.max(0, MAX_COMMENT_ATTACHMENTS - commentPhotos.length)).map(stickerAttachment),
+          ...commentAttachments.filter(item => item.kind === 'photo'),
+        ])}
         photos={commentPhotos}
-        onPhotosChange={(photos) => setCommentPhotos(photos.slice(0, Math.max(0, MAX_COMMENT_ATTACHMENTS - commentStickers.length)))}
+        onPhotosChange={(photos) => setCommentAttachments([
+          ...photos.slice(0, Math.max(0, MAX_COMMENT_ATTACHMENTS - commentStickers.length)).map(path => photoAttachment(path)),
+          ...commentAttachments.filter(item => item.kind === 'sticker'),
+        ])}
+        previewAttachments={commentAttachments}
+        onAttachmentsChange={(next) => setCommentAttachments(next.slice(0, MAX_COMMENT_ATTACHMENTS))}
+        topicAuthor={topicDetail.author}
         mentionUsers={[topicDetail.author, ...topicDetail.comments.map((comment) => comment.author)]}
         mentionAvatars={Object.fromEntries([
           [topicDetail.author, topicDetail.authorAvatarUrl],
@@ -504,12 +525,12 @@ const Index = () => {
         onChange={setCommentContent}
         onClose={() => setIsCommenting(false)}
         onSend={async () => {
-          if (commentPhotos.length > 0) {
-            Taro.showToast({ title: '图片上传开发中，请先移除照片后发送', icon: 'none' });
+          if (commentAttachments.some(item => item.kind === 'photo' && item.status !== 'complete')) {
+            Taro.showToast({ title: '请等待图片上传完成，失败图片可点击重试', icon: 'none' });
             return;
           }
           if (sending || !tid) return;
-          if (getCommentBody(commentContent).trim().length < 3 && commentStickers.length === 0) {
+          if (getCommentBody(commentContent).trim().length < 3 && commentAttachments.length === 0) {
             Taro.showToast({ title: '评论内容至少3个字', icon: 'none' });
             return;
           }
@@ -527,11 +548,11 @@ const Index = () => {
               Taro.showToast({ title: "暂时无法评论，请刷新后重试", icon: "none" });
               return;
             }
-            await createNewComment({ tid, _xsrf: xsrf, content: buildStickerComment(commentContent, commentStickers) });
+            await createNewComment({ tid, _xsrf: xsrf, content: buildAttachmentComment(commentContent, commentAttachments) });
             recordCommentEmojiUsage(commentContent, commentStickers);
             setIsCommenting(false);
             setCommentContent("");
-            setCommentStickers([]);
+            setCommentAttachments([]);
             setRefreshTime(Date.now());
           } catch (error) {
             Taro.showToast({ title: error instanceof CommentSubmissionError ? error.message : "评论发送失败，请重试", icon: "none" });

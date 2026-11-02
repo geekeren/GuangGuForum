@@ -1,6 +1,6 @@
 import { Button, Image, ScrollView, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MentionTextarea, { type MentionEditorHandle } from "../../components/MentionTextarea";
 import ThemedIcon from "../../components/ThemedIcon";
 import { isSkyline } from "../../utils/renderer";
@@ -15,23 +15,28 @@ import PhotoIcon from "../../assets/composer-photo.svg?raw";
 import FavoriteIcon from "../../assets/composer-favorite.svg?raw";
 import { MAX_COMMENT_ATTACHMENTS, STICKERS, type Sticker } from "../../utils/stickers";
 import { EMOJIS, getCommonEmojiUsage } from "../../utils/emojiUsage";
-import { compressCommentPhoto } from "../../utils/commentPhotos";
+import { isImageCompressionEnabled } from "../../utils/imageCompressionPreferences";
+import { photoAttachment, stickerAttachment, type CommentAttachment } from "../../utils/commentAttachments";
+import { ensureImageHostBound } from '../../utils/imageUploadGuard';
 
 interface Props {
   value: string;
   mentionUsers?: string[];
   mentionAvatars?: Record<string, string>;
+  topicAuthor?: string;
   stickers?: Sticker[];
   onStickersChange?: (stickers: Sticker[]) => void;
   photos?: string[];
   onPhotosChange?: (photos: string[]) => void;
+  previewAttachments?: CommentAttachment[];
+  onAttachmentsChange?: (attachments: CommentAttachment[]) => void;
   sending: boolean;
   onChange: (value: string) => void;
   onClose: () => void;
   onSend: () => void;
 }
 
-export default function CommentComposer({ value, mentionUsers, mentionAvatars, stickers = [], onStickersChange, photos = [], onPhotosChange, sending, onChange, onClose, onSend }: Props) {
+export default function CommentComposer({ value, mentionUsers, mentionAvatars, topicAuthor, stickers = [], onStickersChange, photos = [], onPhotosChange, previewAttachments, onAttachmentsChange, sending, onChange, onClose, onSend }: Props) {
   const skyline = isSkyline();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [activePanel, setActivePanel] = useState<'emoji' | 'more' | null>(null);
@@ -39,8 +44,17 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, s
   const showMore = activePanel === 'more';
   const panelVisible = activePanel !== null;
   const choosingPhoto = useRef(false);
-  const attachments = useRef({ stickers, photos });
-  attachments.current = { stickers, photos };
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const previews: CommentAttachment[] = previewAttachments ?? [
+    ...stickers.map((sticker, index) => ({ id: `sticker-${index}`, kind: 'sticker' as const, sticker })),
+    ...photos.map((path, index) => ({ id: `photo-${index}`, kind: 'photo' as const, path })),
+  ];
+  const attachments = useRef({ stickers, photos, previews });
+  attachments.current = { stickers, photos, previews };
   const [panelTab, setPanelTab] = useState<'common' | 'emoji' | 'sticker'>('common');
   const [commonUsage, setCommonUsage] = useState(getCommonEmojiUsage);
   const panelEmojis = panelTab === 'common' ? commonUsage.emojis : EMOJIS;
@@ -52,7 +66,7 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, s
   const bodyLength = getCommentBody(value).trim().length;
   const previewCount = stickers.length + photos.length;
   const previewHeight = photos.length > 0 ? 200 : stickers.length > 0 ? 156 : 0;
-  const canSend = !sending && (bodyLength >= 3 || previewCount > 0);
+  const canSend = !sending && previews.every(item => item.kind !== 'photo' || item.status === 'complete') && (bodyLength >= 3 || previewCount > 0);
   const windowInfo = skyline ? Taro.getWindowInfo() : undefined;
   const safeBottom = windowInfo?.safeArea
     ? Math.max(0, windowInfo.screenHeight - windowInfo.safeArea.bottom) : 0;
@@ -111,26 +125,22 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, s
       return;
     }
     choosingPhoto.current = true;
+    const compressionEnabled = isImageCompressionEnabled();
     try {
+      if (!await ensureImageHostBound(() => mounted.current)) return;
       const result = await Taro.chooseMedia({ count: source === 'camera' ? 1 : remaining, mediaType: ['image'], sourceType: [source], sizeType: ['original'] });
+      if (!mounted.current) return;
       const paths = result.tempFiles.map(file => file.tempFilePath).filter(Boolean);
-      const compressed: string[] = [];
-      let compressionFailed = false;
-      for (const path of paths.slice(0, remaining)) {
-        try {
-          compressed.push(await compressCommentPhoto(path));
-        } catch {
-          compressionFailed = true;
-        }
-      }
-      if (compressionFailed) Taro.showToast({ title: '部分图片压缩失败，请重新选择', icon: 'none' });
       const current = attachments.current;
       const available = Math.max(0, MAX_COMMENT_ATTACHMENTS - current.stickers.length - current.photos.length);
       if (paths.length > available) Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' });
-      if (compressed.length && available > 0) {
-        const next = [...current.photos, ...compressed.slice(0, available)];
-        attachments.current = { ...current, photos: next };
-        onPhotosChange?.(next);
+      if (paths.length && available > 0) {
+        const added = paths.slice(0, available);
+        const next = [...current.photos, ...added];
+        const nextPreviews = [...current.previews, ...added.map(path => photoAttachment(path, compressionEnabled))];
+        attachments.current = { ...current, photos: next, previews: nextPreviews };
+        if (onAttachmentsChange) onAttachmentsChange(nextPreviews);
+        else onPhotosChange?.(next);
       }
     } catch (error) {
       const message = (error as { errMsg?: string })?.errMsg ?? '';
@@ -149,8 +159,21 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, s
       return;
     }
     const next = [...current.stickers, sticker];
-    attachments.current = { ...current, stickers: next };
-    onStickersChange?.(next);
+    const nextPreviews = [...current.previews, stickerAttachment(sticker)];
+    attachments.current = { ...current, stickers: next, previews: nextPreviews };
+    if (onAttachmentsChange) onAttachmentsChange(nextPreviews);
+    else onStickersChange?.(next);
+  };
+
+  const removeAttachment = (item: CommentAttachment, index: number) => {
+    if (sending) return;
+    if (onAttachmentsChange) {
+      onAttachmentsChange(previews.filter(entry => entry.id !== item.id));
+    } else {
+      const groupIndex = previews.slice(0, index).filter(entry => entry.kind === item.kind).length;
+      if (item.kind === 'sticker') onStickersChange?.(stickers.filter((_, i) => i !== groupIndex));
+      else onPhotosChange?.(photos.filter((_, i) => i !== groupIndex));
+    }
   };
 
   return (
@@ -159,29 +182,33 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, s
       <View className='commentPopupBody' style={bodyStyle}>
         <View className='commentPopupHandle' />
         <View className='commentPopupAttachmentRegion' style={{ height: previewHeight + 'rpx' }}>
-          {previewCount > 0 && <ScrollView type={skyline ? 'custom' : undefined} scrollX className='commentStickerPreviews' {...{ 'keyboard-dismiss-mode': 'none' }}>
+          {previewCount > 0 && <ScrollView type={skyline ? 'custom' : undefined} scrollX scrollIntoView={`comment-preview-${previews[previews.length - 1].id}`} scrollWithAnimation className='commentStickerPreviews' {...{ 'keyboard-dismiss-mode': 'none' }}>
             <View className='commentStickerPreviewTrack' style={{ width: previewCount * 144 + 'rpx' }}>
-              {stickers.map((sticker, index) => <View className='commentStickerPreview' key={`${sticker.filename}-${index}`}>
-                <Image src={sticker.url} mode='aspectFit' className='commentStickerPreviewImage' />
-                <View className='commentStickerRemove' ariaRole='button' ariaLabel={`删除表情包${sticker.name}`} onClick={() => {
-                  if (!sending) onStickersChange?.(stickers.filter((_, i) => i !== index));
-                }}><Text>×</Text></View>
-              </View>)}
-              {photos.map((photo, index) => <View className='commentStickerPreview commentPopupPhotoPreview' key={`${photo}-${index}`}>
-                <Image src={photo} mode='aspectFit' className='commentStickerPreviewImage' />
-                <View className='commentStickerRemove' ariaRole='button' ariaLabel='删除所选照片' onClick={() => {
-                  if (!sending) onPhotosChange?.(photos.filter((_, i) => i !== index));
-                }}><Text>×</Text></View>
+              {previews.map((item, index) => <View className={`commentStickerPreview${item.kind === 'photo' ? ' commentPopupPhotoPreview' : ''}`} id={`comment-preview-${item.id}`} key={item.id}>
+                <Image src={item.kind === 'photo' ? item.path : item.sticker.url} mode='aspectFit' className='commentStickerPreviewImage' />
+                {item.kind === 'photo' && item.status !== 'complete' && <View className='commentPhotoUploadOverlay'
+                  onClick={() => {
+                    if (item.status !== 'failed' || !onAttachmentsChange) return;
+                    onAttachmentsChange(previews.map(entry => entry.id === item.id && entry.kind === 'photo' ? { ...entry, status: 'queued', error: undefined } : entry));
+                  }}>
+                  {item.status !== 'failed' && <View className='commentPhotoUploadSpinner' />}
+                  <Text className='commentPhotoUploadLabel'>{item.status === 'failed' ? '失败 · 点击重试'
+                    : item.phase === 'uploading' ? '上传中…' : item.phase === 'processing' ? '图床处理中…' : '处理图片…'}</Text>
+                </View>}
+                <View className='commentStickerRemove' ariaRole='button' ariaLabel={item.kind === 'photo' ? '删除所选照片' : `删除表情包${item.sticker.name}`} onClick={() => removeAttachment(item, index)}><Text>×</Text></View>
               </View>)}
             </View>
           </ScrollView>}
-          {photos.length > 0 && <Text className='commentPopupPhotoNotice'>仅本地预览，图片上传开发中</Text>}
+          {photos.length > 0 && <Text className='commentPopupPhotoNotice'>{previews.some(item => item.kind === 'photo' && item.status === 'failed')
+            ? '图片上传失败，点击图片重试或移除' : previews.some(item => item.kind === 'photo' && item.status !== 'complete')
+              ? '图片正在上传，完成后可发送' : '图片已上传，将随评论发送'}</Text>}
         </View>
         <MentionTextarea
           editorRef={editorRef}
           className='commentPopupTextarea'
           mentionUsers={mentionUsers}
           mentionAvatars={mentionAvatars}
+          topicAuthor={topicAuthor}
           cursorSpacing={skyline ? 0 : 100}
           adjustPosition={!skyline}
           fixed

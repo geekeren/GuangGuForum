@@ -31,10 +31,9 @@ const datingDef: TopicTypeDefinition = {
   },
 
   renderForm(ctx: RenderFormContext) {
-    const { fields, setField, title, content, setContent, getRef, focusRef, handleTitleInput } = ctx;
+    const { fields, setField, title, getRef, focusRef, handleTitleInput, renderContentInput } = ctx;
     const titleRef = getRef("title");
     const requirementsRef = getRef("requirements");
-    const contentRef = getRef("content");
     const age = fields.birthYear ? String(new Date().getFullYear() - parseInt(fields.birthYear)) : "";
 
     return (
@@ -101,19 +100,7 @@ const datingDef: TopicTypeDefinition = {
             onDeleteWhenEmpty={() => focusRef(titleRef)}
           />
         </View>
-        <ClearableTextarea
-          ref={contentRef}
-          className="contentInput"
-          placeholder="自我介绍..."
-          placeholderClass="contentPlaceholder"
-          cursorColor={BRAND_COLOR}
-          value={content}
-          onInput={(v) => setContent(v)}
-          autoHeight
-          cursorSpacing={100}
-          adjustPosition
-          onDeleteWhenEmpty={() => focusRef(requirementsRef)}
-        />
+        {renderContentInput('自我介绍...', requirementsRef)}
       </View>
     );
   },

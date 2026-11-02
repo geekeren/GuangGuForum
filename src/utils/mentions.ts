@@ -1,5 +1,8 @@
+import { AI_USERNAME, AI_USER_LABEL, isAiUser } from './aiUser';
+
 export interface MentionQuery { start: number; end: number; keyword: string }
 export interface MentionSegment { text: string; start: number; end: number; username?: string }
+export const AI_MENTION_USERNAME = AI_USERNAME;
 
 /** Preserve the exact source text and UTF-16 offsets used by the native textarea. */
 export function getMentionSegments(value: string): MentionSegment[] {
@@ -34,7 +37,8 @@ export function getMentionQuery(text: string, cursor = text.length): MentionQuer
 export function getMentionCandidates(users: string[], selected: string[], query: MentionQuery): string[] {
   const keyword = query.keyword.toLocaleLowerCase();
   return [...new Set(users)].filter((name) => name && !selected.includes(name) &&
-    name.toLocaleLowerCase().includes(keyword));
+    (name.toLocaleLowerCase().includes(keyword) ||
+      (isAiUser(name) && AI_USER_LABEL.replace(/\s/g, '').toLocaleLowerCase().includes(keyword))));
 }
 
 export function replaceInlineMention(value: string, query: MentionQuery, username: string) {

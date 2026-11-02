@@ -19,7 +19,7 @@ const normalDef: TopicTypeDefinition = {
   },
 
   renderForm(ctx: RenderFormContext) {
-    const { title, content, setContent, getRef, focusRef, handleTitleInput } = ctx;
+    const { title, getRef, focusRef, handleTitleInput, renderContentInput } = ctx;
     const titleRef = getRef("title");
     const contentRef = getRef("content");
 
@@ -39,19 +39,7 @@ const normalDef: TopicTypeDefinition = {
           onConfirm={() => focusRef(contentRef)}
           onDeleteWhenEmpty={() => focusRef(contentRef)}
         />
-        <ClearableTextarea
-          ref={contentRef}
-          className="contentInput"
-          placeholder="正文内容..."
-          placeholderClass="contentPlaceholder"
-          cursorColor={BRAND_COLOR}
-          value={content}
-          onInput={(v) => setContent(v)}
-          autoHeight
-          cursorSpacing={100}
-          adjustPosition
-          onDeleteWhenEmpty={() => focusRef(titleRef)}
-        />
+        {renderContentInput('正文内容...', titleRef)}
       </View>
     );
   },

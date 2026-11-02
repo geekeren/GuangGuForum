@@ -31,6 +31,7 @@ export interface RenderFormContext {
   getRef: (key: string) => RefObject<any>;
   focusRef: (ref: RefObject<any>) => void;
   handleTitleInput: (val: string) => void;
+  renderContentInput: (placeholder: string, previousRef: RefObject<any>) => ReactNode;
 }
 
 export interface OnActivateContext {

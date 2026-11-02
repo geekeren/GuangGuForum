@@ -38,13 +38,13 @@ export const CACHE_UPGRADE_VERSION = "2026-11-01-v3";
 
 const SYSTEM_STORAGE_KEYS = new Set([
   "cookies", "current_username", "saved_accounts", "search_preferences", "search_history",
-  "add_to_desktop_already_added", "theme_preference", "comment_emoji_usage",
+  "add_to_desktop_already_added", "theme_preference", "comment_emoji_usage", "image_compression_enabled",
 ]);
 const AUTH_STORAGE_KEY = /(?:^|[_-])(?:cookies?|password|passwd|pwd|tokens?|session|credentials?|secret|private[_-]?key)(?:$|[_-])/i;
 const LEGACY_BUSINESS_KEYS = new Set(["node_navigation", "legacy_node_navigation", "topic_index"]);
 
 function isSystemKey(key: string): boolean {
-  return SYSTEM_STORAGE_KEYS.has(key) || key.startsWith("cache_upgrade_") || AUTH_STORAGE_KEY.test(key);
+  return SYSTEM_STORAGE_KEYS.has(key) || key.startsWith("cache_upgrade_") || key.startsWith("recent_viewed_topics_v1_") || AUTH_STORAGE_KEY.test(key);
 }
 
 function isLegacyBusinessKey(key: string): boolean {

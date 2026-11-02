@@ -2,6 +2,22 @@ import Taro from '@tarojs/taro';
 
 export const MAX_COMMENT_PHOTO_DIMENSION = 1920;
 
+async function getFileSize(filePath: string): Promise<number | null> {
+  try {
+    const size = await new Promise<number>((resolve, reject) => {
+      Taro.getFileSystemManager().getFileInfo({
+        filePath,
+        success: result => resolve(result.size),
+        fail: reject,
+      });
+    });
+    if (!Number.isFinite(size) || size <= 0) return null;
+    return size;
+  } catch {
+    return null;
+  }
+}
+
 export async function compressCommentPhoto(src: string): Promise<string> {
   const { width, height } = await Taro.getImageInfo({ src });
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
@@ -22,5 +38,17 @@ export async function compressCommentPhoto(src: string): Promise<string> {
     || output.width > MAX_COMMENT_PHOTO_DIMENSION || output.height > MAX_COMMENT_PHOTO_DIMENSION) {
     throw new Error('Image compression did not satisfy the size limit');
   }
+  const [originalSize, compressedSize] = await Promise.all([
+    getFileSize(src),
+    getFileSize(result.tempFilePath),
+  ]);
+  const reduction = originalSize && compressedSize ? Math.round((1 - compressedSize / originalSize) * 100) : null;
+  const title = reduction === null ? '图片已压缩，大小读取失败'
+    : `${reduction >= 0 ? '压缩' : '增大'} ${Math.abs(reduction)}%，${Math.round(originalSize! / 1024)}K -> ${Math.round(compressedSize! / 1024)}K`;
+  void Taro.showToast({
+    title,
+    icon: 'none',
+    duration: 3000,
+  });
   return result.tempFilePath;
 }

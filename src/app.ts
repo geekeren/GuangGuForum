@@ -34,6 +34,8 @@ class App extends Component<{ children?: ReactNode }> {
   componentDidMount() {
     this.stopThemeListener = startThemeListener();
     setCacheService(cacheService);
+    // Remove credentials persisted by the old local-only image-host settings.
+    cacheService.remove('image_host_api_tokens', true);
     void cacheService.migrateTopicCachesAsync();
     setOnUnreadNotifications(updateUnreadNotifications);
     setOnLoginRequired(() => openLoginModal());

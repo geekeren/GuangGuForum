@@ -60,11 +60,14 @@
   flex-direction: column;
   align-items: center;
   width: 120rpx;
-  padding: 8rpx;
+  padding: 4rpx 8rpx;
   box-sizing: border-box;
   border-radius: 16rpx;
 }
 .mentionCandidate:active { background: $color-brand-soft; }
+.mentionCandidateAvatarWrap { position: relative; width: 54rpx; height: 54rpx; flex: none; }
+.mentionCandidateOwnerBadge { position: absolute; top: -4rpx; left: 50%; transform: translateX(-50%); }
+.mentionCandidateBadge { display: block; flex: none; padding: 0 6rpx; border-radius: 6rpx; background: $color-brand-soft; color: $color-brand; font-size: 18rpx; height: 24rpx; line-height: 24rpx; white-space: nowrap; }
 .mentionCandidateAvatar { display: block; width: 54rpx; height: 54rpx; border-radius: 27rpx; flex: none; }
 .mentionCandidateName {
   display: -webkit-box;

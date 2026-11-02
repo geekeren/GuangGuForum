@@ -37,10 +37,9 @@ const eventDef: TopicTypeDefinition = {
   },
 
   renderForm(ctx: RenderFormContext) {
-    const { fields, setField, title, content, setContent, getRef, focusRef, handleTitleInput } = ctx;
+    const { fields, setField, title, getRef, focusRef, handleTitleInput, renderContentInput } = ctx;
     const titleRef = getRef("title");
     const eventLocationRef = getRef("eventLocation");
-    const contentRef = getRef("content");
 
     return (
       <View className="editorSection">
@@ -108,19 +107,7 @@ const eventDef: TopicTypeDefinition = {
             </View>
           </View>
         </View>
-        <ClearableTextarea
-          ref={contentRef}
-          className="contentInput"
-          placeholder="活动详情..."
-          placeholderClass="contentPlaceholder"
-          cursorColor={BRAND_COLOR}
-          value={content}
-          onInput={(v) => setContent(v)}
-          autoHeight
-          cursorSpacing={100}
-          adjustPosition
-          onDeleteWhenEmpty={() => focusRef(eventLocationRef)}
-        />
+        {renderContentInput('活动详情...', eventLocationRef)}
       </View>
     );
   },

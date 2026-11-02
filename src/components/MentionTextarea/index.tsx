@@ -1,8 +1,8 @@
-import { View, Text, Textarea, Image } from "@tarojs/components";
+import { View, Text, Textarea } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { ComponentProps, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { getMentionSegments, getMentionQuery, getMentionCandidates, replaceInlineMention } from "../../utils/mentions";
-import { getFromLocalCache } from "../../utils/localAssets";
+import { AI_MENTION_USERNAME, getMentionSegments, getMentionQuery, getMentionCandidates, replaceInlineMention } from "../../utils/mentions";
+import UserAvatar from '../UserAvatar';
 import { isSkyline } from "../../utils/renderer";
 import "./index.scss";
 
@@ -14,6 +14,7 @@ export interface MentionEditorHandle {
 type Props = ComponentProps<typeof Textarea> & {
   mentionUsers?: string[];
   mentionAvatars?: Record<string, string>;
+  topicAuthor?: string;
   editorRef?: Ref<MentionEditorHandle>;
 };
 
@@ -22,7 +23,7 @@ type CandidateTouchEvent = { touches?: Array<{ clientX: number }> };
 type MentionSelection = { start: number; end: number };
 type NativeTextarea = { value: string; setAttribute: (name: string, value: number) => void };
 
-export default function MentionTextarea({ value = "", onInput, onBlur, onSelectionChange, className, style, mentionUsers = [], mentionAvatars = {}, editorRef, ...props }: Props) {
+export default function MentionTextarea({ value = "", onInput, onBlur, onSelectionChange, className, style, mentionUsers = [], mentionAvatars = {}, topicAuthor, editorRef, ...props }: Props) {
   const textRef = useRef(value);
   const lastValue = useRef(value);
   const caretRef = useRef({ start: value.length, end: value.length });
@@ -51,7 +52,7 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
   const text = textRef.current;
   const segments = getMentionSegments(text);
   const recipients = segments.filter((part) => part.username && part.start !== query?.start).map((part) => part.username!);
-  const candidates = query ? getMentionCandidates(mentionUsers, recipients, query) : [];
+  const candidates = query ? getMentionCandidates([...mentionUsers, AI_MENTION_USERNAME], recipients, query) : [];
   const windowWidth = Taro.getWindowInfo?.().windowWidth || 375;
   const maxCandidateOffset = Math.max(0, candidates.length * 120 * windowWidth / 750 - (viewportWidth.current || windowWidth));
   const visibleCandidateOffset = Math.max(-maxCandidateOffset, Math.min(0, candidateOffset));
@@ -108,7 +109,7 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
     <View className={`mentionEditor${isSkyline() ? " mentionEditor--skyline" : ""} ${className || ""}`} style={style}>
       <View className={`mentionCandidates${query ? ' mentionCandidates--visible' : ''}`} ariaHidden={!query}>
         {query && <>
-          <Text className='mentionCandidatesTitle'>提及帖子中的用户</Text>
+          <Text className='mentionCandidatesTitle'>提及用户</Text>
           <View
             id={viewportId.current}
             className='mentionCandidatesList'
@@ -141,7 +142,9 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
                 const avatar = mentionAvatars[username] || '/static/m_default.png';
                 return (
                   <View key={username} className='mentionCandidate' ariaRole='button' ariaLabel={`提及${username}`} onClick={() => selectUser(username)}>
-                    <Image className='mentionCandidateAvatar' src={getFromLocalCache(avatar)} svg={avatar.endsWith('/m_default.png')} mode='aspectFill' />
+                    <UserAvatar username={username} src={avatar} size={54} className='mentionCandidateAvatarWrap' imageClassName='mentionCandidateAvatar' compactAiTag={false}>
+                      {username === topicAuthor && <Text className='mentionCandidateBadge mentionCandidateOwnerBadge'>楼主</Text>}
+                    </UserAvatar>
                     <Text className='mentionCandidateName' maxLines={2} overflow='ellipsis'>{username}</Text>
                   </View>
                 );

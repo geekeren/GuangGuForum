@@ -8,6 +8,7 @@ import { useCurrentUsername } from "../../../hooks/useCurrentUsername";
 import HtmlRender from "../../../components/HtmlRender";
 import Loading from "../../../components/Loading";
 import LoginPrompt from "../../../components/LoginPrompt";
+import UserAvatar from '../../../components/UserAvatar';
 import NotificationIcon from "../../../assets/notification-active.svg?raw";
 import ThemedIcon from "../../../components/ThemedIcon";
 import { useTheme } from "../../../hooks/useTheme";
@@ -148,7 +149,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
                 e.stopPropagation();
                 Taro.navigateTo({ url: `/pages/user/index?username=${encodeURIComponent(item.username)}` });
               }}>
-                <Image src={item.userAvatarUrl} mode='aspectFill' className='avatarImg' />
+                <UserAvatar username={item.username} src={item.userAvatarUrl} size={70} className='avatarImg' />
               </View>
               <View className='notificationBody'>
                 <View className='notificationHeader'>
