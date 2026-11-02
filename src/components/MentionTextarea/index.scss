@@ -12,31 +12,7 @@
   font-size: 28rpx;
   box-sizing: border-box;
 }
-// The native input owns all interaction. The mirror is paint-only.
 .mentionEditorSurface { position: relative; width: 100%; flex: none; }
-.mentionEditorMirror {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 1;
-}
-.mentionEditorMirrorText {
-  display: block;
-  width: 100%;
-  font-size: inherit;
-  font-family: sans-serif;
-  font-weight: normal;
-  letter-spacing: normal;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: transparent;
-}
-.mentionEditorInlineMention { color: $color-brand; background: $surfaceAlt; }
 .mentionEditorInput {
   position: relative;
   z-index: 0;
@@ -67,21 +43,42 @@
 }
 
 .mentionCandidates {
-  position: absolute;
-  bottom: calc(100% + 12rpx);
-  left: 0;
-  right: 0;
-  z-index: 2;
-  padding: 16rpx;
-  border: 1rpx solid $border-color;
-  border-radius: $radius-md;
-  background: $surface;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+  position: relative;
+  flex: none;
+  height: 0;
+  width: 100%;
+  overflow: hidden;
+  transition: height 200ms ease;
 }
-.mentionCandidatesTitle { display: block; color: $text-muted; font-size: 22rpx; margin-bottom: 8rpx; }
-.mentionCandidatesList { height: 160rpx; }
-.mentionCandidate { display: flex; flex-direction: row; align-items: center; padding: 16rpx 8rpx; }
+.mentionCandidates--visible { height: 176rpx; }
+.mentionCandidatesTitle { display: block; color: $text-muted; font-size: 22rpx; height: 36rpx; line-height: 36rpx; }
+.mentionCandidatesList { height: 128rpx; width: 100%; overflow: hidden; }
+.mentionCandidatesTrack { display: flex; flex-direction: row; height: 128rpx; }
+.mentionCandidate {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  width: 120rpx;
+  padding: 8rpx;
+  box-sizing: border-box;
+  border-radius: 16rpx;
+}
 .mentionCandidate:active { background: $color-brand-soft; }
-.mentionCandidateAt { color: $color-brand-dark; margin-right: 12rpx; }
-.mentionCandidateName { color: $text-primary; font-size: 28rpx; }
-.mentionCandidatesEmpty { display: block; padding: 20rpx 8rpx; color: $text-muted; font-size: 24rpx; }
+.mentionCandidateAvatar { display: block; width: 54rpx; height: 54rpx; border-radius: 27rpx; flex: none; }
+.mentionCandidateName {
+  display: -webkit-box;
+  width: 100%;
+  margin-top: 8rpx;
+  color: $text-primary;
+  font-size: 22rpx;
+  line-height: 28rpx;
+  max-height: 56rpx;
+  text-align: center;
+  white-space: normal;
+  word-break: break-all;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.mentionCandidatesEmpty { display: block; color: $text-muted; font-size: 24rpx; }

@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../../utils/renderer";
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useMemo, useState } from "react";
@@ -107,7 +108,7 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
 
   return (
     <View className={isSkyline() ? "discoveryPage discoveryPage--skyline" : "discoveryPage"} style={{ height: "100%" }}>
-      <ScrollView type='custom' scrollY enhanced className='discoveryScroll'>
+      <ScrollView type={getScrollViewType()} scrollY enhanced className='discoveryScroll'>
         <View className='discoveryHero'>
           <Image src={scene} svg mode='aspectFit' className='discoveryHeroScene' />
           <View className='discoveryHeroBlend' />

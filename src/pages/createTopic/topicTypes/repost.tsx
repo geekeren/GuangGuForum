@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../../utils/renderer";
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { fetchLinkSummary } from "guanggu-forum-api";
@@ -266,7 +267,7 @@ const repostDef: TopicTypeDefinition = {
                 </View>
                 <Text className="repostCheckboxDesc">{fields.fullRepost ? "转载完整正文内容" : "仅转载文章摘要"}</Text>
               </View>
-              <ScrollView type='custom' scrollY className="repostSheetScroll">
+              <ScrollView type={getScrollViewType()} scrollY className="repostSheetScroll">
                 {fields.fullRepost ? (
                   <LinkPreviewCard summary={fields.repostPreview} url={fields.sourceUrl} />
                 ) : (

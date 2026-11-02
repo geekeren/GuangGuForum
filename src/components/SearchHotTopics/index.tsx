@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { View, Text, Button, Image, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useState } from "react";
@@ -38,7 +39,7 @@ export default function SearchHotTopics() {
         <Text className='searchHotTitle'>今日热议</Text>
         <Text className='searchHotSubtitle'>大家都在看</Text>
       </View>
-      <ScrollView type='custom' scrollY enhanced className='searchHotScroll'>
+      <ScrollView type={getScrollViewType()} scrollY enhanced className='searchHotScroll'>
       {loading && <View className='searchEmpty'><Text className='searchEmptyText'>正在加载今日热议…</Text></View>}
       {error && <View className='searchEmpty'>
         <Text className='searchEmptyText'>热议加载失败，不影响关键词搜索</Text>

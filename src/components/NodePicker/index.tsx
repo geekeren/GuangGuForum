@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { RootPortal, View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useState } from "react";
@@ -63,7 +64,7 @@ export default function NodePicker({
             <Text className='nodePickerCloseText'>✕</Text>
           </View>
         </View>
-        <ScrollView type='custom' scrollY className='nodePickerScroll' style={scrollStyle}>
+        <ScrollView type={getScrollViewType()} scrollY className='nodePickerScroll' style={scrollStyle}>
           {loading && <Text className='nodePickerStatus'>正在加载板块筛选…</Text>}
           {error && <View className='nodePickerStatus'>
             <Text>{error}</Text>

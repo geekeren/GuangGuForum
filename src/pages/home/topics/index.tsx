@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../../utils/renderer";
 import { useEffect, useRef, useState } from "react";
 import {
   getHotNodes,
@@ -131,7 +132,7 @@ export default function Topics({ initialTab }: { initialTab?: string }) {
     >
       <View className="tab-header">
         <ScrollView
-          type='custom'
+          type={getScrollViewType()}
           scrollX
           enableFlex
           style={{ flexDirection: 'row' }}

@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Taro, { useReady } from "@tarojs/taro";
-import { createNewComment, getTopicDetail } from "guanggu-forum-api";
+import { CommentSubmissionError, createNewComment, getTopicDetail } from "guanggu-forum-api";
 import { openLoginModal } from "../auth";
 import TopicDetail from "../../pages/topicDetail";
 import CommentComposer from "../../pages/topicDetail/CommentComposer";
+import { STICKERS } from "../stickers";
+import { recordCommentEmojiUsage } from "../emojiUsage";
 
 const harness = vi.hoisted(() => ({
   state: [] as any[], cursor: 0, xsrf: "fixture", username: "", checkingLogin: false, loginError: false, retryLogin: vi.fn(),
@@ -24,7 +26,7 @@ vi.mock("@tarojs/taro", () => ({
   useRouter: () => ({ path: "/pages/topicDetail/index", params: { tid: "1" } }),
   useReady: vi.fn(), useDidShow: vi.fn(), useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(),
 }));
-vi.mock("guanggu-forum-api", () => ({ getTopicDetail: vi.fn(), commentUpvote: vi.fn(), createNewComment: vi.fn(), URLS: {}, urlPathVaiable: vi.fn() }));
+vi.mock("guanggu-forum-api", () => ({ CommentSubmissionError: class extends Error {}, getTopicDetail: vi.fn(), commentUpvote: vi.fn(), createNewComment: vi.fn(), URLS: {}, urlPathVaiable: vi.fn() }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
 vi.mock("../../hooks/useDataWithCache", () => ({
   useDataWithCache: () => ({
@@ -38,6 +40,7 @@ vi.mock("../../hooks/useCurrentUsername", () => ({
   useCurrentUsername: () => ({ username: harness.username, loading: harness.checkingLogin, error: harness.loginError, retry: harness.retryLogin }),
 }));
 vi.mock("../CacheService", () => ({ cacheService: { get: vi.fn() }, CacheCategory: {} }));
+vi.mock("../emojiUsage", () => ({ recordCommentEmojiUsage: vi.fn() }));
 vi.mock("../localAssets", () => ({ getFromLocalCache: (url: string) => url }));
 vi.mock("../auth", () => ({ openLoginModal: vi.fn() }));
 vi.mock("../../components/Navbar", () => ({ default: "Navbar" }));
@@ -72,6 +75,60 @@ describe("topic detail restored account and reply capability", () => {
     return all(render()).find(e => e.type === CommentComposer)!;
   }
 
+  it('retains selected photos when closing and does not silently send local paths', async () => {
+    let composer = draft();
+    composer.props.onPhotosChange(['/tmp/photo.jpg']);
+    composer.props.onClose();
+    entry().props.onClick();
+    composer = all(render()).find(e => e.type === CommentComposer)!;
+    expect(composer.props.photos).toEqual(['/tmp/photo.jpg']);
+    await composer.props.onSend();
+    expect(createNewComment).not.toHaveBeenCalled();
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '图片上传开发中，请先移除照片后发送', icon: 'none' });
+    expect(all(render()).find(e => e.type === CommentComposer)!.props.photos).toEqual(['/tmp/photo.jpg']);
+  });
+  it('defensively caps the combined number of photos and stickers at five', () => {
+    let composer = draft();
+    composer.props.onPhotosChange(['/tmp/1.jpg', '/tmp/2.jpg']);
+    composer = all(render()).find(e => e.type === CommentComposer)!;
+    composer.props.onStickersChange(STICKERS.slice(0, 7));
+    composer = all(render()).find(e => e.type === CommentComposer)!;
+    expect(composer.props.stickers).toHaveLength(3);
+    composer.props.onPhotosChange(Array.from({ length: 7 }, (_, i) => `/tmp/${i}.jpg`));
+    composer = all(render()).find(e => e.type === CommentComposer)!;
+    expect(composer.props.photos).toHaveLength(2);
+  });
+  it("preserves selected stickers when closing or failing to send, and clears them on success", async () => {
+    entry().props.onClick();
+    let composer = all(render()).find(e => e.type === CommentComposer)!;
+    composer.props.onStickersChange([STICKERS[0], STICKERS[1]]);
+    composer.props.onClose();
+    entry().props.onClick();
+    composer = all(render()).find(e => e.type === CommentComposer)!;
+    expect(composer.props.stickers).toEqual([STICKERS[0], STICKERS[1]]);
+    vi.mocked(createNewComment).mockRejectedValueOnce(new Error('offline'));
+    await composer.props.onSend();
+    composer = all(render()).find(e => e.type === CommentComposer)!;
+    expect(composer.props.stickers).toEqual([STICKERS[0], STICKERS[1]]);
+    expect(recordCommentEmojiUsage).not.toHaveBeenCalled();
+    await composer.props.onSend();
+    expect(createNewComment).toHaveBeenLastCalledWith({ tid: '1', _xsrf: 'fixture', content: [STICKERS[0], STICKERS[1]].map(sticker => `![${sticker.name}](${sticker.url})`).join('\n\n') });
+    expect(recordCommentEmojiUsage).toHaveBeenCalledOnce();
+    expect(recordCommentEmojiUsage).toHaveBeenCalledWith('', [STICKERS[0], STICKERS[1]]);
+    entry().props.onClick();
+    expect(all(render()).find(e => e.type === CommentComposer)!.props.stickers).toEqual([]);
+  });
+  it("shows a server rejection and keeps both text and stickers for retry", async () => {
+    let composer = draft();
+    composer.props.onStickersChange([STICKERS[0]]);
+    composer = all(render()).find(e => e.type === CommentComposer)!;
+    vi.mocked(createNewComment).mockRejectedValueOnce(new CommentSubmissionError('图片链接不允许'));
+    await composer.props.onSend();
+    composer = all(render()).find(e => e.type === CommentComposer)!;
+    expect(composer.props.value).toBe('synthetic reply');
+    expect(composer.props.stickers).toEqual([STICKERS[0]]);
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '图片链接不允许', icon: 'none' });
+  });
   it("does not call a restored account logged out when cached detail lacks the reply form", () => {
     harness.xsrf = ""; harness.username = "restored-user";
     expect(entry().props.children.props.children).toBe("说点什么...");

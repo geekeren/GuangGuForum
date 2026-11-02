@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../utils/renderer";
 import {
   Button,
   Image,
@@ -17,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import queryString from "query-string";
 import {
   commentUpvote,
+  CommentSubmissionError,
   createNewComment,
   getTopicDetail,
   urlPathVaiable,
@@ -51,6 +53,8 @@ import AdBanner from "../../components/AdBanner";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
 import { useCurrentUsername } from "../../hooks/useCurrentUsername";
 import { getCommentBody } from "../../utils/mentions";
+import { buildStickerComment, MAX_COMMENT_ATTACHMENTS, type Sticker } from "../../utils/stickers";
+import { recordCommentEmojiUsage } from "../../utils/emojiUsage";
 import { openLoginModal } from "../../utils/auth";
 
 const Index = () => {
@@ -58,6 +62,8 @@ const Index = () => {
   const [isCommenting, setIsCommenting] = useState(false);
   const [sending, setSending] = useState(false);
   const [commentContent, setCommentContent] = useState("");
+  const [commentStickers, setCommentStickers] = useState<Sticker[]>([]);
+  const [commentPhotos, setCommentPhotos] = useState<string[]>([]);
   const [commentAsc, setCommentAsc] = useState(() => cacheService.get<boolean>("commentSortAsc") || false);
   const [navScrollProgress, setNavScrollProgress] = useState(0);
   const [highlightFloor, setHighlightFloor] = useState<string | null>(null);
@@ -238,7 +244,7 @@ const Index = () => {
           onRefresh={() => setRefreshTime(Date.now())}
         >
           <ScrollView
-            type='custom'
+            type={getScrollViewType()}
             scrollWithAnimation={!locatingComment}
             scrollY
             bounces
@@ -261,6 +267,7 @@ const Index = () => {
               setNavScrollProgress(progress);
             }}
           >
+            <View className='topicDetailFlow'>
             <View className='main'>
               <View className='header'>
                 <View className='title'>
@@ -456,6 +463,7 @@ const Index = () => {
               <View className='header'><Text>相关主题</Text></View>
               <RelatingTopics topicDetail={topicDetail} />
             </View>
+            </View>
           </ScrollView>
         </PullDownRefresh>
         <View className='actions'>
@@ -483,13 +491,25 @@ const Index = () => {
       </View>
       {isCommenting && <CommentComposer
         value={commentContent}
+        stickers={commentStickers}
+        onStickersChange={(stickers) => setCommentStickers(stickers.slice(0, Math.max(0, MAX_COMMENT_ATTACHMENTS - commentPhotos.length)))}
+        photos={commentPhotos}
+        onPhotosChange={(photos) => setCommentPhotos(photos.slice(0, Math.max(0, MAX_COMMENT_ATTACHMENTS - commentStickers.length)))}
         mentionUsers={[topicDetail.author, ...topicDetail.comments.map((comment) => comment.author)]}
+        mentionAvatars={Object.fromEntries([
+          [topicDetail.author, topicDetail.authorAvatarUrl],
+          ...topicDetail.comments.map((comment) => [comment.author, comment.authorAvatarUrl]),
+        ])}
         sending={sending}
         onChange={setCommentContent}
         onClose={() => setIsCommenting(false)}
         onSend={async () => {
+          if (commentPhotos.length > 0) {
+            Taro.showToast({ title: '图片上传开发中，请先移除照片后发送', icon: 'none' });
+            return;
+          }
           if (sending || !tid) return;
-          if (getCommentBody(commentContent).trim().length < 3) {
+          if (getCommentBody(commentContent).trim().length < 3 && commentStickers.length === 0) {
             Taro.showToast({ title: '评论内容至少3个字', icon: 'none' });
             return;
           }
@@ -507,12 +527,14 @@ const Index = () => {
               Taro.showToast({ title: "暂时无法评论，请刷新后重试", icon: "none" });
               return;
             }
-            await createNewComment({ tid, _xsrf: xsrf, content: commentContent });
+            await createNewComment({ tid, _xsrf: xsrf, content: buildStickerComment(commentContent, commentStickers) });
+            recordCommentEmojiUsage(commentContent, commentStickers);
             setIsCommenting(false);
             setCommentContent("");
+            setCommentStickers([]);
             setRefreshTime(Date.now());
-          } catch {
-            Taro.showToast({ title: "评论发送失败，请重试", icon: "none" });
+          } catch (error) {
+            Taro.showToast({ title: error instanceof CommentSubmissionError ? error.message : "评论发送失败，请重试", icon: "none" });
           } finally {
             setSending(false);
             Taro.hideLoading();

@@ -1,4 +1,4 @@
-import { Button, Text, View } from "@tarojs/components";
+import { Button, Image, ScrollView, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useRef, useState } from "react";
 import MentionTextarea, { type MentionEditorHandle } from "../../components/MentionTextarea";
@@ -7,34 +7,66 @@ import { isSkyline } from "../../utils/renderer";
 import { getCommentBody } from "../../utils/mentions";
 import MentionIcon from "../../assets/composer-mention.svg?raw";
 import EmojiIcon from "../../assets/composer-emoji.svg?raw";
+import KeyboardIcon from "../../assets/composer-keyboard.svg?raw";
 import CollapseIcon from "../../assets/composer-collapse.svg?raw";
+import AddIcon from "../../assets/composer-add.svg?raw";
+import CameraIcon from "../../assets/composer-camera.svg?raw";
+import PhotoIcon from "../../assets/composer-photo.svg?raw";
+import FavoriteIcon from "../../assets/composer-favorite.svg?raw";
+import { MAX_COMMENT_ATTACHMENTS, STICKERS, type Sticker } from "../../utils/stickers";
+import { EMOJIS, getCommonEmojiUsage } from "../../utils/emojiUsage";
+import { compressCommentPhoto } from "../../utils/commentPhotos";
 
 interface Props {
   value: string;
   mentionUsers?: string[];
+  mentionAvatars?: Record<string, string>;
+  stickers?: Sticker[];
+  onStickersChange?: (stickers: Sticker[]) => void;
+  photos?: string[];
+  onPhotosChange?: (photos: string[]) => void;
   sending: boolean;
   onChange: (value: string) => void;
   onClose: () => void;
   onSend: () => void;
 }
 
-const QUICK_EMOJIS = ["👍", "😂", "❤️", "👏", "🤔", "🎉"];
-const EXTRA_EMOJIS = ["😊", "😄", "🤣", "🥹", "😍", "😎", "😭", "😅", "🙃", "😮", "😤", "🙏", "💪", "🤝", "🌹", "✨", "🔥", "💯"];
-
-export default function CommentComposer({ value, mentionUsers, sending, onChange, onClose, onSend }: Props) {
+export default function CommentComposer({ value, mentionUsers, mentionAvatars, stickers = [], onStickersChange, photos = [], onPhotosChange, sending, onChange, onClose, onSend }: Props) {
   const skyline = isSkyline();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [showEmojis, setShowEmojis] = useState(false);
+  const [activePanel, setActivePanel] = useState<'emoji' | 'more' | null>(null);
+  const showEmojis = activePanel === 'emoji';
+  const showMore = activePanel === 'more';
+  const panelVisible = activePanel !== null;
+  const choosingPhoto = useRef(false);
+  const attachments = useRef({ stickers, photos });
+  attachments.current = { stickers, photos };
+  const [panelTab, setPanelTab] = useState<'common' | 'emoji' | 'sticker'>('common');
+  const [commonUsage, setCommonUsage] = useState(getCommonEmojiUsage);
+  const panelEmojis = panelTab === 'common' ? commonUsage.emojis : EMOJIS;
+  const panelStickers = panelTab === 'common' ? commonUsage.stickers : STICKERS;
+  const panelOpen = useRef(false);
+  const lastKeyboardHeight = useRef(300);
+  const awaitingKeyboard = useRef(false);
   const editorRef = useRef<MentionEditorHandle>(null);
   const bodyLength = getCommentBody(value).trim().length;
-  const canSend = !sending && bodyLength >= 3;
+  const previewCount = stickers.length + photos.length;
+  const previewHeight = photos.length > 0 ? 200 : stickers.length > 0 ? 156 : 0;
+  const canSend = !sending && (bodyLength >= 3 || previewCount > 0);
   const windowInfo = skyline ? Taro.getWindowInfo() : undefined;
   const safeBottom = windowInfo?.safeArea
     ? Math.max(0, windowInfo.screenHeight - windowInfo.safeArea.bottom) : 0;
 
   const updateKeyboardHeight = (height: number) => {
-    if (!skyline || !Number.isFinite(height)) return;
-    setKeyboardHeight(Math.min(Math.max(0, height), windowInfo!.windowHeight));
+    if (!Number.isFinite(height)) return;
+    const nextHeight = Math.min(Math.max(0, height), windowInfo?.windowHeight ?? Number.MAX_SAFE_INTEGER);
+    if (nextHeight > 0) lastKeyboardHeight.current = nextHeight;
+    if (panelOpen.current) return;
+    // A trailing close event from the old keyboard must not collapse the slot
+    // while the keyboard is being reopened.
+    if (awaitingKeyboard.current && nextHeight === 0) return;
+    awaitingKeyboard.current = false;
+    setKeyboardHeight(nextHeight);
   };
 
   // Skyline's fixed overlay needs explicit bounds; only the sheet follows the keyboard.
@@ -42,31 +74,123 @@ export default function CommentComposer({ value, mentionUsers, sending, onChange
     width: windowInfo.windowWidth + "px",
     height: windowInfo.windowHeight + "px",
   } : undefined;
+  const inputHeight = panelVisible ? lastKeyboardHeight.current : keyboardHeight;
   const bodyStyle = windowInfo ? {
-    bottom: keyboardHeight + "px",
-    paddingBottom: `calc(24rpx + ${keyboardHeight > 0 ? 0 : safeBottom}px)`,
-    maxHeight: Math.max(0, windowInfo.windowHeight - keyboardHeight) + "px",
-  } : undefined;
+    bottom: inputHeight + "px",
+    paddingBottom: `calc(24rpx + ${inputHeight > 0 ? 0 : safeBottom}px)`,
+    maxHeight: Math.max(0, windowInfo.windowHeight - inputHeight) + "px",
+  } : panelVisible ? { bottom: inputHeight + "px" } : undefined;
+
+  const showKeyboard = () => {
+    if (panelOpen.current) {
+      awaitingKeyboard.current = true;
+      setKeyboardHeight(lastKeyboardHeight.current);
+    }
+    panelOpen.current = false;
+    setActivePanel(null);
+  };
+  const togglePanel = (panel: 'emoji' | 'more') => {
+    if (sending) return;
+    if (activePanel === panel) {
+      showKeyboard();
+    } else {
+      if (panel === 'emoji') setCommonUsage(getCommonEmojiUsage());
+      const wasOpen = panelOpen.current;
+      panelOpen.current = true;
+      setActivePanel(panel);
+      awaitingKeyboard.current = false;
+      if (!wasOpen) void Taro.hideKeyboard();
+    }
+  };
+
+  const choosePhoto = async (source: 'camera' | 'album') => {
+    if (sending || choosingPhoto.current) return;
+    const remaining = MAX_COMMENT_ATTACHMENTS - attachments.current.stickers.length - attachments.current.photos.length;
+    if (remaining <= 0) {
+      Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' });
+      return;
+    }
+    choosingPhoto.current = true;
+    try {
+      const result = await Taro.chooseMedia({ count: source === 'camera' ? 1 : remaining, mediaType: ['image'], sourceType: [source], sizeType: ['original'] });
+      const paths = result.tempFiles.map(file => file.tempFilePath).filter(Boolean);
+      const compressed: string[] = [];
+      let compressionFailed = false;
+      for (const path of paths.slice(0, remaining)) {
+        try {
+          compressed.push(await compressCommentPhoto(path));
+        } catch {
+          compressionFailed = true;
+        }
+      }
+      if (compressionFailed) Taro.showToast({ title: '部分图片压缩失败，请重新选择', icon: 'none' });
+      const current = attachments.current;
+      const available = Math.max(0, MAX_COMMENT_ATTACHMENTS - current.stickers.length - current.photos.length);
+      if (paths.length > available) Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' });
+      if (compressed.length && available > 0) {
+        const next = [...current.photos, ...compressed.slice(0, available)];
+        attachments.current = { ...current, photos: next };
+        onPhotosChange?.(next);
+      }
+    } catch (error) {
+      const message = (error as { errMsg?: string })?.errMsg ?? '';
+      if (!/cancel/i.test(message)) Taro.showToast({ title: source === 'camera' ? '无法打开相机，请检查权限' : '无法选择照片，请检查权限', icon: 'none' });
+    } finally {
+      choosingPhoto.current = false;
+    }
+  };
 
   const insertEmoji = (emoji: string) => editorRef.current?.insertText(emoji);
+  const selectSticker = (sticker: Sticker) => {
+    if (sending) return;
+    const current = attachments.current;
+    if (current.stickers.length + current.photos.length >= MAX_COMMENT_ATTACHMENTS) {
+      Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' });
+      return;
+    }
+    const next = [...current.stickers, sticker];
+    attachments.current = { ...current, stickers: next };
+    onStickersChange?.(next);
+  };
 
   return (
     <View className={`commentPopup commentPopup--visible${skyline ? " commentPopup--skyline" : ""}`} style={popupStyle}>
       <View className='commentPopupMask' onClick={onClose} />
       <View className='commentPopupBody' style={bodyStyle}>
         <View className='commentPopupHandle' />
+        <View className='commentPopupAttachmentRegion' style={{ height: previewHeight + 'rpx' }}>
+          {previewCount > 0 && <ScrollView type={skyline ? 'custom' : undefined} scrollX className='commentStickerPreviews' {...{ 'keyboard-dismiss-mode': 'none' }}>
+            <View className='commentStickerPreviewTrack' style={{ width: previewCount * 144 + 'rpx' }}>
+              {stickers.map((sticker, index) => <View className='commentStickerPreview' key={`${sticker.filename}-${index}`}>
+                <Image src={sticker.url} mode='aspectFit' className='commentStickerPreviewImage' />
+                <View className='commentStickerRemove' ariaRole='button' ariaLabel={`删除表情包${sticker.name}`} onClick={() => {
+                  if (!sending) onStickersChange?.(stickers.filter((_, i) => i !== index));
+                }}><Text>×</Text></View>
+              </View>)}
+              {photos.map((photo, index) => <View className='commentStickerPreview commentPopupPhotoPreview' key={`${photo}-${index}`}>
+                <Image src={photo} mode='aspectFit' className='commentStickerPreviewImage' />
+                <View className='commentStickerRemove' ariaRole='button' ariaLabel='删除所选照片' onClick={() => {
+                  if (!sending) onPhotosChange?.(photos.filter((_, i) => i !== index));
+                }}><Text>×</Text></View>
+              </View>)}
+            </View>
+          </ScrollView>}
+          {photos.length > 0 && <Text className='commentPopupPhotoNotice'>仅本地预览，图片上传开发中</Text>}
+        </View>
         <MentionTextarea
           editorRef={editorRef}
           className='commentPopupTextarea'
           mentionUsers={mentionUsers}
+          mentionAvatars={mentionAvatars}
           cursorSpacing={skyline ? 0 : 100}
           adjustPosition={!skyline}
           fixed
-          focus
+          focus={!panelVisible}
+          holdKeyboard={!panelVisible}
           autoHeight={false}
           maxlength={5000}
-          mirrorMaxLines={3}
           disabled={sending}
+          onTouchStart={showKeyboard}
           onFocus={(event) => updateKeyboardHeight(event.detail.height)}
           onKeyboardHeightChange={(event) => updateKeyboardHeight(event.detail.height)}
           onInput={(event) => onChange(event.detail.value)}
@@ -78,39 +202,71 @@ export default function CommentComposer({ value, mentionUsers, sending, onChange
           <View className='commentPopupTools'>
             <View className='commentPopupTool commentPopupMention' ariaRole='button' ariaLabel='提及用户' onClick={() => {
               if (sending) return;
-              setShowEmojis(false);
+              showKeyboard();
               editorRef.current?.openMentions();
             }}>
               <ThemedIcon src={MentionIcon} tone='secondary' className='commentPopupToolIcon' />
             </View>
-            <View className={`commentPopupTool commentPopupEmoji${showEmojis ? " commentPopupTool--active" : ""}`} ariaRole='button' ariaLabel={showEmojis ? '收起表情' : '更多表情'} onClick={() => setShowEmojis(!showEmojis)}>
-              <ThemedIcon src={EmojiIcon} tone={showEmojis ? 'accent' : 'secondary'} className='commentPopupToolIcon' />
+            <View className={`commentPopupTool commentPopupEmoji${showEmojis ? " commentPopupTool--active" : ""}`} ariaRole='button' ariaLabel={showEmojis ? '切换到键盘' : '更多表情'} onClick={() => togglePanel('emoji')}>
+              <ThemedIcon src={showEmojis ? KeyboardIcon : EmojiIcon} tone={showEmojis ? 'accent' : 'secondary'} className='commentPopupToolIcon' />
+            </View>
+            <View className={`commentPopupTool commentPopupMore${showMore ? " commentPopupTool--active" : ""}`} ariaRole='button' ariaLabel={showMore ? '切换到键盘' : '更多功能'} onClick={() => togglePanel('more')}>
+              <ThemedIcon src={showMore ? KeyboardIcon : AddIcon} tone={showMore ? 'accent' : 'secondary'} className='commentPopupToolIcon' />
             </View>
             <View className='commentPopupTool commentPopupCancel' ariaRole='button' ariaLabel='收起评论，保留草稿' onClick={onClose}>
               <ThemedIcon src={CollapseIcon} tone='secondary' className='commentPopupToolIcon' />
             </View>
           </View>
           <View className='commentPopupSubmit'>
-            {bodyLength < 3 && <Text className='commentPopupMinimum'>至少3个字</Text>}
+            {bodyLength < 3 && previewCount === 0 && <Text className='commentPopupMinimum'>至少3个字</Text>}
             <Button className={`commentPopupSend${canSend ? "" : " commentPopupSend--disabled"}`} disabled={!canSend} loading={sending} onClick={() => { if (canSend) onSend(); }}>
               <Text>{sending ? "发送中" : "发送"}</Text>
             </Button>
           </View>
         </View>
-        <View className='commentPopupQuickEmojis'>
-          <Text className='commentPopupQuickLabel'>常用</Text>
-          {QUICK_EMOJIS.map((emoji) => (
-            <View key={emoji} className='commentPopupQuickEmoji' ariaRole='button' ariaLabel={`插入表情${emoji}`} onClick={() => { if (!sending) insertEmoji(emoji); }}><Text>{emoji}</Text></View>
-          ))}
-        </View>
-        {showEmojis && (
-          <View className='commentPopupEmojiPanel'>
-            {EXTRA_EMOJIS.map((emoji) => (
-              <View key={emoji} className='commentPopupPanelEmoji' ariaRole='button' ariaLabel={`插入表情${emoji}`} onClick={() => { if (!sending) insertEmoji(emoji); }}><Text>{emoji}</Text></View>
-            ))}
-          </View>
-        )}
       </View>
+      {showMore && <View className='commentPopupEmojiPanel commentPopupMorePanel' style={{ height: inputHeight + 'px', paddingBottom: safeBottom + 'px' }}>
+        <ScrollView type={skyline ? 'custom' : undefined} scrollY className='commentPopupPanelScroll' {...{ 'keyboard-dismiss-mode': 'none' }}>
+          <View className='commentPopupMoreActions'>
+            <View className='commentPopupMoreAction' ariaRole='button' ariaLabel='拍照' onClick={() => choosePhoto('camera')}>
+              <View className='commentPopupMoreSquare'><ThemedIcon src={CameraIcon} tone='secondary' className='commentPopupMoreIcon' /></View><Text>拍照</Text>
+            </View>
+            <View className='commentPopupMoreAction' ariaRole='button' ariaLabel='照片' onClick={() => choosePhoto('album')}>
+              <View className='commentPopupMoreSquare'><ThemedIcon src={PhotoIcon} tone='secondary' className='commentPopupMoreIcon' /></View><Text>照片</Text>
+            </View>
+            <View className='commentPopupMoreAction' ariaRole='button' ariaLabel='收藏' onClick={() => { if (!sending) Taro.showToast({ title: '开发中', icon: 'none' }); }}>
+              <View className='commentPopupMoreSquare'><ThemedIcon src={FavoriteIcon} tone='secondary' className='commentPopupMoreIcon' /></View><Text>收藏</Text>
+            </View>
+          </View>
+        </ScrollView>
+      </View>}
+      {showEmojis && (
+        <View className='commentPopupEmojiPanel' style={{ height: inputHeight + "px", paddingBottom: safeBottom + "px" }}>
+          <View className='commentPopupPanelTabs'>
+            <View className={`commentPopupPanelTab${panelTab === 'common' ? ' commentPopupPanelTab--active' : ''}`} ariaRole='button' onClick={() => setPanelTab('common')}><Text>常用</Text></View>
+            <View className={`commentPopupPanelTab${panelTab === 'emoji' ? ' commentPopupPanelTab--active' : ''}`} ariaRole='button' onClick={() => setPanelTab('emoji')}><Text>表情</Text></View>
+            <View className={`commentPopupPanelTab${panelTab === 'sticker' ? ' commentPopupPanelTab--active' : ''}`} ariaRole='button' onClick={() => setPanelTab('sticker')}><Text>过早客</Text></View>
+          </View>
+          <ScrollView type={skyline ? 'custom' : undefined} scrollY className='commentPopupPanelScroll' {...{ 'keyboard-dismiss-mode': 'none' }}>
+            <View className='commentPopupEmojiGrid'>
+              {panelTab === 'common' && <Text className='commentPopupCommonHeading'>Emoji</Text>}
+              {panelTab === 'common' && panelEmojis.length === 0 && <Text className='commentPopupCommonEmpty'>发送评论后，常用 Emoji 会显示在这里</Text>}
+              {panelTab !== 'sticker' && Array.from({ length: Math.ceil(panelEmojis.length / 8) }, (_, row) => (
+                <View className='commentPopupPanelRow' key={row}>
+                  {panelEmojis.slice(row * 8, row * 8 + 8).map(emoji => <View key={emoji} className='commentPopupPanelEmoji' ariaRole='button' ariaLabel={`插入表情${emoji}`} onClick={() => { if (!sending) insertEmoji(emoji); }}><Text>{emoji}</Text></View>)}
+                </View>
+              ))}
+              {panelTab === 'common' && <Text className='commentPopupCommonHeading'>自定义表情</Text>}
+              {panelTab === 'common' && panelStickers.length === 0 && <Text className='commentPopupCommonEmpty'>发送评论后，常用自定义表情会显示在这里</Text>}
+              {panelTab !== 'emoji' && Array.from({ length: Math.ceil(panelStickers.length / 5) }, (_, row) => (
+                <View className='commentPopupPanelRow' key={row}>
+                  {panelStickers.slice(row * 5, row * 5 + 5).map(sticker => <View className='commentPopupSticker' key={sticker.filename} ariaRole='button' ariaLabel={`添加表情包${sticker.name}`} onClick={() => selectSticker(sticker)}><Image lazyLoad src={sticker.url} mode='aspectFit' className='commentPopupStickerImage' /></View>)}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      )}
     </View>
   );
 }

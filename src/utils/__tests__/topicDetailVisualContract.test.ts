@@ -150,6 +150,7 @@ describe("compact topic detail reference contracts", () => {
     expect(elements(tree).some(e => e.type === CommentComposer)).toBe(false);
     expect(find(tree, "comments").props.id).toBe("comments-section");
     expect(find(tree, "scrollContent").props).toMatchObject({ type: "custom", scrollY: true, enhanced: true });
+    expect(find(tree, "scrollContent").props.children.props.className).toBe('topicDetailFlow');
     expect(elements(tree).find(e => e.type === "Button")?.props.openType).toBe("share");
   });
 });

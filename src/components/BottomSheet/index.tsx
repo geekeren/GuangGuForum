@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { RootPortal, View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { ReactNode, useEffect, useState } from "react";
@@ -58,7 +59,7 @@ export default function BottomSheet({ visible, title, onClose, children, footer,
           <Text className='bottomSheetTitle'>{title}</Text>
           <View className='bottomSheetClose' onClick={onClose}><Text>✕</Text></View>
         </View>
-        <ScrollView type='custom' scrollY enhanced className='bottomSheetBody'>{children}</ScrollView>
+        <ScrollView type={getScrollViewType()} scrollY enhanced className='bottomSheetBody'>{children}</ScrollView>
         {footer && <View className='bottomSheetFooter' style={{ paddingBottom: `calc(20rpx + ${safeBottom}px)` }}>{footer}</View>}
       </View>
     </View>

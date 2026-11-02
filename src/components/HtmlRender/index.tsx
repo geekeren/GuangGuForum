@@ -7,6 +7,7 @@ import "./index.scss";
 import { URLS } from "guanggu-forum-api";
 import { isSkyline } from "../../utils/renderer";
 import LinkChipIcon from "../../assets/link-chip.svg";
+import { isCustomStickerUrl } from "../../utils/stickers";
 
 interface TopicMeta {
   type: "repost" | "event" | "dating";
@@ -209,12 +210,15 @@ Taro.options.html.transformElement = (
         taroEle.setAttribute("src", src);
       }
     }
+    const sticker = isCustomStickerUrl(taroEle.props.src || src);
     taroEle.setAttribute("mode", "widthFix");
     // Skyline images are lazy by default. display:none removes the viewport
     // footprint and can prevent load from ever firing to reveal the image.
     // Keep a real box while loading; widthFix handles narrower parent widths.
     taroEle.setAttribute("lazyLoad", !isSkyline());
-    taroEle.setAttribute("style", "display: block; width: 300px; height: 180px; max-width: 100%");
+    taroEle.setAttribute("style", sticker
+      ? "display: inline-block; width: 100px; height: 100px; max-width: 100%"
+      : "display: block; width: 300px; height: 180px; max-width: 100%");
     taroEle.addEventListener(
       "load",
       (loadEvent) => {
@@ -223,7 +227,7 @@ Taro.options.html.transformElement = (
         const width = Number(loadEvent?.detail?.width ?? loadEvent?.target?.width);
         const height = Number(loadEvent?.detail?.height ?? loadEvent?.target?.height);
         if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
-        const displayWidth = Math.min(width, 300);
+        const displayWidth = Math.min(width, 300) / (sticker ? 2 : 1);
         taroEle.setAttribute(
           "style",
           `display: ${width < 300 ? "inline-block" : "block"}; width: ${displayWidth}px; height: ${(height / width) * displayWidth}px; max-width: 100%`,

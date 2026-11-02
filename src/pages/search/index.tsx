@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { View, Text, Image, Input, Button, Picker, ScrollView } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useState, useRef, useEffect } from "react";
@@ -399,7 +400,7 @@ export default function Search() {
         </View>}
         {response?.notice && <Text className='searchNotice'>{response.notice}</Text>}
         {showHotTopics ? <View className='searchResults searchResults--hot'><SearchHotTopics /></View> :
-        <ScrollView type='custom' scrollY enhanced className='searchResultScroll' scrollTop={resultScrollTop}>
+        <ScrollView type={getScrollViewType()} scrollY enhanced className='searchResultScroll' scrollTop={resultScrollTop}>
         <View className='searchResults'>
           {loading && <View className='searchEmpty'><Text className='searchEmptyText'>正在搜索网站内容…</Text></View>}
           {error && <View className='searchEmpty'>

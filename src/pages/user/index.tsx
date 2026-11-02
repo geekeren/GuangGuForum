@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { View, ScrollView } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useEffect } from "react";
@@ -33,7 +34,7 @@ const UserProfilePage = () => {
   return (
     <View className="userPage">
       <Navbar title="个人主页" back home />
-      <ScrollView type='custom' className="userScroll" scrollY enhanced showScrollbar={false}>
+      <ScrollView type={getScrollViewType()} className="userScroll" scrollY enhanced showScrollbar={false}>
         <UserProfileDetail profile={profile} />
       </ScrollView>
     </View>

@@ -9,8 +9,14 @@ export interface CreateNewConmmentPayload {
   _xsrf: string;
 }
 
+export class CommentSubmissionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CommentSubmissionError";
+  }
+}
+
 export async function createNewComment(payload: CreateNewConmmentPayload) {
-  console.log("createNewComment");
   const { tid } = payload;
   return request(getUrl(URLS.TOPIC_DETAIL, { tid }), {
     method: "POST",
@@ -21,15 +27,24 @@ export async function createNewComment(payload: CreateNewConmmentPayload) {
       "Content-Type": "application/x-www-form-urlencoded",
       Accept: "text/html,application/xhtml+xml",
     },
-  }).then(({ body }) => {
-    let response =
-      body?.querySelector(".topic-reply-create .alert")?.text?.trim() || "";
-    if (response.includes("本站已开启回复审核模式")) {
-      response = "回复审核中";
+  }).then(({ body, rawRes }) => {
+    const alert = body?.querySelector(".topic-reply-create .alert") ||
+      body?.querySelector(".alert-danger, .alert-warning");
+    const response = alert?.text?.trim() || "";
+    const moderated = response.includes("本站已开启回复审核模式");
+    if (rawRes?.statusCode !== 200 || !body) {
+      throw new CommentSubmissionError(response || "评论发送失败，请重试");
     }
-    console.log("response", response);
+    // An HTTP 200 reply form can contain a validation/rate-limit error.
+    // Reject it so the composer keeps its text and selected images for retry.
+    if (alert && !moderated && !alert.classList.contains("alert-success")) {
+      throw new CommentSubmissionError(response || "评论发送失败，请重试");
+    }
+    if (!moderated && !body.querySelector(".topic-detail")) {
+      throw new CommentSubmissionError("无法确认评论发送结果，请刷新帖子查看");
+    }
     Taro.showToast({
-      title: response,
+      title: moderated ? "回复审核中" : response || "回复成功",
       icon: "success",
       duration: 2000,
     });

@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect } from "react";
@@ -67,7 +68,7 @@ const Me = ({ active }: { active?: boolean }) => {
   const navTopPadding = getNavInfo().appHeaderHeight;
 
   return (
-    <ScrollView type='custom' scrollY className='meProfile' style={{ height: "100%" }}>
+    <ScrollView type={getScrollViewType()} scrollY className='meProfile' style={{ height: "100%" }}>
       <UserProfileDetail className='userProfileDetail--me' profile={profile} actions={settingsAction} navPaddingTop={navTopPadding} />
     </ScrollView>
   );

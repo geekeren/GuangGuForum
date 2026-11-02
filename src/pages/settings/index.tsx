@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { View, Text, Button, Switch, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useState, useEffect, useRef } from "react";
@@ -288,7 +289,7 @@ export default function Settings() {
   return (
     <View className={`settingsPage${skyline ? " settingsPage--skyline" : ""}`}>
       <Navbar shared={false} back title='设置' titleStyle={{ opacity: 1 }} />
-      <ScrollView type='custom' scrollY className='settingsBody'>
+      <ScrollView type={getScrollViewType()} scrollY className='settingsBody'>
         {sections.map((group, gi) => (
           <View className='settingsGroup' key={gi}>
             {group.map((item, ii) => (

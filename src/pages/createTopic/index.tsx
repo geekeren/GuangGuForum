@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { View, Text, ScrollView } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useState, useEffect, useRef } from "react";
@@ -328,7 +329,7 @@ export default function CreateTopic() {
   return (
     <View className={`createTopic${skyline ? " createTopic--skyline" : ""}`}>
       <Navbar title="发帖" back home titleStyle={{ opacity: 1 }} />
-      <ScrollView type='custom' scrollY style={skyline ? undefined : { height: bodyHeight }} className="createTopicBody" enhanced showScrollbar={false}>
+      <ScrollView type={getScrollViewType()} scrollY style={skyline ? undefined : { height: bodyHeight }} className="createTopicBody" enhanced showScrollbar={false}>
         <View className="section typeSection">
         <Text className="typeLabel">发布类型</Text>
         <View className="typeRow">
@@ -393,7 +394,7 @@ export default function CreateTopic() {
                 <Text className="repostSheetCloseText">✕</Text>
               </View>
             </View>
-            <ScrollView type='custom' scrollY className="repostSheetScroll" style={skyline ? undefined : { height: "calc(80vh - 200rpx - env(safe-area-inset-bottom))" }}>
+            <ScrollView type={getScrollViewType()} scrollY className="repostSheetScroll" style={skyline ? undefined : { height: "calc(80vh - 200rpx - env(safe-area-inset-bottom))" }}>
               <View className="previewContentWrap">
                 <Text className="previewContentTitle">{title.trim()}</Text>
                 <MarkdownRender content={previewContent} />

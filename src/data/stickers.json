@@ -1,0 +1,182 @@
+[
+  {
+    "name": "谢谢过早客",
+    "url": "https://i0.hdslb.com/bfs/openplatform/8f21f3b1d3ae1c2a4ad5816ad5ec30f75ff45a87.png",
+    "description": "谢谢;感谢;多谢;谢了;谢谢老哥;谢谢老板;感恩",
+    "filename": "forum_001_thanks.png"
+  },
+  {
+    "name": "帮顶",
+    "url": "https://i0.hdslb.com/bfs/openplatform/cc2f755c333bfcd1dce93d33a8dbd94f856481c7.png",
+    "description": "帮顶;顶帖;支持;帮忙顶;顶一下;顶起来",
+    "filename": "forum_002_bump.png"
+  },
+  {
+    "name": "蹲后续",
+    "url": "https://i0.hdslb.com/bfs/openplatform/a6e34467c573c776841faef47a0dc115903e86fa.png",
+    "description": "蹲;蹲后续;等后续;后续;吃瓜;围观;等更新",
+    "filename": "forum_003_waiting.png"
+  },
+  {
+    "name": "老哥稳",
+    "url": "https://i0.hdslb.com/bfs/openplatform/27f29011854e2de612f60c69c2b9ea1e3c759f90.png",
+    "description": "稳;稳了;靠谱;厉害;牛;老哥稳;做得好;赞",
+    "filename": "forum_004_well-done.png"
+  },
+  {
+    "name": "我有个朋友",
+    "url": "https://i0.hdslb.com/bfs/openplatform/7a5f8c882c9b24c11703a41c22f1ead521170ee3.png",
+    "description": "我有个朋友;有个朋友;朋友问;替朋友问;朋友系列;小声说",
+    "filename": "forum_005_my-friend.png"
+  },
+  {
+    "name": "有板眼",
+    "url": "https://i0.hdslb.com/bfs/openplatform/d10c06ad50c62eb7a51547bc1fa235ea039d22bd.png",
+    "description": "有板眼;有本事;有门道;厉害;有水平;武汉话;不错",
+    "filename": "forum_006_not-necessarily.png"
+  },
+  {
+    "name": "搞么事",
+    "url": "https://i0.hdslb.com/bfs/openplatform/213f79c947fa1d6743021aedecd506f95d01fcb3.png",
+    "description": "搞么事;搞什么;干什么;怎么回事;疑惑;问号;武汉话",
+    "filename": "forum_007_ganzmoshi.png"
+  },
+  {
+    "name": "么斯情况",
+    "url": "https://i0.hdslb.com/bfs/openplatform/f9927b080507976dd0f0fe43494be8766ce98e9e.png",
+    "description": "么斯情况;什么情况;啥情况;怎么了;疑问;不懂;武汉话",
+    "filename": "forum_008_whats-going-on.png"
+  },
+  {
+    "name": "搞一哈",
+    "url": "https://i0.hdslb.com/bfs/openplatform/6f97c9bcbf5fa7546398d8dd45bdd41970c7a155.png",
+    "description": "搞一哈;试试;试一下;整一下;搞一下;可以试试;武汉话",
+    "filename": "forum_009_waiting.png"
+  },
+  {
+    "name": "造业啊",
+    "url": "https://i0.hdslb.com/bfs/openplatform/72f1438e07ea830ea79788ece93632b4a15c5860.png",
+    "description": "造业;造业啊;可怜;辛苦;无奈;心疼;惨;武汉话",
+    "filename": "forum_010_yichang.png"
+  },
+  {
+    "name": "闹眼子吧",
+    "url": "https://i0.hdslb.com/bfs/openplatform/5e28d00594487818fd4c8b0fcf7e93c593f0e126.png",
+    "description": "闹眼子;开玩笑;逗我;搞笑;忽悠;真的假的;武汉话",
+    "filename": "forum_011_jingzhou.png"
+  },
+  {
+    "name": "种草了",
+    "url": "https://i0.hdslb.com/bfs/openplatform/e66f44ec565b72c26c5fadfe1583afd288e6aa55.png",
+    "description": "种草;心动;想买;买买买;喜欢;被种草;想要",
+    "filename": "forum_012_tempted.png"
+  },
+  {
+    "name": "顶",
+    "url": "https://i0.hdslb.com/bfs/openplatform/ea9d7b05b1177389d64d16724f0cf27fb64a5896.png",
+    "description": "顶;点赞;赞同;支持;顶一个;赞;同意",
+    "filename": "forum_013_bump.png"
+  },
+  {
+    "name": "求推荐",
+    "url": "https://i0.hdslb.com/bfs/openplatform/ea8c92de7c0b2a180ea54c78fa52cf4f7ef0ae97.png",
+    "description": "求推荐;推荐;求建议;求安利;哪个好;推荐一下;求助",
+    "filename": "forum_014_recommend.png"
+  },
+  {
+    "name": "我来杠一下",
+    "url": "https://i0.hdslb.com/bfs/openplatform/535370a27adb4b0330f7ed04d9606968ed9ab2a1.png",
+    "description": "杠一下;抬杠;反对;不同意;我有意见;争论;杠精",
+    "filename": "forum_015_let-me-argue.png"
+  },
+  {
+    "name": "莫讲了",
+    "url": "https://i0.hdslb.com/bfs/openplatform/d796fc93c43b396738e9a461c82dc73129c05312.png",
+    "description": "莫讲了;别说了;不要说了;无语;不想听;闭嘴;武汉话",
+    "filename": "forum_016_stop-talking.png"
+  },
+  {
+    "name": "约个过早宵夜",
+    "url": "https://i0.hdslb.com/bfs/openplatform/69faebdd23304186b911b241d2cbe367b12dbee5.png",
+    "description": "约饭;过早;宵夜;吃饭;聚餐;喝一杯;碰杯;早餐",
+    "filename": "forum_017_breakfast-meet.png"
+  },
+  {
+    "name": "过早冒",
+    "url": "https://i0.hdslb.com/bfs/openplatform/239cd9c62b8a4a61dc49a82da491d2e4523e10d8.png",
+    "description": "过早冒;过早;吃早饭了吗;早餐;早上好;早安;武汉话",
+    "filename": "forum_018_breakfast.png"
+  },
+  {
+    "name": "又跌了",
+    "url": "https://i0.hdslb.com/bfs/openplatform/80d7acfdc5d5e6047ac2efbaa48c007a88e60848.png",
+    "description": "下跌;跌了;亏了;亏钱;股票跌;投资亏损;绿了",
+    "filename": "category_investment_001_price-down.png"
+  },
+  {
+    "name": "涨咯",
+    "url": "https://i0.hdslb.com/bfs/openplatform/7f3a6ce4c79b9a348e83b2592662b2ae9f399b3c.png",
+    "description": "涨了;上涨;赚钱;盈利;股票涨;发财",
+    "filename": "category_investment_002_price-up.png"
+  },
+  {
+    "name": "跌麻了",
+    "url": "https://i0.hdslb.com/bfs/openplatform/782740254fc21c6cf5973ca6371c764293f4e1e4.png",
+    "description": "暴跌;大跌;崩盘;跌惨了;亏麻了;亏惨了;套牢",
+    "filename": "category_investment_003_market-crash.png"
+  },
+  {
+    "name": "AI说可以我就放心了",
+    "url": "https://i0.hdslb.com/bfs/openplatform/46b63f58f6ba19b445b7a16ff651b3af41cbba75.png",
+    "description": "AI说可以;放心了;相信AI;AI认可;AI说行;人工智能",
+    "filename": "category_it_001_ai-approved.png"
+  },
+  {
+    "name": "AI还没替我上班",
+    "url": "https://i0.hdslb.com/bfs/openplatform/7032041b5a9fe645cb2658ad32af67da0d1b75f0.png",
+    "description": "AI上班;替我上班;还要上班;打工;AI打工;上班",
+    "filename": "category_it_002_still-working.png"
+  },
+  {
+    "name": "我只是AI的监工",
+    "url": "https://i0.hdslb.com/bfs/openplatform/b74841a4538d86e4768fb50be340c8b0b20f32a6.png",
+    "description": "AI监工;监工;监督AI;AI干活;摸鱼",
+    "filename": "category_it_003_ai-supervisor.png"
+  },
+  {
+    "name": "提示词写了半天结果还是瞎答",
+    "url": "https://i0.hdslb.com/bfs/openplatform/c2c54c2ba4e84b87045772f286a5f082193337b1.png",
+    "description": "提示词;prompt;瞎答;胡说;AI幻觉;提示词无效;乱答",
+    "filename": "category_it_004_prompt-struggle.png"
+  },
+  {
+    "name": "AI写得好我改得累",
+    "url": "https://i0.hdslb.com/bfs/openplatform/ae2d90370aaf094713fddfdc717bbb106c038d0d.png",
+    "description": "AI写代码;改代码;改得累;AI返工;代码审查;review;改麻了",
+    "filename": "category_it_005_ai-review-fatigue.png"
+  },
+  {
+    "name": "今天又在调Agent",
+    "url": "https://i0.hdslb.com/bfs/openplatform/8af82951a89a4febba0ae5116ccd150f918d9541.png",
+    "description": "Agent;智能体;调Agent;调试;调参;调智能体;开发",
+    "filename": "category_it_006_agent-tuning.png"
+  },
+  {
+    "name": "AI帮我写的我没细看",
+    "url": "https://i0.hdslb.com/bfs/openplatform/f93e7f5e741e4cf804ecfdcfb1e48eb5e9ec6ba3.png",
+    "description": "AI写的;没细看;没检查;AI生成;甩锅;没审核;AI代写",
+    "filename": "category_it_007_unchecked-ai.png"
+  },
+  {
+    "name": "求内推",
+    "url": "https://i0.hdslb.com/bfs/openplatform/64b364e654b8affa14d3706ae4a71a3bb79801f4.png",
+    "description": "内推;求职;找工作;招聘;推荐工作;求介绍",
+    "filename": "category_job_001_referral.png"
+  },
+  {
+    "name": "996了",
+    "url": "https://i0.hdslb.com/bfs/openplatform/6f779c504bf8f3cc81a2e25a0b53b0d8e97033b4.png",
+    "description": "996;加班;打工人;社畜;累了;上班累;工作累",
+    "filename": "category_job_002_996.png"
+  }
+]

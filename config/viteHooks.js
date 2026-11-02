@@ -6,6 +6,13 @@ module.exports = (ctx) => {
     viteConfig.build = viteConfig.build || {};
     viteConfig.build.cssMinify = false;
     const template = viteCompilerContext.taroConfig.template;
+    // Add unsupported attributes after alias generation. Changing the component
+    // table only here shifts pN bindings away from the runtime's scroll aliases.
+    const modifyCompProps = template.modifyCompProps?.bind(template);
+    template.modifyCompProps = (name, props) => {
+      const result = modifyCompProps ? modifyCompProps(name, props) : props;
+      return name === "scroll-view" ? { ...result, "keyboard-dismiss-mode": "'none'" } : result;
+    };
     // Match regular Text: generate every floor, then use Taro's comp fallback.
     template.nestElements = new Map(template.nestElements);
     template.nestElements.set("static-text", -1);

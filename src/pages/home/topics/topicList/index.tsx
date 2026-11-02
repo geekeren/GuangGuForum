@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../../../utils/renderer";
 import React, { Component, createRef } from "react";
 import { Image, OpenContainer, ScrollView, ShareElement, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
@@ -171,7 +172,7 @@ export default class TopicList extends Component<TopicListProps, State> {
       >
         {topics.length > 0 ? (
           <ScrollView
-            type='custom'
+            type={getScrollViewType()}
             className={isSkyline() ? 'topicList topicList--skyline' : 'topicList'}
             scrollY
             enhanced

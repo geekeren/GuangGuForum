@@ -1,7 +1,8 @@
-import { View, Text, Textarea, ScrollView } from "@tarojs/components";
-import { ComponentProps, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { getMentionSegments, getMentionQuery, getMentionCandidates, replaceInlineMention } from "../../utils/mentions";
+import { View, Text, Textarea, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
+import { ComponentProps, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { getMentionSegments, getMentionQuery, getMentionCandidates, replaceInlineMention } from "../../utils/mentions";
+import { getFromLocalCache } from "../../utils/localAssets";
 import { isSkyline } from "../../utils/renderer";
 import "./index.scss";
 
@@ -12,23 +13,30 @@ export interface MentionEditorHandle {
 
 type Props = ComponentProps<typeof Textarea> & {
   mentionUsers?: string[];
+  mentionAvatars?: Record<string, string>;
   editorRef?: Ref<MentionEditorHandle>;
-  /** Match the visible native textarea height; overflow falls back to native paint. */
-  mirrorMaxLines?: number;
 };
 
-export default function MentionTextarea({ value = "", onInput, onBlur, onSelectionChange, className, style, mentionUsers = [], editorRef, mirrorMaxLines = 4, ...props }: Props) {
+let nextCandidateViewportId = 0;
+type CandidateTouchEvent = { touches?: Array<{ clientX: number }> };
+type MentionSelection = { start: number; end: number };
+type NativeTextarea = { value: string; setAttribute: (name: string, value: number) => void };
+
+export default function MentionTextarea({ value = "", onInput, onBlur, onSelectionChange, className, style, mentionUsers = [], mentionAvatars = {}, editorRef, ...props }: Props) {
   const textRef = useRef(value);
   const lastValue = useRef(value);
   const caretRef = useRef({ start: value.length, end: value.length });
   const composingRef = useRef(false);
   const [query, setQuery] = useState<ReturnType<typeof getMentionQuery>>(null);
-  const [restoreFocus, setRestoreFocus] = useState<boolean | undefined>(undefined);
-  const [focusRequest, setFocusRequest] = useState(0);
   const [selection, setSelection] = useState<number | undefined>(undefined);
-  const [selecting, setSelecting] = useState(false);
-  const [composing, setComposing] = useState(false);
-  const [nativeLines, setNativeLines] = useState(value.split("\n").length);
+  const [mentionSelection, setMentionSelection] = useState<MentionSelection | null>(null);
+  const pendingMention = useRef<(MentionSelection & { confirmed: boolean }) | null>(null);
+  const nativeInput = useRef<NativeTextarea | null>(null);
+  const [candidateOffset, setCandidateOffset] = useState(0);
+  const viewportId = useRef('');
+  if (!viewportId.current) viewportId.current = `mention-candidates-${++nextCandidateViewportId}`;
+  const viewportWidth = useRef(0);
+  const pan = useRef<{ startX: number; offset: number; moved: boolean } | null>(null);
   const [, render] = useState(0);
   if (value !== lastValue.current) {
     textRef.current = value;
@@ -36,16 +44,17 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
     caretRef.current = { start: value.length, end: value.length };
     setQuery(null);
     setSelection(undefined);
-    setSelecting(false);
+    setCandidateOffset(0);
+    setMentionSelection(null);
+    pendingMention.current = null;
   }
   const text = textRef.current;
   const segments = getMentionSegments(text);
   const recipients = segments.filter((part) => part.username && part.start !== query?.start).map((part) => part.username!);
   const candidates = query ? getMentionCandidates(mentionUsers, recipients, query) : [];
-  // Native selection, IME preedit and internal scrolling must never rely on a mirror.
-  const mirrored = segments.some((part) => part.username && part.start !== query?.start) &&
-    !selecting && !composing && nativeLines <= mirrorMaxLines;
-
+  const windowWidth = Taro.getWindowInfo?.().windowWidth || 375;
+  const maxCandidateOffset = Math.max(0, candidates.length * 120 * windowWidth / 750 - (viewportWidth.current || windowWidth));
+  const visibleCandidateOffset = Math.max(-maxCandidateOffset, Math.min(0, candidateOffset));
   const emit = (next: string, cursor: number, event?: Parameters<NonNullable<Props["onInput"]>>[0]) => {
     textRef.current = next;
     lastValue.current = next;
@@ -57,27 +66,20 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
     onInput?.(inputEvent as Parameters<NonNullable<Props["onInput"]>>[0]);
   };
 
-  useEffect(() => {
-    if (!focusRequest) return;
-    let active = true;
-    // Native cursor/selection properties are applied on focus, after the new value.
-    Taro.nextTick(() => { if (active) setRestoreFocus(true); });
-    return () => { active = false; };
-  }, [focusRequest]);
-
   const applyEdit = (next: string, cursor: number) => {
     const maxLength = props.maxlength ?? 140;
     if (props.disabled || (maxLength >= 0 && next.length > maxLength)) return;
-    setRestoreFocus(false);
-    setFocusRequest((request) => request + 1);
+    // Update the native value/caret without dismissing and reopening the keyboard.
     setSelection(cursor);
-    setSelecting(false);
+    setMentionSelection(null);
+    pendingMention.current = null;
+    setCandidateOffset(0);
     setQuery(getMentionQuery(next, cursor));
     emit(next, cursor);
   };
 
   const selectUser = (username: string) => {
-    if (!query || props.disabled || composingRef.current) return;
+    if (!query || props.disabled || composingRef.current || pan.current?.moved) return;
     const next = replaceInlineMention(textRef.current, query, username);
     applyEdit(next.value, next.cursor);
   };
@@ -103,90 +105,173 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
   }));
 
   return (
-    <View className={`mentionEditor${mirrored ? " mentionEditor--mirrored" : ""}${isSkyline() ? " mentionEditor--skyline" : ""} ${className || ""}`} style={style}>
-      <View className='mentionEditorSurface' onTouchStart={() => {
-        // Some clients delay selectionchange until the long-press gesture completes.
-        setSelecting(true);
-        setSelection(undefined);
-      }}>
-        {mirrored && (
-          <View className='mentionEditorMirror' ariaRole='presentation'>
-            <Text className='mentionEditorMirrorText'>
-              {segments.map((part) => <Text key={part.start} className={part.username && part.start !== query?.start ? 'mentionEditorInlineMention' : undefined}>{part.text}</Text>)}
-            </Text>
+    <View className={`mentionEditor${isSkyline() ? " mentionEditor--skyline" : ""} ${className || ""}`} style={style}>
+      <View className={`mentionCandidates${query ? ' mentionCandidates--visible' : ''}`} ariaHidden={!query}>
+        {query && <>
+          <Text className='mentionCandidatesTitle'>提及帖子中的用户</Text>
+          <View
+            id={viewportId.current}
+            className='mentionCandidatesList'
+            catchMove
+            // Consume the gesture ourselves: native ScrollView drags can blur
+            // a textarea even with holdKeyboard. Never toggle its focus here.
+            onTouchStart={(event) => {
+              event.stopPropagation();
+              const x = (event as typeof event & CandidateTouchEvent).touches?.[0]?.clientX;
+              pan.current = typeof x === 'number' && Number.isFinite(x) ? { startX: x, offset: visibleCandidateOffset, moved: false } : null;
+              Taro.createSelectorQuery?.().select(`#${viewportId.current}`).boundingClientRect((rect) => {
+                if (rect && !Array.isArray(rect) && rect.width > 0) viewportWidth.current = rect.width;
+              }).exec();
+            }}
+            onTouchMove={(event) => {
+              event.stopPropagation();
+              const x = (event as typeof event & CandidateTouchEvent).touches?.[0]?.clientX;
+              if (!pan.current || typeof x !== 'number' || !Number.isFinite(x) || props.disabled) return;
+              const delta = x - pan.current.startX;
+              if (Math.abs(delta) > 6) pan.current.moved = true;
+              if (!pan.current.moved) return;
+              const max = Math.max(0, candidates.length * 120 * windowWidth / 750 - (viewportWidth.current || windowWidth));
+              setCandidateOffset(Math.max(-max, Math.min(0, pan.current.offset + delta)));
+            }}
+            onTouchEnd={(event) => event.stopPropagation()}
+            onTouchCancel={(event) => { event.stopPropagation(); pan.current = null; }}
+          >
+            {candidates.length > 0 && <View className='mentionCandidatesTrack' style={{ width: candidates.length * 120 + 'rpx', transform: `translateX(${visibleCandidateOffset}px)` }}>
+              {candidates.map((username) => {
+                const avatar = mentionAvatars[username] || '/static/m_default.png';
+                return (
+                  <View key={username} className='mentionCandidate' ariaRole='button' ariaLabel={`提及${username}`} onClick={() => selectUser(username)}>
+                    <Image className='mentionCandidateAvatar' src={getFromLocalCache(avatar)} svg={avatar.endsWith('/m_default.png')} mode='aspectFill' />
+                    <Text className='mentionCandidateName' maxLines={2} overflow='ellipsis'>{username}</Text>
+                  </View>
+                );
+              })}
+            </View>}
+            {!candidates.length && <Text className='mentionCandidatesEmpty'>暂无匹配用户，可直接输入用户名</Text>}
           </View>
-        )}
+        </>}
+      </View>
+      <View className='mentionEditorSurface' onTouchStart={() => {
+        // Release the programmatic caret before native touch selection.
+        setSelection(undefined);
+        setMentionSelection(null);
+        pendingMention.current = null;
+      }}>
         <Textarea
           {...props}
+          ref={nativeInput}
           className='mentionEditorInput'
           value={text}
-          focus={restoreFocus ?? props.focus}
+          focus={props.focus}
           disableDefaultPadding={props.disableDefaultPadding ?? true}
-          cursor={selection ?? props.cursor}
-          selectionStart={selection ?? props.selectionStart}
-          selectionEnd={selection ?? props.selectionEnd}
-          holdKeyboard
+          cursor={mentionSelection ? -1 : selection ?? props.cursor ?? -1}
+          selectionStart={mentionSelection?.start ?? selection ?? props.selectionStart ?? -1}
+          selectionEnd={mentionSelection?.end ?? selection ?? props.selectionEnd ?? -1}
+          holdKeyboard={props.holdKeyboard ?? true}
           onFocus={(event) => {
             if (selection !== undefined) caretRef.current = { start: selection, end: selection };
             props.onFocus?.(event);
           }}
           onInput={(event) => {
+            setCandidateOffset(0);
+            const previous = textRef.current;
+            const next = event.detail.value;
+            if (!composingRef.current && next.length < previous.length) {
+              let start = 0;
+              while (start < next.length && previous[start] === next[start]) start++;
+              let oldEnd = previous.length;
+              let newEnd = next.length;
+              while (newEnd > start && previous[oldEnd - 1] === next[newEnd - 1]) { oldEnd--; newEnd--; }
+              // Only expand a pure deletion, never an IME replacement or an
+              // unfinished @ query. Preserve text on either side of the token.
+              if (newEnd === start) {
+                const pending = pendingMention.current;
+                if (pending && start < pending.end && oldEnd > pending.start) {
+                  applyEdit(previous.slice(0, pending.start) + previous.slice(pending.end), pending.start);
+                  return;
+                }
+                const touched = getMentionSegments(previous).filter(part => part.username &&
+                  part.start !== query?.start && part.start < oldEnd && part.end > start &&
+                  (start > part.start || oldEnd < part.end));
+                if (touched.length) {
+                  if ([...previous.slice(start, oldEnd)].length === 1) {
+                    const range = { start: touched[0].start, end: touched[0].end };
+                    pendingMention.current = { ...range, confirmed: false };
+                    caretRef.current = range;
+                    setSelection(undefined);
+                    setMentionSelection(range);
+                    setQuery(null);
+                    // Native textarea has already removed a character. Explicitly
+                    // restore its value even though the React value is unchanged.
+                    if (nativeInput.current) {
+                      nativeInput.current.value = previous;
+                      nativeInput.current.setAttribute('selectionStart', range.start);
+                      nativeInput.current.setAttribute('selectionEnd', range.end);
+                    }
+                    return;
+                  }
+                  const from = Math.min(start, touched[0].start);
+                  const to = Math.max(oldEnd, touched[touched.length - 1].end);
+                  applyEdit(previous.slice(0, from) + previous.slice(to), from);
+                  return;
+                }
+              }
+            }
             setSelection(undefined);
-            setSelecting(false);
+            setMentionSelection(null);
+            pendingMention.current = null;
             const cursor = event.detail.cursor ?? event.detail.value.length;
-            setQuery(composingRef.current ? null : getMentionQuery(event.detail.value, cursor));
+            const nextQuery = composingRef.current ? null : getMentionQuery(next, cursor);
+            const stillCompleted = next.length < previous.length && nextQuery && getMentionSegments(previous).some(part => part.username &&
+              part.start === nextQuery.start && part.start !== query?.start &&
+              part.text === next.slice(nextQuery.start, nextQuery.end));
+            setQuery(stillCompleted ? null : nextQuery);
             emit(event.detail.value, cursor, event);
           }}
           onSelectionChange={(event) => {
             const { selectionStart, selectionEnd } = event.detail;
-            if (restoreFocus !== false && Number.isFinite(selectionStart) && Number.isFinite(selectionEnd)) {
+            const pending = pendingMention.current;
+            if (pending) {
+              if (selectionStart === pending.start && selectionEnd === pending.end) {
+                pending.confirmed = true;
+                caretRef.current = { start: selectionStart, end: selectionEnd };
+              } else if (pending.confirmed) {
+                pendingMention.current = null;
+                setMentionSelection(null);
+                caretRef.current = { start: selectionStart, end: selectionEnd };
+              }
+              onSelectionChange?.(event);
+              return;
+            }
+            if (selection !== undefined && selectionStart === selection && selectionEnd === selection) {
+              setSelection(undefined);
+            }
+            if (selection === undefined && Number.isFinite(selectionStart) && Number.isFinite(selectionEnd)) {
               caretRef.current = { start: selectionStart, end: selectionEnd };
               setSelection(undefined);
-              setSelecting(selectionStart !== selectionEnd);
               setQuery(!composingRef.current && selectionStart === selectionEnd ? getMentionQuery(textRef.current, selectionStart) : null);
             }
             onSelectionChange?.(event);
           }}
-          onLineChange={(event) => {
-            if (Number.isFinite(event.detail.lineCount)) setNativeLines(event.detail.lineCount);
-            props.onLineChange?.(event);
-          }}
           onKeyboardCompositionStart={(event) => {
             composingRef.current = true;
-            setComposing(true);
             setQuery(null);
             props.onKeyboardCompositionStart?.(event);
           }}
           onKeyboardCompositionEnd={(event) => {
             composingRef.current = false;
-            setComposing(false);
             setQuery(getMentionQuery(textRef.current, caretRef.current.start));
             props.onKeyboardCompositionEnd?.(event);
           }}
           onBlur={(event) => {
-            if (restoreFocus !== false && Number.isFinite(event.detail.cursor)) caretRef.current = { start: event.detail.cursor, end: event.detail.cursor };
+            if (selection === undefined && !pendingMention.current && Number.isFinite(event.detail.cursor)) caretRef.current = { start: event.detail.cursor, end: event.detail.cursor };
             // Keep the active query available while a suggestion receives the tap.
             composingRef.current = false;
-            setComposing(false);
-            setSelecting(false);
             onBlur?.(event);
           }}
         />
       </View>
-      {query && (
-        <View className='mentionCandidates'>
-          <Text className='mentionCandidatesTitle'>提及帖子中的用户</Text>
-          <ScrollView scrollY className='mentionCandidatesList'>
-            {candidates.map((username) => (
-              <View key={username} className='mentionCandidate' onClick={() => selectUser(username)}>
-                <Text className='mentionCandidateAt'>@</Text>
-                <Text className='mentionCandidateName'>{username}</Text>
-              </View>
-            ))}
-            {!candidates.length && <Text className='mentionCandidatesEmpty'>暂无匹配用户，可直接输入用户名</Text>}
-          </ScrollView>
-        </View>
-      )}
+
     </View>
   );
 }

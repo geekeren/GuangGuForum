@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../../utils/renderer";
 import { View, Image, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useRef, useState } from "react";
@@ -130,7 +131,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
           </View>
         </View>
       ) : (
-        <ScrollView type='custom' scrollY enhanced scrollTop={scrollTop} onScroll={() => setScrollTop(undefined)} className='notificationsList'>
+        <ScrollView type={getScrollViewType()} scrollY enhanced scrollTop={scrollTop} onScroll={() => setScrollTop(undefined)} className='notificationsList'>
           {notifications.map((item, index) => {
             const title = notificationTitle(item.titleHtml, item.topicTitle);
             return (

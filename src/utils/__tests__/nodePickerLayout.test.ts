@@ -12,7 +12,7 @@ vi.mock("../CacheService", () => ({ cacheService: {}, CacheCategory: {} }));
 vi.mock("react", () => ({ useState: (value: any) => [value, vi.fn()], useEffect: vi.fn() }));
 vi.mock("@tarojs/components", () => ({ RootPortal: "RootPortal", View: "View", Text: "Text", ScrollView: "ScrollView" }));
 vi.mock("@tarojs/taro", () => ({ default: { getWindowInfo: vi.fn(() => ({ windowWidth: 390, windowHeight: 844, screenHeight: 844, safeArea: { bottom: 810 } })) } }));
-vi.mock("../renderer", () => ({ isSkyline: vi.fn(() => true) }));
+vi.mock("../renderer", () => ({ isSkyline: vi.fn(() => true), getScrollViewType: () => 'custom' }));
 const props = { visible: true, groups: [{ category: "生活", nodes: [{ slug: "house", name: "房产" }] }], selectedSlug: "house", allLabel: "全部节点", onSelect: vi.fn(), onClose: vi.fn() };
 function all(tree: any): any[] {
   if (Array.isArray(tree)) return tree.flatMap(all);

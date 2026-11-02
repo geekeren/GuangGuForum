@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { View, ScrollView, Text } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useEffect, useState } from "react";
@@ -45,7 +46,7 @@ export default function LinkPreview() {
   return (
     <View className={`linkPreviewPage${skyline ? " linkPreviewPage--skyline" : ""}`}>
       <Navbar back modal={skyline} title="链接预览" />
-      <ScrollView type='custom' scrollY style={skyline ? undefined : { height: scrollHeight }} className="linkPreviewContent">
+      <ScrollView type={getScrollViewType()} scrollY style={skyline ? undefined : { height: scrollHeight }} className="linkPreviewContent">
         {summary ? (
           <LinkPreviewCard summary={summary} url={url} />
         ) : (

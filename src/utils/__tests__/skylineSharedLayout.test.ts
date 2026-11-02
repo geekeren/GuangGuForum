@@ -8,6 +8,7 @@ import Taro from "@tarojs/taro";
 import TopicList from "../../pages/home/topics/topicList";
 import "../../components/HtmlRender";
 import { linkHandler } from "../linkHandler";
+import { STICKERS } from "../stickers";
 
 const featureGlobals = vi.hoisted(() => {
   const previous = new Map<string, PropertyDescriptor | undefined>();
@@ -448,6 +449,32 @@ describe("Skyline HTML parser normalization", () => {
     expect(block.nodeName).toBe("view");
     expect(block.firstChild!.nodeName).toBe("text");
     expect(block.textContent).toBe("纯文本评论 English words 保留正常断词");
+  });
+  it.each(['skyline', 'webview'])('halves only custom sticker dimensions in %s content', renderer => {
+    vi.stubGlobal('getCurrentPages', () => [{ renderer }]);
+    const root = parse(`<div class="post"><p><img src="${STICKERS[0].url}"></p></div><div class="comment"><p><img src="${STICKERS[1].url}"></p><img src="https://example.com/photo.png"></div>`);
+    const images = nodes(root).filter(node => node.nodeName === 'image');
+    const load = (node: any, width: number, height: number) => {
+      const event = new TaroEvent('load', {});
+      event.detail = { width, height };
+      node.dispatchEvent(event);
+    };
+    for (const image of images.slice(0, 2)) {
+      expect(image.style.width).toBe('100px');
+      expect(image.style.height).toBe('100px');
+      load(image, 200, 200);
+      expect(image.style.width).toBe('100px');
+      expect(image.style.height).toBe('100px');
+      load(image, 0, 0);
+      expect(image.style.width).toBe('100px');
+      expect(image.style.height).toBe('100px');
+    }
+    load(images[2], 200, 200);
+    expect(images[2].style.width).toBe('200px');
+    expect(images[2].style.height).toBe('200px');
+    load(images[2], 600, 400);
+    expect(images[2].style.width).toBe('300px');
+    expect(images[2].style.height).toBe('200px');
   });
   it("keeps the original paragraph, image, table and code geometry", () => {
     const css = source("components/HtmlRender/index.scss");
