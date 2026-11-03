@@ -14,6 +14,8 @@
 
 ### 发帖
 - 四种发帖类型：普通 / 转载 / 活动 / 相亲贴
+- 文档式富文本正文：段落、加粗、标题、列表，上传完成的图片可点击插入当前光标位置
+- Markdown 输入快捷排版；不支持的语法保留在源码模式，预览明确显示纯文本回退，旧草稿兼容恢复
 - 转载：自动读取剪贴板链接，一键抓取标题/摘要/缩略图
 - 活动：日期时间 + 地图选点，结构化发布
 - 相亲贴：性别/出生年/期望，自动计算年龄
@@ -124,17 +126,32 @@ setCacheService(cacheService);
 选择类型 → Strategy 模式
   ├── normal:  自由标题+内容，自选板块
   ├── repost:  剪贴板URL → fetchLinkSummary → 预览确认 → 自动填充
-  ├── event:   日期+时间+地图选点 → 结构化 Markdown
+  ├── event:   日期+时间+地图选点 → 结构化 HTML
   └── dating:  性别+出生年+期望 → 自动计算年龄
 
-表单输入 → 800ms 防抖自动保存草稿 (按 type+node 隔离)
+表单输入 → 原生 editor Delta / Markdown 源码 → 自动保存草稿 (按 type+node 隔离)
   ↓
-切换类型 → 保存当前草稿 → 加载目标草稿或 initialFields
+切换类型 → 保存当前文档快照 → 加载目标草稿或 initialFields
   ↓
-预览 → MarkdownRender 渲染 → 确认发布
+文档 → 校验图片状态及账号归属 → 安全 HTML → 类型 Strategy 组合正文
+  ↓
+预览 → HtmlRender 渲染 → 确认发布
   ↓
 createTopic(node, title, content) → 清除草稿 → 返回列表
 ```
+
+发帖页单独使用小程序 **WebView 渲染器**及原生 `editor`，其余页面保持 Skyline；不是嵌入外部 H5。`topicDocument.ts` 负责有界 Delta 校验、Markdown 输入兼容、安全 HTML 导出及图片引用校验，UI 负责光标、工具栏和上传。论坛提交正文为 **HTML**，API 的 `content:string` 字段不变；文本和属性必须转义，标签、格式及图片 URL 使用白名单。草稿保留版本化 Delta 与兼容的源码正文；不支持的 Markdown 不能通过有损转换覆盖原稿。
+
+图片先上传至现有图床，完成后点击缩略图插入当前选区；上传完成不会自动在已移动的光标处插图。已插入正文的附件不再重复追加到文末，删除正文图片也不会由附件列表重新补回。源码与富文本互切后仍校验已知图片的账号归属；正文中仍引用的图片保留附件记录，删除后才可移除记录、释放附件名额。
+
+Markdown 快捷排版依赖基础库 3.7.11 起的原生选区接口并在运行时检测；只处理文末明确的单字符输入，跳过粘贴、正文中部和不明确的输入法替换。编辑时不逐次 `setContents` 重置全文。键盘、输入法、选区及撤销行为仍须在真实微信环境验收。
+
+富文本验收须在构建后的实际发帖页进行，不以普通浏览器或其他临时项目代替：
+- 从首页和板块页进入发帖页，确认原生编辑器初始化、返回导航和滚动正常。
+- 输入中文、emoji、多段正文及 `**加粗**`、`# `，检查光标、后续输入格式和工具栏加粗/段落切换。
+- 图片上传失败重试，完成后在两段文字之间插入；删除正文图片，确认预览没有重复或重新补回。
+- 切换发帖类型、离开再进入及恢复旧草稿，确认正文、图片位置及类型字段保留。
+- 预览四种类型的最终 HTML；实际发布属于独立操作，测试和预览不默认提交真实帖子。
 
 ### 技术栈
 
@@ -143,7 +160,7 @@ createTopic(node, title, content) → 清除草稿 → 返回列表
 | 框架 | [Taro 4](https://docs.taro.zone/) + React 18 |
 | 语言 | TypeScript |
 | 样式 | SCSS + CSS Variables |
-| 渲染器 | Skyline + glass-easel |
+| 渲染器 | Skyline + glass-easel；发帖页原生 editor 使用 WebView |
 | 包管理 | Yarn 3 Workspaces (monorepo) |
 | HTML 解析 | [node-html-parser](https://github.com/taoqf/node-html-parser) |
 | 登录代理 | 阿里云 Serverless |
@@ -194,8 +211,11 @@ createTopic(node, title, content) → 清除草稿 → 返回列表
 │   │   │   ├── notifications/   #     消息通知
 │   │   │   └── me/              #     个人中心
 │   │   ├── topicDetail/         #   帖子详情 + 评论 + 分享
-│   │   ├── createTopic/         #   发帖（4 类型 Strategy + 草稿）
-│   │   │   └── topicTypes/      #     类型策略注册表
+│   │   ├── createTopic/         #   原生富文本发帖（4 类型 Strategy + 草稿）
+│   │   │   ├── RichTopicBody.tsx #    原生 editor、源码兼容与文档快照
+│   │   │   ├── nativeEditor.ts  #     原生上下文适配与有序变更
+│   │   │   ├── editorShortcuts.ts #   保守的 Markdown 局部快捷转换
+│   │   │   └── topicTypes/      #     类型策略注册表（HTML 正文）
 │   │   ├── login/               #   登录（账号记忆 + 隐私协议）
 │   │   ├── user/                #   用户主页
 │   │   ├── node/topicList/      #   节点话题列表
@@ -208,7 +228,8 @@ createTopic(node, title, content) → 清除草稿 → 返回列表
 │   │   ├── linkHandler.ts       #   智能链接路由（站内/白名单/外链）
 │   │   ├── auth.ts              #   登录弹窗
 │   │   ├── ad.ts                #   广告管理（看广告免广告）
-│   │   ├── htmlToMarkdown.ts    #   HTML→Markdown 转换
+│   │   ├── topicDocument.ts     #   Delta 校验、Markdown 输入兼容及安全 HTML 导出
+│   │   ├── htmlToMarkdown.ts    #   外站 HTML 摘要提取（不用于作者正文）
 │   │   ├── renderer.ts          #   Skyline 检测
 │   │   ├── dimension.ts         #   布局尺寸计算
 │   │   ├── nodeNavigation.ts    #   节点导航缓存

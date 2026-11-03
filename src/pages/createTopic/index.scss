@@ -113,10 +113,11 @@
 
   .editorSection {
     background: $surface;
-    border-radius: $radius-lg;
-    padding: 32rpx 28rpx;
+    border-radius: $radius-md;
+    padding: 36rpx 32rpx;
     box-shadow: $shadow-sm;
     margin: 0 24rpx 24rpx;
+    min-height: 620rpx;
   }
 
   .repostTip {

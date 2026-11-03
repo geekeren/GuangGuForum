@@ -1,12 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CreateTopic from "../../pages/createTopic";
 import Discovery from "../../pages/home/discovery";
 import { fetchAndCacheNodeNavigation } from "../nodeNavigation";
 import { cacheService } from "../CacheService";
+import { openLoginModal } from '../auth';
 
 const harness = vi.hoisted(() => ({
   values: [] as any[], refs: [] as any[], effects: [] as any[], cursor: 0, refCursor: 0,
-  cached: [] as any[], route: "work", storage: new Map<string, any>(),
+  cached: [] as any[], route: "work", username: 'tester', storage: new Map<string, any>(),
 }));
 vi.mock("react", () => ({
   useState(initial: any) {
@@ -23,18 +24,18 @@ vi.mock("@tarojs/taro", () => ({ default: { useDidHide: vi.fn(), useUnload: vi.f
 vi.mock("guanggu-forum-api", () => ({ createTopic: vi.fn(), getDiscoveryData: vi.fn() }));
 vi.mock("../nodeNavigation", () => ({ getCachedNodeNavigation: () => harness.cached, fetchAndCacheNodeNavigation: vi.fn() }));
 vi.mock("../CacheService", () => ({ cacheService: { get: vi.fn((key: string) => harness.storage.get(key)), set: vi.fn(), remove: vi.fn() }, CacheCategory: { Topic: "topic" } }));
-vi.mock("../currentUser", () => ({ getCachedUsername: () => "tester" }));
+vi.mock("../currentUser", () => ({ getCachedUsername: () => harness.username }));
 vi.mock("../auth", () => ({ openLoginModal: vi.fn() }));
 vi.mock("../renderer", () => ({ isSkyline: () => true, getScrollViewType: () => "list" }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light" }) }));
 vi.mock("../../hooks/useDataWithCache", () => ({ useDataWithCache: () => ({ data: {}, loading: false, request: vi.fn() }) }));
 vi.mock("../discoveryTopics", () => ({ getHotTopicPage: () => [], loadDiscoveryTopicMetadata: vi.fn(), startHotTopicRotation: vi.fn() }));
 vi.mock("../../pages/createTopic/topicTypes/registry", () => ({
-  TOPIC_TYPE_REGISTRY: { normal: { initialFields: {}, renderForm: () => null } }, ALL_TYPES: [], ALL_HIDDEN_NODES: [],
+  TOPIC_TYPE_REGISTRY: { normal: { initialFields: {}, renderForm: (ctx: any) => { ctx.renderContentInput('body', {}).props.inputRef.current = { snapshot: async () => ({ markdown: '', errors: [], unsupported: [] }) }; return null; } } }, ALL_TYPES: [], ALL_HIDDEN_NODES: [],
 }));
 vi.mock("../../pages/createTopic/TopicEditor", () => ({ default: "TopicEditor", restoreTopicAttachments: () => [] }));
 vi.mock("../../components/Navbar", () => ({ default: "Navbar" }));
-vi.mock("../../components/MarkdownRender", () => ({ default: "MarkdownRender" }));
+vi.mock("../../components/HtmlRender", () => ({ default: "HtmlRender" }));
 vi.mock("../../components/NodePicker", () => ({ default: "NodePicker" }));
 vi.mock("../../components/UserAvatar", () => ({ default: "UserAvatar" }));
 vi.mock("../../components/Loading", () => ({ default: "Loading" }));
@@ -58,17 +59,54 @@ function deferred() {
 async function flush() { for (let i = 0; i < 4; i++) await Promise.resolve(); }
 beforeEach(() => {
   vi.clearAllMocks(); harness.values = []; harness.refs = []; harness.effects = []; harness.cursor = 0; harness.refCursor = 0;
-  harness.cached = groups(); harness.route = "work"; harness.storage.clear();
+  harness.cached = groups(); harness.route = "work"; harness.username = 'tester'; harness.storage.clear();
   vi.mocked(fetchAndCacheNodeNavigation).mockResolvedValue(groups(" fresh"));
 });
 
+afterEach(() => vi.useRealTimers());
+
 describe("node navigation UI consumers", () => {
+  it('opens login after 500ms when the composer mounts unauthenticated', async () => {
+    vi.useFakeTimers(); harness.username = '';
+    render(CreateTopic); const cleanup = harness.effects[2]();
+    await vi.advanceTimersByTimeAsync(499);
+    expect(openLoginModal).not.toHaveBeenCalled();
+    expect(picker(CreateTopic).props.groups).toEqual(groups(' fresh'));
+    await vi.advanceTimersByTimeAsync(1);
+    expect(openLoginModal).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(openLoginModal).toHaveBeenCalledOnce();
+    cleanup();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cancels pending login navigation when the composer unmounts before 500ms', async () => {
+    vi.useFakeTimers(); harness.username = '';
+    render(CreateTopic); const cleanup = harness.effects[2]();
+    await vi.advanceTimersByTimeAsync(499);
+    expect(openLoginModal).not.toHaveBeenCalled();
+    cleanup();
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(openLoginModal).not.toHaveBeenCalled();
+  });
+
+  it('does not schedule login navigation for an authenticated composer', async () => {
+    vi.useFakeTimers();
+    render(CreateTopic); const cleanup = harness.effects[2]();
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(openLoginModal).not.toHaveBeenCalled();
+    expect(picker(CreateTopic).props.groups).toEqual(groups(' fresh'));
+    cleanup();
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it("renders cached create-topic groups and keeps a later user selection when revalidation resolves", async () => {
     const next = deferred(); vi.mocked(fetchAndCacheNodeNavigation).mockReturnValue(next.promise);
     render(CreateTopic);
-    harness.effects[1]();
+    harness.effects[2]();
     expect(picker(CreateTopic).props).toMatchObject({ groups: groups(), selectedSlug: "work" });
-    picker(CreateTopic).props.onSelect("code");
+    await picker(CreateTopic).props.onSelect("code");
     next.resolve(groups(" fresh")); await flush();
     expect(picker(CreateTopic).props).toMatchObject({ groups: groups(" fresh"), selectedSlug: "code" });
     expect(fetchAndCacheNodeNavigation).toHaveBeenCalledOnce();
@@ -80,9 +118,9 @@ describe("node navigation UI consumers", () => {
     harness.storage.set("topic_draft_normal_code", { title: "Draft", content: "Body" });
     const next = deferred(); vi.mocked(fetchAndCacheNodeNavigation).mockReturnValue(next.promise);
     render(CreateTopic);
-    harness.effects[1]();
+    harness.effects[2]();
     expect(picker(CreateTopic).props.selectedSlug).toBe("work");
-    harness.effects[3](); // later draft restoration effect
+    harness.effects[4](); // later draft restoration effect
     expect(picker(CreateTopic).props.selectedSlug).toBe("code");
     next.resolve(groups(" fresh")); await flush();
     expect(picker(CreateTopic).props.selectedSlug).toBe("code");
@@ -92,18 +130,18 @@ describe("node navigation UI consumers", () => {
   it("restores a saved node on cold startup and validates only after groups arrive", async () => {
     harness.cached = []; harness.route = "";
     harness.storage.set("last_selected_node", { slug: "code" });
-    render(CreateTopic); harness.effects[1](); await flush();
+    render(CreateTopic); harness.effects[2](); await flush();
     expect(picker(CreateTopic).props.selectedSlug).toBe("code");
   });
 
   it("keeps create-topic cached groups after failure and ignores a response after unmount", async () => {
     const next = deferred(); vi.mocked(fetchAndCacheNodeNavigation).mockReturnValue(next.promise);
-    render(CreateTopic); const cleanup = harness.effects[1]();
+    render(CreateTopic); const cleanup = harness.effects[2]();
     next.reject(new Error("offline")); await flush();
     expect(picker(CreateTopic).props).toMatchObject({ groups: groups(), selectedSlug: "work" });
     cleanup();
     const later = deferred(); vi.mocked(fetchAndCacheNodeNavigation).mockReturnValue(later.promise);
-    const cleanupAgain = harness.effects[1]();
+    const cleanupAgain = harness.effects[2]();
     cleanupAgain(); later.resolve(groups(" ignored")); await flush();
     expect(picker(CreateTopic).props.groups).toEqual(groups());
   });

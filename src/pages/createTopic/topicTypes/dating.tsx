@@ -1,6 +1,7 @@
 import { View, Text, Picker, Radio, RadioGroup } from "@tarojs/components";
 import { ClearableTextarea } from "../../../components/ClearableInput";
 import { BRAND_COLOR } from "../../../utils/theme";
+import { escapeTopicHtml } from '../../../utils/topicDocument';
 import type { TopicTypeDefinition, RenderFormContext, OnActivateContext } from "./registry";
 
 const GENDER_OPTIONS = ["男", "女"];
@@ -19,7 +20,7 @@ const datingDef: TopicTypeDefinition = {
 
   buildContent(fields, { content, fromMini }) {
     const age = fields.birthYear ? String(new Date().getFullYear() - parseInt(fields.birthYear)) : "";
-    return `## 👤 基本信息\n\n- 性别：${fields.gender}\n- 年龄：${age}\n\n## 💕 期望\n\n${fields.requirements}\n\n## ✍️ 自我介绍\n\n${content}\n\n\n\n${fromMini}`;
+    return `<h2>👤 基本信息</h2><ul><li>性别：${escapeTopicHtml(fields.gender || '')}</li><li>年龄：${escapeTopicHtml(age)}</li></ul><h2>💕 期望</h2><p>${escapeTopicHtml(fields.requirements || '').replace(/\n/g, '<br />')}</p><h2>✍️ 自我介绍</h2>${content}${fromMini}`;
   },
 
   validate(fields) {

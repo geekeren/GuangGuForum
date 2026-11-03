@@ -6,7 +6,8 @@ import type { LinkSummary } from "guanggu-forum-api";
 import { ClearableInput, ClearableTextarea } from "../../../components/ClearableInput";
 import LinkPreviewCard from "../../../components/LinkPreviewCard";
 import { LinkPreviewHeader } from "../../../components/LinkPreviewCard/Header";
-import MarkdownRender from "../../../components/MarkdownRender";
+import HtmlRender from "../../../components/HtmlRender";
+import { escapeTopicHtml, topicMarkdownToSafeHtml, isSafeTopicImageUrl } from '../../../utils/topicDocument';
 import { htmlToMarkdown } from "../../../utils/htmlToMarkdown";
 import { extractSummaryUrl } from "../../../utils/linkHandler";
 import { isSkyline } from "../../../utils/renderer";
@@ -115,13 +116,12 @@ const repostDef: TopicTypeDefinition = {
 
   buildContent(fields, { content, fromMini }) {
     const { sourceUrl, sourceTitle, summary, thumbnail, fullRepost } = fields;
-    const thumbPart = thumbnail ? `![缩略图](${thumbnail})\n\n` : "";
-    const linkText = sourceTitle || sourceUrl;
-    if (fullRepost && summary) {
-      return `${thumbPart}> 转载自 [${linkText}](${sourceUrl})\n\n${summary}\n\n${content}${fromMini}`;
-    }
-    const summaryPart = summary ? `\n\n**下面是摘要：**\n\n${summary}` : "";
-    return `${thumbPart}> 转载自 [${linkText}](${sourceUrl})${summaryPart}\n\n${content}${fromMini}`;
+    const safeUrl = (value: unknown) => typeof value === 'string' && isSafeTopicImageUrl(value) ? escapeTopicHtml(value) : '';
+    const thumbPart = safeUrl(thumbnail) ? `<p><img src="${safeUrl(thumbnail)}" alt="缩略图" /></p>` : '';
+    const linkText = escapeTopicHtml(sourceTitle || sourceUrl || '');
+    const origin = safeUrl(sourceUrl) ? `<a href="${safeUrl(sourceUrl)}">${linkText}</a>` : linkText;
+    const summaryPart = summary ? `${fullRepost ? '' : '<p><strong>下面是摘要：</strong></p>'}${topicMarkdownToSafeHtml(summary).html}` : '';
+    return `${thumbPart}<p>转载自 ${origin}</p>${summaryPart}${content}${fromMini}`;
   },
 
   validate(fields) {
@@ -211,6 +211,7 @@ const repostDef: TopicTypeDefinition = {
         {fields.sourceUrl ? (
           <View className="fieldGroup">
             <Text className="fieldLabel">摘要</Text>
+            {fields.summary && !topicMarkdownToSafeHtml(fields.summary).lossless && <Text className='topicEditorNotice'>摘要包含暂不支持的语法，预览和发布将按原样文字保留。</Text>}
             <ClearableTextarea
               className="fieldTextarea"
               placeholder="文章摘要（可选）..."
@@ -263,7 +264,7 @@ const repostDef: TopicTypeDefinition = {
                     <LinkPreviewHeader summary={fields.repostPreview} url={fields.sourceUrl} />
                     <View className="repostSummaryPreview">
                       <Text className="repostSummaryLabel">摘要预览</Text>
-                      <MarkdownRender content={fields.repostPreview ? buildTruncatedSummary(fields.repostPreview) : ""} />
+                      <HtmlRender html={topicMarkdownToSafeHtml(fields.repostPreview ? buildTruncatedSummary(fields.repostPreview) : '').html} />
                     </View>
                   </>
                 )}

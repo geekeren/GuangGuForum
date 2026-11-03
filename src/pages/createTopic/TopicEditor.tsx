@@ -2,7 +2,8 @@ import { Image, ScrollView, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useEffect, useImperativeHandle, useRef, useState, type RefObject } from 'react';
 import { createImageUploadController, ImageUploadError, uploadImage } from 'guanggu-forum-api';
-import MentionTextarea, { type MentionEditorHandle } from '../../components/MentionTextarea';
+import RichTopicBody, { type RichBodyHandle } from './RichTopicBody';
+import type { TopicDocument } from '../../utils/topicDocument';
 import ThemedIcon from '../../components/ThemedIcon';
 import MentionIcon from '../../assets/composer-mention.svg?raw';
 import EmojiIcon from '../../assets/composer-emoji.svg?raw';
@@ -23,9 +24,9 @@ import './TopicEditor.scss';
 type Photo = {
   id: string; kind: 'photo'; path: string; owner: string; url?: string; uploadId?: string;
   phase: 'preparing' | 'uploading' | 'processing' | 'complete' | 'failed';
-  progress: number | null; compressed?: boolean; error?: string;
+  progress: number | null; compressed?: boolean; error?: string; richManaged?: boolean;
 };
-export type TopicAttachment = Photo | { id: string; kind: 'sticker'; sticker: Sticker };
+export type TopicAttachment = Photo | { id: string; kind: 'sticker'; sticker: Sticker; richManaged?: boolean };
 
 export function restoreTopicAttachments(value: unknown): TopicAttachment[] {
   if (!Array.isArray(value)) return [];
@@ -33,14 +34,14 @@ export function restoreTopicAttachments(value: unknown): TopicAttachment[] {
     if (!item || typeof item.id !== 'string') return [];
     if (item.kind === 'sticker') {
       const sticker = STICKERS.find(entry => entry.filename === item.sticker?.filename);
-      return sticker ? [{ id: item.id, kind: 'sticker', sticker }] : [];
+      return sticker ? [{ id: item.id, kind: 'sticker', sticker, richManaged: item.richManaged === true }] : [];
     }
     if (item.kind !== 'photo' || typeof item.path !== 'string' || typeof item.owner !== 'string') return [];
     const complete = item.phase === 'complete' && typeof item.url === 'string' && /^https:\/\//.test(item.url);
     return [{
       id: item.id, kind: 'photo', path: item.path, owner: item.owner,
       uploadId: typeof item.uploadId === 'string' ? item.uploadId : undefined,
-      url: complete ? item.url : undefined, compressed: item.compressed === true,
+      url: complete ? item.url : undefined, compressed: item.compressed === true, richManaged: item.richManaged === true,
       phase: complete ? 'complete' : 'failed', progress: complete ? 100 : null,
       error: complete ? undefined : '上传已中断，点击重试',
     }];
@@ -55,13 +56,17 @@ interface Props {
   disabled: boolean;
   attachments: TopicAttachment[];
   onAttachmentsChange: (update: (current: TopicAttachment[]) => TopicAttachment[]) => void;
-  onChange: (value: string) => void;
+  document?: TopicDocument;
+  onChange: (value: string, document?: TopicDocument) => void;
 }
 
 let nextAttachmentId = 0;
 const attachmentId = () => `topic-media-${Date.now()}-${nextAttachmentId++}`;
+// Only bound incomplete native gestures, never delay ordinary editor blur.
+const DOCK_GESTURE_TIMEOUT_MS = 5000;
+const DOCK_TAP_COMPLETION_MS = 350;
 
-export default function TopicEditor({ value, placeholder, inputRef, previousRef, disabled, attachments, onAttachmentsChange, onChange }: Props) {
+export default function TopicEditor({ value, document, placeholder, inputRef, disabled, attachments, onAttachmentsChange, onChange }: Props) {
   const [panel, setPanel] = useState<'emoji' | 'more' | null>(null);
   const [tab, setTab] = useState<'common' | 'emoji' | 'sticker'>('common');
   const [common, setCommon] = useState(getCommonEmojiUsage);
@@ -77,15 +82,34 @@ export default function TopicEditor({ value, placeholder, inputRef, previousRef,
     awaitingKeyboard.current = false;
     setKeyboardHeight(Math.max(0, height));
   };
-  const dockVisible = focused || keyboardHeight > 0 || !!panel;
+  const [dockGestureActive, setDockGestureActive] = useState(false);
+  const dockGestureTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const dockVisible = focused || keyboardHeight > 0 || !!panel || (!disabled && dockGestureActive);
   const [panelHeight, setPanelHeight] = useState(300);
-  const editor = useRef<MentionEditorHandle>(null);
+  const editor = useRef<RichBodyHandle>(null);
   const currentAttachments = useRef(attachments);
   currentAttachments.current = attachments;
   const active = useRef(true);
   const selecting = useRef(false);
   const account = useRef(getCachedUsername());
   const jobs = useRef(new Map<string, ReturnType<typeof createImageUploadController>>());
+  const releaseDockGesture = () => {
+    clearTimeout(dockGestureTimer.current); dockGestureTimer.current = undefined;
+    if (active.current) setDockGestureActive(false);
+  };
+  const armDockGesture = (timeout: number) => {
+    clearTimeout(dockGestureTimer.current);
+    dockGestureTimer.current = setTimeout(releaseDockGesture, timeout);
+  };
+  const startDockGesture = () => {
+    if (disabled || !active.current) return;
+    setDockGestureActive(true); armDockGesture(DOCK_GESTURE_TIMEOUT_MS);
+  };
+  const endDockGesture = (event: { stopPropagation(): void }) => {
+    event.stopPropagation();
+    // Native tap follows touchend. Retain the target until that tap, or bounded cancellation.
+    if (active.current) armDockGesture(DOCK_TAP_COMPLETION_MS);
+  };
 
   const update = (change: (current: TopicAttachment[]) => TopicAttachment[]) => {
     currentAttachments.current = change(currentAttachments.current);
@@ -96,18 +120,32 @@ export default function TopicEditor({ value, placeholder, inputRef, previousRef,
     panelRef.current = null;
     setPanel(null); setFocused(true);
   };
-  useImperativeHandle(inputRef, () => ({ focus: showKeyboard }));
+  useImperativeHandle(inputRef, () => ({
+    focus: showKeyboard,
+    insertText: (text: string) => editor.current?.insertText(text),
+    snapshot: () => editor.current?.snapshot() ?? Promise.reject(new Error('Editor unavailable')),
+  }));
   useEffect(() => {
     active.current = true;
     if (currentAttachments.current.some(item => item.kind === 'photo' && item.phase !== 'complete' && item.phase !== 'failed')) {
       update(current => restoreTopicAttachments(current));
     }
+    const keyboardListener = (event: { height: number }) => { if (active.current) updateKeyboardHeight(event.height); };
+    Taro.onKeyboardHeightChange?.(keyboardListener);
     return () => {
       active.current = false;
+      clearTimeout(dockGestureTimer.current); dockGestureTimer.current = undefined;
+      Taro.offKeyboardHeightChange?.(keyboardListener);
       jobs.current.forEach(job => job.abort());
       jobs.current.clear();
     };
   }, []);
+
+  useEffect(() => {
+    if (!disabled) return;
+    clearTimeout(dockGestureTimer.current); dockGestureTimer.current = undefined;
+    setDockGestureActive(false);
+  }, [disabled]);
 
   const runUpload = async (photo: Photo) => {
     if (jobs.current.has(photo.id) || disabled) return;
@@ -175,8 +213,36 @@ export default function TopicEditor({ value, placeholder, inputRef, previousRef,
     } finally { selecting.current = false; }
   };
 
-  const remove = (id: string) => {
+  const insertAttachment = async (item: TopicAttachment) => {
+    if (disabled || !active.current || account.current !== getCachedUsername()) return;
+    if (item.kind === 'photo' && (item.phase !== 'complete' || !item.url || item.owner !== getCachedUsername())) {
+      Taro.showToast({ title: '上传完成后点击插入正文', icon: 'none' }); return;
+    }
+    const src = item.kind === 'photo' ? item.url! : item.sticker.url;
+    const inserted = await editor.current?.insertImage(src, item.id, item.kind === 'photo' ? '图片' : item.sticker.name);
+    if (inserted && active.current && account.current === getCachedUsername()) {
+      update(items => items.map(current => current.id === item.id ? { ...current, richManaged: true } : current));
+    }
+  };
+  const remove = async (id: string) => {
     if (disabled) return;
+    if (currentAttachments.current.some(item => item.id === id && item.richManaged)) {
+      try {
+        const snapshot = await editor.current?.snapshot();
+        if (!snapshot) throw new Error('Editor unavailable');
+        // A source roundtrip may retain the image URL but lose its native attachment tag.
+        const item = currentAttachments.current.find(candidate => candidate.id === id);
+        const src = item?.kind === 'photo' ? item.url : item?.sticker.url;
+        const encodedSrc = src?.replace(/\(/g, '%28').replace(/\)/g, '%29');
+        const urlReferenced = src && (snapshot.document
+          ? snapshot.document.delta.ops.some(op => typeof op.insert === 'object' && (op.insert.image === src || op.insert.image === encodedSrc))
+          : snapshot.markdown.includes(src) || !!encodedSrc && snapshot.markdown.includes(encodedSrc));
+        if (snapshot.referencedAttachmentIds?.includes(id) || urlReferenced) {
+          Taro.showToast({ title: '已插入正文，请在正文中删除图片', icon: 'none' }); return;
+        }
+      } catch { Taro.showToast({ title: '正文读取失败，请重试后移除附件', icon: 'none' }); return; }
+      if (!active.current || account.current !== getCachedUsername()) return;
+    }
     jobs.current.get(id)?.abort();
     jobs.current.delete(id);
     update(items => items.filter(item => item.id !== id));
@@ -206,33 +272,36 @@ export default function TopicEditor({ value, placeholder, inputRef, previousRef,
   return <View className='topicEditor'>
     <View className='topicAttachmentRegion' style={{ height: attachments.length ? '166rpx' : '0rpx' }}>
       {attachments.length > 0 && <ScrollView type={getScrollViewType()} scrollX scrollWithAnimation
-        scrollIntoView={`topic-preview-${attachments[attachments.length - 1].id}`} className='topicAttachmentScroll' {...{ 'keyboard-dismiss-mode': 'none' }}>
+        scrollIntoView={`topic-preview-${attachments[attachments.length - 1].id}`} className='topicAttachmentScroll' {...{ 'keyboard-dismiss-mode': 'none' }}
+      >
         <View className='topicAttachmentTrack' style={{ width: attachments.length * 144 + 'rpx' }}>
           {attachments.map(item => <View className='topicAttachment' id={`topic-preview-${item.id}`} key={item.id}>
-            <Image src={item.kind === 'photo' ? item.url || item.path : item.sticker.url} mode='aspectFit' className='topicAttachmentImage' />
+            <Image src={item.kind === 'photo' ? item.url || item.path : item.sticker.url} mode='aspectFit' className='topicAttachmentImage' onClick={() => { void insertAttachment(item); }} />
             {item.kind === 'photo' && item.phase !== 'complete' && <View className={`topicUploadOverlay${item.phase === 'failed' ? ' topicUploadOverlay--failed' : ''}`}
-              ariaRole='button' ariaLabel={item.error || '图片上传中'} onClick={() => { if (item.phase === 'failed') void runUpload(item); }}>
+              ariaRole='button' ariaLabel={item.error || '图片上传中'} onClick={() => { if (item.phase === 'failed') void runUpload(item); }}
+            >
               {item.phase !== 'failed' && <View className='topicUploadSpinner' />}
               <Text className='topicUploadText'>{item.phase === 'failed' ? '点击重试' : item.phase === 'preparing' ? '处理中' : item.phase === 'processing' ? '服务器处理中' : item.progress === null ? '上传中' : `${item.progress}%`}</Text>
             </View>}
-            <View className='topicAttachmentRemove' ariaRole='button' ariaLabel='移除附件' onClick={() => remove(item.id)}><Text>×</Text></View>
+            <View className='topicAttachmentRemove' ariaRole='button' ariaLabel='移除附件' onClick={() => { void remove(item.id); }}><Text>×</Text></View>
           </View>)}
         </View>
       </ScrollView>}
     </View>
     {failedPhoto && <Text className='topicUploadError'>{failedPhoto.error || '图片上传失败，点击图片重试或移除'}</Text>}
-    <MentionTextarea editorRef={editor} className='contentInput topicEditorInput' value={value} placeholder={placeholder}
-      mentionUsers={account.current ? [account.current] : []} disabled={disabled} autoHeight focus={focused && !panel} holdKeyboard={!panel}
-      cursorSpacing={180} adjustPosition showConfirmBar={false} maxlength={50000}
-      onFocus={event => { setFocused(true); panelRef.current = null; setPanel(null); updateKeyboardHeight(event.detail.height); }}
-      onBlur={() => setFocused(false)} onTouchStart={showKeyboard}
-      onKeyboardHeightChange={event => updateKeyboardHeight(event.detail.height)}
-      candidatesStyle={dockVisible && !panel ? { position: 'fixed', left: 0, bottom: `calc(${keyboardHeight}px + 92rpx)`, zIndex: 102, background: 'var(--theme-surface, #fff)' } : { display: 'none' }}
-      onInput={event => {
-        if (!value && !event.detail.value) previousRef.current?.focus?.();
-        onChange(event.detail.value);
-      }} />
-    {dockVisible && <View className='topicEditorDock' style={{ bottom: (panel ? 0 : keyboardHeight) + 'px', paddingBottom: keyboardHeight > 0 && !panel ? '0px' : undefined }}>
+    {attachments.length > 0 && <Text className='topicUploadHint'>上传后点击插入正文 · 已插入的图片在正文中删除</Text>}
+    <RichTopicBody handleRef={editor} value={value} document={document} attachments={attachments} placeholder={placeholder}
+      disabled={disabled} focus={focused && !panel} onChange={onChange}
+      onFocus={() => { setFocused(true); panelRef.current = null; setPanel(null); }} onBlur={() => setFocused(false)}
+    />
+    {dockVisible && <View className='topicEditorDock' style={{ bottom: (panel ? 0 : keyboardHeight) + 'px', paddingBottom: keyboardHeight > 0 && !panel ? '0px' : undefined }}
+      onTouchStart={startDockGesture} onTouchEnd={endDockGesture} onTouchMove={releaseDockGesture} onTouchCancel={releaseDockGesture}
+      onClick={releaseDockGesture}
+    >
+    <View className='topicEditorFormats'>
+      {[['正文', 'header', ''], ['加粗', 'bold', 'true'], ['标题', 'header', 'h2'], ['列表', 'list', 'bullet'], ['编号', 'list', 'ordered']].map(([label, name, formatValue]) =>
+        <View key={label} className='topicFormatTool' ariaRole='button' ariaLabel={label} onClick={() => { if (!disabled) editor.current?.format(name, formatValue); }}><Text>{label}</Text></View>)}
+    </View>
     <View className='topicEditorToolbar'>
       <View className='topicEditorTool' ariaRole='button' ariaLabel='提及用户' onClick={() => { if (!disabled) { showKeyboard(); editor.current?.openMentions(); } }}><ThemedIcon src={MentionIcon} tone='secondary' className='topicEditorToolIcon' /></View>
       <View className='topicEditorTool' ariaRole='button' ariaLabel={panel === 'emoji' ? '切换到键盘' : '表情'} onClick={() => togglePanel('emoji')}><ThemedIcon src={panel === 'emoji' ? KeyboardIcon : EmojiIcon} tone={panel === 'emoji' ? 'accent' : 'secondary'} className='topicEditorToolIcon' /></View>

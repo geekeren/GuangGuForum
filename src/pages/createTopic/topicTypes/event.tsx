@@ -2,6 +2,7 @@ import { View, Text, Picker } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { ClearableInput, ClearableTextarea } from "../../../components/ClearableInput";
 import { BRAND_COLOR } from "../../../utils/theme";
+import { escapeTopicHtml } from '../../../utils/topicDocument';
 import type { TopicTypeDefinition, RenderFormContext, OnActivateContext } from "./registry";
 
 function formatDate(date: Date): string {
@@ -25,7 +26,7 @@ const eventDef: TopicTypeDefinition = {
 
   buildContent(fields, { content, fromMini }) {
     const eventTime = [fields.eventDate, fields.eventHour].filter(Boolean).join(" ");
-    return `## 📅 活动信息\n\n- 时间：${eventTime}\n- 地点：${fields.eventLocation}\n\n## 📋 活动详情\n\n${content}${fromMini}`;
+    return `<h2>📅 活动信息</h2><ul><li>时间：${escapeTopicHtml(eventTime)}</li><li>地点：${escapeTopicHtml(fields.eventLocation || '')}</li></ul><h2>📋 活动详情</h2>${content}${fromMini}`;
   },
 
   validate(fields) {

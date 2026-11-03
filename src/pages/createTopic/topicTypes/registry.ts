@@ -8,9 +8,12 @@ export interface TopicTypeDefinition {
 
   initialFields: Record<string, any>;
 
+  /** Compose final HTML only. Body and footer have already been safely serialized. */
   buildContent(fields: Record<string, any>, shared: {
     title: string;
+    /** Safe HTML, not the Markdown draft/source used by renderForm. */
     content: string;
+    /** Safe HTML footer. */
     fromMini: string;
   }): string;
 
@@ -26,6 +29,7 @@ export interface RenderFormContext {
   setField: (key: string, value: any) => void;
   title: string;
   setTitle: (v: string) => void;
+  /** Markdown source/legacy projection used for editing and drafts, never a final payload. */
   content: string;
   setContent: (v: string) => void;
   getRef: (key: string) => RefObject<any>;

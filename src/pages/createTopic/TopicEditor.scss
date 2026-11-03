@@ -1,6 +1,15 @@
 @import "../../vars.scss";
 
-.topicEditor { min-width: 0; }
+.topicEditor { min-width: 0; padding-bottom: 184rpx; }
+.richTopicBody { color: $text-primary; background: $surface; }
+.topicNativeEditor { width: 100%; min-height: 480rpx; height: auto; font-size: 30rpx; line-height: 1.8; }
+.topicWritingHint { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; color: $text-faint; font-size: 21rpx; padding: 20rpx 0; }
+.topicSourceToggle { flex-shrink: 0; color: $color-brand; padding: 8rpx; }
+.topicEditorNotice, .topicUploadHint { display: block; font-size: 22rpx; line-height: 1.7; color: $text-muted; margin-bottom: 16rpx; }
+.topicEditorFormats { display: flex; align-items: center; height: 72rpx; padding: 0 24rpx; gap: 12rpx; border-top: 1rpx solid $border-color; }
+.topicFormatTool { flex: 1; text-align: center; color: $text-primary; font-size: 26rpx; padding: 12rpx 4rpx; }
+.topicRichMentions { display: flex; flex-wrap: wrap; gap: 12rpx; margin: 16rpx 0; }
+.topicMentionChip { color: $color-brand; background: $surfaceAlt; border-radius: 12rpx; padding: 12rpx 18rpx; font-size: 26rpx; }
 .topicAttachmentRegion { overflow: hidden; transition: height 200ms ease; }
 .topicAttachmentScroll { width: 100%; height: 166rpx; }
 .topicAttachmentTrack { display: flex; flex-direction: row; padding-top: 12rpx; }

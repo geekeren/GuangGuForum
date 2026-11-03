@@ -5,6 +5,7 @@ import { getLoginXsrfCode } from "../login/getLoginXsrfCode";
 export interface CreateTopicPayload {
   node: string;
   title: string;
+  /** Forum HTML body, safely serialized by the caller; sent unchanged in the form content field. */
   content: string;
 }
 

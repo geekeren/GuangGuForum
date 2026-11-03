@@ -13,7 +13,7 @@ vi.mock("react", async original => ({
 }));
 vi.mock("@tarojs/components", () => Object.fromEntries(["View", "Text", "Button", "Switch", "Image", "ScrollView", "ShareElement"].map(name => [name, name])));
 vi.mock("@tarojs/taro", () => ({
-  default: { useShareAppMessage: vi.fn(), useDidHide: vi.fn(), useDidShow: vi.fn(), getCurrentInstance: () => ({}) },
+  default: { useShareAppMessage: vi.fn(), useDidHide: vi.fn(), useDidShow: vi.fn(), getCurrentInstance: () => ({}), navigateTo: vi.fn() },
   useRouter: () => ({ path: "/pages/topicDetail/index", params: harness.params }),
   useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(), useDidShow: vi.fn(), useReady: vi.fn(),
 }));
@@ -83,6 +83,14 @@ describe("native page sharing registration and payloads", () => {
     home.state.selectedTabIndex = 3; home.state.initialTopicTab = "interest";
     expect(home.onShareAppMessage()).toEqual({ title: "过早客 - 武汉本地生活社区", path: "/pages/home/index" });
     expect(home.onShareTimeline()).toEqual({ title: "过早客 - 武汉本地生活社区", query: "" });
+  });
+
+  it('opens the WebView composer without a Skyline-only custom route', async () => {
+    const home = new Home({}, {});
+    (home as any).handleClick(2);
+    expect(Taro.navigateTo).toHaveBeenCalledWith({ url: '/pages/createTopic/index' });
+    const config = (await import('../../pages/createTopic/index.config')).default;
+    expect(config.renderer).toBe('webview');
   });
 
   it("registers detail sharing and includes tid in friend path and timeline query even before data loads", async () => {

@@ -16,10 +16,15 @@ const domStructure: DataDom<string> = {
 
 export const getLoginXsrfCode = (): Promise<Xsrf> => {
   return request(URLS.Login, { useCookie: false }).then(({ body, rawRes }) => {
-    const parsedCookie = parseCookie(rawRes.cookies);
-    return Promise.resolve({
-      xsrf_cookie: parsedCookie._xsrf.value,
-      xsrf_form: getDataFromHtml(body, domStructure) as any as string,
-    });
+    const xsrfForm = getDataFromHtml<string>(body, domStructure);
+    if (typeof xsrfForm !== "string" || !xsrfForm.trim()) {
+      throw new Error("无法获取安全校验信息，请重试");
+    }
+    const parsedCookie = parseCookie(rawRes?.cookies);
+    return {
+      // The server may reuse its session without sending a new cookie. Never invent one.
+      xsrf_cookie: parsedCookie._xsrf?.value || "",
+      xsrf_form: xsrfForm,
+    };
   });
 };

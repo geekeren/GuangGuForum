@@ -90,10 +90,7 @@ export default class Index extends Component<{}, State> {
 
   private handleClick(value: number): void {
     if (value === 2) {
-      wx.navigateTo({
-        url: "/pages/createTopic/index",
-        routeType: "wx://upwards",
-      });
+      void Taro.navigateTo({ url: "/pages/createTopic/index" });
     } else {
       this.setState({ selectedTabIndex: value });
     }
