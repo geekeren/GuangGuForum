@@ -2,7 +2,7 @@ import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
 import { CacheAPIFunc } from "../types";
 import type { HTMLElement } from "node-html-parser";
-import { getDisplayName } from "../utils/displayName";
+import { parseListAuthor } from "../utils/displayName";
 
 export interface FavoriteTopic {
   username: string;
@@ -74,7 +74,7 @@ function parseFavoriteTopics(body: HTMLElement | undefined): FavoriteTopic[] {
   const items = body?.querySelectorAll('.topic-item') || [];
   return topics?.map((topic, index) => ({
     ...topic,
-    displayName: getDisplayName(items[index]?.querySelector('.meta') || items[index], topic.username, topic.userLink),
+    ...parseListAuthor(items[index]?.querySelector('.meta') || items[index], topic.username, topic.userLink),
   }));
 }
 

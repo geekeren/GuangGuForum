@@ -60,7 +60,45 @@ describe('private UI components', () => {
   it('renders private content as safe native selectable Text, never HTML', () => {
     const nodes = render(MessageThreadPage); const body = nodes.find(node => node.props.className === 'privateMessageText');
     expect(body.type).toBe('Text'); expect(body.props.selectable).toBe(true); expect(body.props.children).toBe('<img src=x onerror=alert(1)>fixture');
-    expect(nodes.some(node => node.type === 'RichText')).toBe(false); expect(nodes.map(text).join('')).toContain('审核中');
+    expect(nodes.some(node => node.type === 'RichText')).toBe(false);
+    expect(nodes.find(node => node.props.className === 'privateMessageTime')!.props.children).toBe('fixture-date');
+    expect(nodes.map(text).join('')).not.toContain('审核中');
+  });
+  it.each([
+    [undefined, 'fixture-date'], ['', 'fixture-date'], ['unknown', 'fixture-date'],
+    ['active', 'fixture-date'], ['pending', 'fixture-date'],
+    ['sent', 'fixture-date'], ['delivered', 'fixture-date'],
+    ['read', 'fixture-date'], ['review', 'fixture-date'], ['rejected', 'fixture-date'],
+  ])('shows only time beneath message content regardless of server status (%s)', (state, expected) => {
+    const store = setup();
+    store.update(value => ({ ...value, threadsByCid: { ...value.threadsByCid, 11: { ...value.threadsByCid[11], thread: {
+      ...value.threadsByCid[11].thread!, messages: [{ id: 1, seq: 1, mine: false, text: 'Synthetic history', state: state as string, created: 'fixture-date' }],
+    } } } }));
+    harness.page.data = store.snapshot().data;
+    const nodes = render(MessageThreadPage);
+    expect(nodes.find(node => node.props.className === 'privateMessageTime')!.props.children).toBe(expected);
+    expect(nodes.map(text).join('')).not.toContain('状态待确认');
+    expect(nodes.filter(node => node.props.className === 'privateThreadNavState')).toHaveLength(1);
+    const avatarColumn = nodes.find(node => node.props.className === 'privateThreadNavAvatar')!;
+    expect(all(avatarColumn).some(node => node.props.className === 'privateThreadNavState')).toBe(true);
+    expect(nodes.map(text).join('')).not.toContain('会话记录和状态');
+    expect(nodes.some(node => node.props.className === 'privateThreadSystemCard')).toBe(false);
+    expect(sendPrivateMessage).not.toHaveBeenCalled();
+  });
+  it('preserves explicit local posting and failed/uncertain send notices without attaching them to history', () => {
+    for (const [posting, postError] of [[true, ''], [false, '私信请求失败，请检查网络后重试']] as const) {
+      const store = setup({ posting, postError });
+      store.update(value => ({ ...value, threadsByCid: { ...value.threadsByCid, 11: { ...value.threadsByCid[11], thread: {
+        ...value.threadsByCid[11].thread!, messages: [{ id: 1, seq: 1, mine: true, text: 'Synthetic history', state: '', created: 'fixture-date' }],
+      } } } }));
+      harness.page.data = store.snapshot().data;
+      const nodes = render(MessageThreadPage);
+      expect(nodes.find(node => node.props.className === 'privateMessageTime')!.props.children).toBe('fixture-date');
+      expect(nodes.find(node => node.type === 'Textarea')!.props.disabled).toBe(posting);
+      expect(nodes.find(node => node.type === 'Textarea')!.props.value).toBe('fixture draft');
+      if (postError) expect(nodes.map(text).join('')).toContain(postError);
+      expect(sendPrivateMessage).not.toHaveBeenCalled();
+    }
   });
   it.each(['existing', 'compose'])('shows rejected %s content inline, retains draft and does not retry automatically', async kind => {
     const draft = '  synthetic rejected draft  ';
@@ -134,6 +172,31 @@ describe('private UI components', () => {
     expect(threadNodes.find(node => node.props.className === 'privateThreadNavName').props.children).toBe(display_name.trim() || peer.username);
     expect(threadNodes.find(node => node.type === 'UserAvatar').props.username).toBe(peer.username);
     expect(sendPrivateMessage).not.toHaveBeenCalled();
+  });
+  it('peer avatars open the stable account profile, stop list bubbling and reject stale clicks', () => {
+    const peer = { uid: 8, username: 'fixture+peer', display_name: '昵称 不作身份', avatar: '' };
+    const store = setup({ items: [{ id: 11, peer, updated: '', unread: 0, state: 'active', preview: '' }] });
+    store.update(value => ({ ...value, threadsByCid: { ...value.threadsByCid, 11: { ...value.threadsByCid[11], thread: { ...value.threadsByCid[11].thread!, peer } } } }));
+    harness.page.snapshot = store.snapshot(); harness.page.data = store.snapshot().data;
+    const listNodes = render(MessagesPage); const listAvatar = listNodes.find(node => node.props.className === 'privateConversationAvatar')!;
+    const stopPropagation = vi.fn(); listAvatar.props.onClick({ stopPropagation });
+    expect(stopPropagation).toHaveBeenCalledOnce();
+    expect(Taro.navigateTo).toHaveBeenCalledWith({ url: '/pages/user/index?username=fixture%2Bpeer' });
+    const threadNodes = render(MessageThreadPage); const peerAvatars = threadNodes.filter(node => node.type === 'UserAvatar' && node.props.username === peer.username);
+    expect(peerAvatars).toHaveLength(2);
+    peerAvatars.forEach(node => node.props.onClick()); expect(Taro.navigateTo).toHaveBeenCalledTimes(3);
+    store.activate('other-account');
+    peerAvatars.forEach(node => node.props.onClick()); listAvatar.props.onClick({ stopPropagation });
+    expect(Taro.navigateTo).toHaveBeenCalledTimes(3);
+    expect(sendPrivateMessage).not.toHaveBeenCalled();
+  });
+  it('omits redundant conversation record/completion notices while retaining essential discovery actions', () => {
+    const store = setup(); harness.params = { cid: '11', peer: '8' };
+    harness.page.snapshot = store.snapshot(); harness.page.data = store.snapshot().data;
+    const nodes = render(MessageThreadPage); const copy = nodes.map(text).join('');
+    expect(copy).not.toContain('已显示当前发现的会话记录'); expect(copy).not.toContain('会话记录尚未全部加载');
+    expect(copy).not.toContain('会话记录 #');
+    expect(nodes.filter(node => node.props.className === 'privateThreadNavState')).toHaveLength(1);
   });
   it('unified list removes the redundant private/send heading and numeric form without removing navbar', () => {
     setup({ items: [], summary: null }); const nodes = render(MessagesPage);

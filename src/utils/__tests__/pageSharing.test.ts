@@ -15,7 +15,7 @@ vi.mock("@tarojs/components", () => Object.fromEntries(["View", "Text", "Button"
 vi.mock("@tarojs/taro", () => ({
   default: { useShareAppMessage: vi.fn(), useDidHide: vi.fn(), useDidShow: vi.fn(), getCurrentInstance: () => ({}), navigateTo: vi.fn() },
   useRouter: () => ({ path: "/pages/topicDetail/index", params: harness.params }),
-  useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(), useDidShow: vi.fn(), useReady: vi.fn(),
+  useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(), useDidShow: vi.fn(), useDidHide: vi.fn(), useReady: vi.fn(),
 }));
 vi.mock("guanggu-forum-api", () => ({ logout: vi.fn(), getTopicDetail: vi.fn(), commentUpvote: vi.fn(), createNewComment: vi.fn() }));
 vi.mock("../../pages/home/topics", () => ({ default: "Topics" }));
@@ -93,9 +93,14 @@ describe("native page sharing registration and payloads", () => {
     expect(config.renderer).toBe('webview');
   });
 
-  it("registers detail sharing and includes tid in friend path and timeline query even before data loads", async () => {
-    const config = (await import("../../pages/topicDetail/index.config")).default;
-    expect(Object.keys(nativeRegistration(TopicDetail, config))).toEqual(["onShareAppMessage", "onShareTimeline"]);
+  it("registers detail sharing before rendering without compiler-stripped page config flags", () => {
+    // The emitted page config omits enableShare*; only the component is available to opt in.
+    expect(Object.keys(nativeRegistration(TopicDetail, {}))).toEqual(["onShareAppMessage", "onShareTimeline"]);
+    expect(useShareAppMessage).not.toHaveBeenCalled();
+    expect(useShareTimeline).not.toHaveBeenCalled();
+  });
+
+  it("includes tid in friend path and timeline query even before data loads", () => {
     TopicDetail();
     const friend = vi.mocked(useShareAppMessage).mock.calls[0][0]({} as any);
     const timeline = vi.mocked(useShareTimeline).mock.calls[0][0]();

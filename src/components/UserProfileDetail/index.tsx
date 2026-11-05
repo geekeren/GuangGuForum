@@ -203,7 +203,7 @@ export default function UserProfileDetail({ profile, className = "", actions, na
                 >
                   <Text className="replyTitle" {...singleLine}>
                     <Text>
-                      {reply.replyTitle.replace(/^回复了\s+\S+\s+创建的主题\s*/, "")}
+                      {reply.topicTitle || reply.replyTitle.replace(/^回复了\s+\S+\s+创建的主题\s*/, "")}
                     </Text>
                   </Text>
                   <Text className="replyContent" {...twoLines}>

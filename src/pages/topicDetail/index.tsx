@@ -143,7 +143,8 @@ const Index = () => {
     const visit = JSON.stringify([account, tid]);
     if (recordedVisit.current === visit) return;
     if (recordRecentlyViewedTopic({ tid, title: topicDetail.title, link: `/t/${tid}`,
-      avatarUrl: topicDetail.authorAvatarUrl, author: topicDetail.author }, account)) recordedVisit.current = visit;
+      avatarUrl: topicDetail.authorAvatarUrl, author: topicDetail.authorUsername || topicDetail.author,
+      displayName: topicDetail.author }, account)) recordedVisit.current = visit;
   }, [tid, topicDetail, username, visitRevision]);
 
   useReady(() => {
@@ -415,7 +416,7 @@ const Index = () => {
                 </View>
               </View>
               <View className='content'>
-                <HtmlRender html={topicDetail.content} variant='body' />
+                <HtmlRender html={topicDetail.content} variant='body' fullBleedImages />
               </View>
               <View className='extra'>
                 <View className='right'>
@@ -703,5 +704,9 @@ const Index = () => {
     </>
   );
 };
+
+// Native share lifecycles are registered before rendering; page config flags may be stripped.
+Index.enableShareAppMessage = true;
+Index.enableShareTimeline = true;
 
 export default Index;

@@ -5,7 +5,7 @@ import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
 import { getUrl } from "../utils/urls";
 import { URLS } from "../urls";
 import { CacheAPIFunc } from "../types";
-import { getDisplayName } from "../utils/displayName";
+import { getDisplayName, parseListAuthor } from "../utils/displayName";
 
 export interface UserTopicSummary {
   username: string;
@@ -195,12 +195,12 @@ const domStructure: DataDom<UserProfileRaw> = {
       _attribute: "",
     },
     topicTitle: {
-      _selector: ".main .title a",
+      _selector: '.main .title a[href^="/t/"]',
       _type: "string",
       _attribute: "",
     },
     topicLink: {
-      _selector: ".main .title a",
+      _selector: '.main .title a[href^="/t/"]',
       _type: "string",
       _attribute: "href",
     },
@@ -297,7 +297,9 @@ function parseProfile(body: HTMLElement | undefined): UserProfile | null {
     return null;
   }
   const raw = getDataFromHtml<UserProfileRaw>(body, domStructure);
-  if (!raw.username) {
+  const header = body.querySelector('.profile .ui-header');
+  const author = parseListAuthor(header, raw.username);
+  if (!author.username) {
     return null;
   }
 
@@ -310,8 +312,8 @@ function parseProfile(body: HTMLElement | undefined): UserProfile | null {
   const nickname = details["昵称"] || "";
   const topicItems = body.querySelectorAll('.sidebar-left .topic-lists .topic-item');
   return {
-    username: raw.username,
-    displayName: getDisplayName(body.querySelector('.profile .ui-header'), nickname.trim() || raw.username),
+    username: author.username,
+    displayName: getDisplayName(header, nickname.trim() || author.username, author.userLink, author.username),
     avatarUrl: raw.avatarUrl,
     website: raw.website,
     memberNumber: raw.memberNumber,
@@ -329,7 +331,7 @@ function parseProfile(body: HTMLElement | undefined): UserProfile | null {
     level: parseLevel(body),
     topics: (raw.topics || []).map((topic, index) => ({
       ...topic,
-      displayName: getDisplayName(topicItems[index]?.querySelector('.meta'), topic.username, topic.userLink),
+      ...parseListAuthor(topicItems[index]?.querySelector('.meta'), topic.username, topic.userLink),
     })),
     replies: raw.replies || [],
     moreTopicsLink: raw.moreTopicsLink,

@@ -1,6 +1,6 @@
 import { Span, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { createRef, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { TaroElement } from "@tarojs/runtime";
 import { isUserMentionLink, linkChipLabel, linkHandler } from "../../utils/linkHandler";
 import "./index.scss";
@@ -37,6 +37,7 @@ function parseTopicMeta(html: string): {
 interface Props {
   html: string;
   variant?: 'body';
+  fullBleedImages?: boolean;
 }
 
 function setNodeName(element: TaroElement, name: "text" | "view" | "span") {
@@ -48,6 +49,97 @@ function setNodeName(element: TaroElement, name: "text" | "view" | "span") {
 type ParsedHtmlElement = TaroElement & { h5tagName?: string };
 
 const blockTags = new Set(["div", "p", "ul", "ol", "li", "blockquote", "pre", "h1", "h2", "h3", "h4", "h5", "h6", "table", "thead", "tbody", "tr", "td", "th", "hr"]);
+
+type BodyImageScope = { active: boolean; fullBleed: boolean };
+type ImageState = { src: string; width?: number; height?: number; revision: number };
+const bodyImageRoots = new WeakMap<TaroElement, BodyImageScope>();
+const imageStates = new WeakMap<TaroElement, ImageState>();
+const containedImageTags = new Set(['ul', 'ol', 'li', 'blockquote', 'pre', 'table', 'td', 'th']);
+
+function bodyImageOwner(image: TaroElement) {
+  for (let root = image.parentElement; root; root = root.parentElement) {
+    const scope = bodyImageRoots.get(root);
+    if (scope?.active) return { root, scope };
+  }
+}
+
+function sizeBodyImage(image: TaroElement) {
+  const owner = bodyImageOwner(image);
+  const state = imageStates.get(image);
+  if (!owner || !state || state.src !== image.props.src) return;
+  image.setAttribute('mode', 'aspectFit');
+  if (!image.className.split(' ').includes('htmlBodyImage')) image.className += ' htmlBodyImage';
+  if (!state.width || !state.height) {
+    image.setAttribute('style', 'display: block; width: 100%; height: 180px; max-width: 100%; margin: 12rpx auto');
+    return;
+  }
+  const { root, scope } = owner;
+  let parent = image.parentElement;
+  while (parent && parent !== root && parent.nodeName !== 'view') parent = parent.parentElement;
+  if (!parent) return;
+  let contained = false;
+  for (let ancestor = image.parentElement; ancestor && ancestor !== root; ancestor = ancestor.parentElement) {
+    if (containedImageTags.has((ancestor as ParsedHtmlElement).h5tagName || '')
+      || ancestor.style.getPropertyValue('width') || ancestor.style.getPropertyValue('max-width')
+      || ['hidden', 'auto'].includes(ancestor.style.getPropertyValue('overflow'))
+      || ['hidden', 'auto'].includes(ancestor.style.getPropertyValue('overflow-x'))) contained = true;
+  }
+  const revision = ++state.revision;
+  // Native templates use id=uid||sid. Keep authored ids, with a class fallback for unsafe selectors.
+  const measureId = parent.uid || parent.sid;
+  let selector = `#${measureId}`;
+  if (!/^[A-Za-z_][\w-]*$/.test(measureId)) {
+    const measureClass = `htmlImageMeasure-${parent.sid}`;
+    if (!parent.className.split(' ').includes(measureClass)) parent.className += ` ${measureClass}`;
+    selector = `.${measureClass}`;
+  }
+  const measuredParent = parent;
+  Taro.nextTick(() => {
+    if (!scope.active || state.revision !== revision || image.props.src !== state.src
+      || bodyImageOwner(image)?.scope !== scope) return;
+    const query = Taro.createSelectorQuery();
+    query.select(selector).fields({
+      rect: true, size: true,
+      computedStyle: ['padding-left', 'padding-right', 'border-left-width', 'border-right-width'],
+    }, rect => {
+      if (!scope.active || state.revision !== revision || image.props.src !== state.src
+        || bodyImageOwner(image)?.scope !== scope) return;
+      const inset = (key: string) => Math.max(0, parseFloat(rect?.[key]) || 0);
+      const leftInset = inset('padding-left') + inset('border-left-width');
+      const parentWidth = Number(rect?.width) - leftInset - inset('padding-right') - inset('border-right-width');
+      const parentLeft = Number(rect?.left) + leftInset;
+      if (!Number.isFinite(parentWidth) || parentWidth <= 0 || !Number.isFinite(parentLeft)) return;
+      const window = Taro.getWindowInfo();
+      const viewportWidth = Number(window.windowWidth);
+      const maxHeight = Number(window.windowHeight) * 0.6;
+      if (!Number.isFinite(viewportWidth) || viewportWidth <= 0 || !Number.isFinite(maxHeight) || maxHeight <= 0) return;
+      const width = state.width!;
+      const height = state.height!;
+      const fullBleed = scope.fullBleed && !contained && width >= height && width >= viewportWidth
+        && height * viewportWidth / width <= maxHeight;
+      const targetWidth = fullBleed ? viewportWidth : parentWidth;
+      const scale = Math.min(1, targetWidth / width, maxHeight / height);
+      const displayWidth = width * scale;
+      const displayHeight = height * scale;
+      const marginLeft = fullBleed ? -parentLeft : (parentWidth - displayWidth) / 2;
+      // Explicit matching dimensions + aspectFit show the entire image, including tall screenshots.
+      image.setAttribute('style', `display: block; width: ${displayWidth}px; height: ${displayHeight}px; max-width: ${fullBleed ? 'none' : '100%'}; margin: 12rpx 0; margin-left: ${marginLeft}px; border-radius: ${fullBleed ? '0' : '8rpx'}`);
+      // A linked image must not be clipped by an inline Span/chip formatting context.
+      if (fullBleed) {
+        for (let ancestor = image.parentElement; ancestor && ancestor !== measuredParent; ancestor = ancestor.parentElement) {
+          ancestor.style.setProperty('display', 'block');
+        }
+      }
+    }).exec();
+  });
+}
+
+function visitBodyImages(root: TaroElement) {
+  for (const child of root.children) {
+    if (imageStates.has(child)) sizeBodyImage(child);
+    visitBodyImages(child);
+  }
+}
 
 // The HTML parser calls this bottom-up, after attaching transformed children.
 function normalizeSkylineElement(element: TaroElement, tagName: string) {
@@ -213,6 +305,7 @@ Taro.options.html.transformElement = (
       }
     }
     const sticker = isCustomStickerUrl(taroEle.props.src || src);
+    if (!sticker) imageStates.set(taroEle, { src: taroEle.props.src, revision: 0 });
     taroEle.setAttribute("mode", "widthFix");
     // Skyline images are lazy by default. display:none removes the viewport
     // footprint and can prevent load from ever firing to reveal the image.
@@ -229,6 +322,18 @@ Taro.options.html.transformElement = (
         const width = Number(loadEvent?.detail?.width ?? loadEvent?.target?.width);
         const height = Number(loadEvent?.detail?.height ?? loadEvent?.target?.height);
         if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
+        const state = imageStates.get(taroEle);
+        if (state) {
+          // Native loads may finish before the root effect, or repeat after a cached reload.
+          const loadedSrc = loadEvent?.detail?.src;
+          if (state.src !== taroEle.props.src || (loadedSrc && loadedSrc !== state.src)) return;
+          state.width = width;
+          state.height = height;
+          if (bodyImageOwner(taroEle)) {
+            sizeBodyImage(taroEle);
+            return;
+          }
+        }
         const displayWidth = Math.min(width, 300) / (sticker ? 2 : 1);
         taroEle.setAttribute(
           "style",
@@ -306,15 +411,23 @@ const MetaCard = ({ meta }: { meta: TopicMeta }) => {
 const HtmlRender = (props: Props) => {
   const skyline = usePageRenderer() === "skyline";
   const { html } = props;
-  const htmlEle = createRef<TaroElement>();
+  const htmlEle = useRef<TaroElement>(null);
 
   const { meta, cleanHtml } = useMemo(() => parseTopicMeta(html), [html]);
   // Root text has no parser parent; put it in a neutral block for normalization.
   const renderHtml = skyline ? `<div>${cleanHtml}</div>` : cleanHtml;
 
   useEffect(() => {
-    htmlEle?.current?.addEventListener("tap", () => {}, {});
-  }, []);
+    const root = htmlEle.current;
+    if (!root || props.variant !== 'body') return;
+    const scope = { active: true, fullBleed: !!props.fullBleedImages };
+    bodyImageRoots.set(root, scope);
+    visitBodyImages(root);
+    return () => {
+      scope.active = false;
+      if (bodyImageRoots.get(root) === scope) bodyImageRoots.delete(root);
+    };
+  }, [renderHtml, props.variant, props.fullBleedImages]);
 
   return (
     <View className={`htmlWrap${skyline ? ' htmlWrap--skyline' : ''}${props.variant === 'body' ? ' htmlWrap--body' : ''}`}>

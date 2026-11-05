@@ -89,7 +89,12 @@ export function MessageConversationList({ active = true, embedded = false, heade
             <ThemedIcon src={MessageIcon} tone='accent-text' className='privateMessageEmptyIcon' />
             <Text className='privateMessageEmptyTitle'>暂无私信</Text><Text className='privateMessageMuted'>会话与消息请求会按联系人显示在这里</Text>
           </View> : groups.map(group => <View key={group.peer.uid} className='privateConversation' onClick={() => openThread(group)}>
-            <UserAvatar username={group.peer.username} src={group.peer.avatar} size={96} className='privateConversationAvatar' style={{ borderRadius: '50%', overflow: 'hidden' }} />
+            <UserAvatar username={group.peer.username} src={group.peer.avatar} size={96} className='privateConversationAvatar' style={{ borderRadius: '50%', overflow: 'hidden' }} onClick={event => {
+              event.stopPropagation();
+              const current = store.snapshot();
+              if (!group.peer.username || !store.isVisible() || current.generation !== snapshot.generation || current.account !== snapshot.account) return;
+              void Taro.navigateTo({ url: `/pages/user/index?username=${encodeURIComponent(group.peer.username)}` });
+            }} />
             <View className='privateConversationBody'>
               <View className='privateConversationHeading'><Text className='privateConversationName' maxLines={1} overflow='ellipsis'>{group.peer.display_name.trim() || group.peer.username}</Text></View>
               <Text className='privateConversationPreview' maxLines={1} overflow='ellipsis'>{group.latest.preview || '暂无消息内容'}</Text>

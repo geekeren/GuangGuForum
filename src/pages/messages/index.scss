@@ -43,6 +43,7 @@
 .privateThreadPeer .userAvatarTag { display: none; }
 .privateThreadPeer .privateMessageAction { font-size: 13PX; padding: 12rpx; }
 .privateThreadNavPeer { display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 12rpx; min-width: 0; max-width: 100%; }
+.privateThreadNavAvatar { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 4rpx; max-width: 160rpx; }
 .privateThreadNavPeerBody { display: flex; flex-direction: column; min-width: 0; }
 .privateThreadNavName { display: block; font-size: 14.91PX; line-height: 1.2; color: var(--theme-text-primary, #10182d); }
 .privateThreadNavState { display: block; font-size: 10.32PX; line-height: 1.2; color: var(--theme-text-muted, #68758d); }

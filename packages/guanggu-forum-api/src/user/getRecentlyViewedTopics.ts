@@ -8,6 +8,8 @@ export interface RecentlyViewedTopic {
   link: string;
   avatarUrl: string;
   author?: string;
+  /** Presentation label, separate from the stable author account. */
+  displayName?: string;
   viewedAt?: number;
 }
 

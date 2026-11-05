@@ -3,9 +3,11 @@ import { getDataFromHtml } from "../utils/getDataFromHtml";
 import { HotNodes, getHotNodes as getHotNodesOriginal } from "../node/getHotNodes";
 import { CacheAPIFunc } from "../types";
 import { parseTopicSummaries } from "../getRecentTopics";
+import { parseListAuthor } from "../utils/displayName";
 
 export interface HotTopic {
   username: string;
+  displayName?: string;
   userLink: string;
   userAvatarUrl: string;
   title: string;
@@ -16,6 +18,7 @@ export interface HotTopic {
 
 export interface InterestTopic {
   username: string;
+  displayName?: string;
   userLink: string;
   userAvatarUrl: string;
   title: string;
@@ -47,11 +50,17 @@ export function getHotTopics(): Promise<HotTopic[]> {
     }) as unknown as { userLink: string; userAvatarUrl: string; title: string; topicLink: string }[];
 
     const summaries = parseTopicSummaries(body);
-    return topics.map((t) => {
+    const cells = body.querySelectorAll('.hot-topics .cell');
+    return topics.map((t, index) => {
       const summary = summaries.find(item => item.link.split(/[?#]/)[0] === t.topicLink.split(/[?#]/)[0]);
+      const author = parseListAuthor(cells[index], t.userLink?.replace('/u/', '') || '', t.userLink);
+      const sameAccount = summary && ((!!author.userLink && summary.userLink === author.userLink)
+        || (!!author.username && summary.username === author.username));
       return {
         ...t,
-        username: t.userLink?.replace("/u/", "") || "",
+        ...author,
+        ...(sameAccount && author.displayName === author.username
+          ? { displayName: summary.displayName || author.displayName } : {}),
         ...(summary ? { category: summary.category, commentCount: summary.commentCount } : {}),
       };
     });
@@ -121,7 +130,14 @@ export function getInterestTopics(
       ...n,
       slug: n.link?.replace("/node/", "").replace("/u/", "") || "",
     }));
-    return { topics, nodes };
+    const topicItems = body.querySelectorAll('.topics .topic-item');
+    return {
+      topics: topics.map((topic, index) => ({
+        ...topic,
+        ...parseListAuthor(topicItems[index].querySelector('.meta'), topic.username, topic.userLink),
+      })),
+      nodes,
+    };
   });
 }
 

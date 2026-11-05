@@ -409,6 +409,8 @@
     .h5-p { margin: 0 0 12rpx; }
     .h5-p:last-child { margin-bottom: 0; }
     .h5-img { max-width: 100%; border-radius: $radius-sm; overflow: hidden; margin: 12rpx 0; }
+    // Photo size changes should not animate through a distorted intermediate aspect ratio.
+    .htmlBodyImage { transition: none; }
   }
 }
 

@@ -2,7 +2,7 @@ import { HTMLElement } from "node-html-parser";
 import { request } from "./client";
 import { DataDom, getDataFromHtml } from "./utils/getDataFromHtml";
 import { CacheAPIFunc } from "./types";
-import { getDisplayName } from "./utils/displayName";
+import { parseListAuthor } from "./utils/displayName";
 
 export interface TopicSummary {
   username: string;
@@ -71,7 +71,7 @@ export function parseTopicSummaries(body?: HTMLElement): TopicSummary[] {
   const topics = getDataFromHtml<Omit<TopicSummary, 'isPinned' | 'displayName'>>(body, domStructure) as unknown as TopicSummary[];
   return topics.map((topic, index) => ({
     ...topic,
-    displayName: getDisplayName(items[index].querySelector('.meta'), topic.username, topic.userLink),
+    ...parseListAuthor(items[index].querySelector('.meta'), topic.username, topic.userLink),
     isPinned: !!items[index].querySelector(".title .icon-pushpin"),
   }));
 }

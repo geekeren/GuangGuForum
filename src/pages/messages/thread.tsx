@@ -265,11 +265,19 @@ function MessageThreadView() {
     }, error => store.update(value => ({ ...value, posting: false, postError: messageErrorText(error) })));
   };
 
+  const openPeerProfile = (handle: string) => {
+    const current = store.snapshot();
+    if (!handle || !store.isVisible() || current.generation !== snapshot.generation || current.account !== snapshot.account) return;
+    void Taro.navigateTo({ url: `/pages/user/index?username=${encodeURIComponent(handle)}` });
+  };
+
   return <View className='privateMessagesPage privateMessagesPage--thread'>
     <Navbar back title={!peer ? '私信' : undefined} titleStyle={{ opacity: 1, transform: 'none' }} shared={false}>
-      {peer && <View className='privateThreadNavPeer'><UserAvatar username={peer.username} src={peer.avatar} size={52} /><View className='privateThreadNavPeerBody'>
-        <Text className='privateThreadNavName' maxLines={1} overflow='ellipsis'>{peer.display_name.trim() || peer.username}</Text>
+      {peer && <View className='privateThreadNavPeer'><View className='privateThreadNavAvatar'>
+        <UserAvatar username={peer.username} src={peer.avatar} size={52} onClick={() => openPeerProfile(peer.username)} />
         <Text className='privateThreadNavState' maxLines={1} overflow='ellipsis'>{selected?.thread ? (selected.thread.blocked ? '会话不可用' : messageStateLabel(selected.thread.state)) : data.compose ? '发起消息请求' : '加载会话'}</Text>
+      </View><View className='privateThreadNavPeerBody'>
+        <Text className='privateThreadNavName' maxLines={1} overflow='ellipsis'>{peer.display_name.trim() || peer.username}</Text>
       </View></View>}
     </Navbar>
     {invalidRoute ? <View className='privateMessageStatus'><Text className='privateMessageEmptyTitle'>私信链接无效</Text></View>
@@ -288,13 +296,10 @@ function MessageThreadView() {
           </View>}
           {orderedIds.map(id => {
             const entry = data.threadsByCid[id]; const thread = entry.thread;
-            const metadata = data.known.find(item => item.id === id);
             const pending = thread?.state === 'pending';
             return <View key={id} className='privateThreadSegment'>
-              <View className='privateThreadSystemCard'>
-                {peerUid && <Text className='privateMessageMuted'>会话记录 #{id}{metadata?.updated ? ` · ${metadata.updated}` : ''}</Text>}
+              {(entry.loading || entry.error || thread?.source || thread?.blocked || pending || (thread?.can_reopen && thread.state !== 'active') || (thread && !entry.permissionsFresh)) && <View className='privateThreadSystemCard'>
                 {thread && <>
-                  <Text className='privateMessageMuted'>{messageStateLabel(thread.state)}</Text>
                   {thread.source && <SourceNotice source={thread.source} visible={store.isVisible} />}
                   {thread.blocked ? <Text className='privateMessageNotice'>会话不可用，不能发送私信</Text> : pending && <Text className='privateMessageNotice'>{thread.incoming_request ? '接受请求后才能继续交流' : '等待对方接受，暂不能继续发送'}</Text>}
                   {thread.can_reopen && thread.state !== 'active' && <Text className='privateMessageNotice'>此会话可重新开启；暂不提供重新开启操作</Text>}
@@ -306,12 +311,12 @@ function MessageThreadView() {
                 </>}
                 {entry.loading && <Text className='privateMessageMuted'>正在刷新此会话…</Text>}
                 {entry.error && <Text className='privateMessageError' onClick={() => loadThread(id, entry.retryMore)}>{entry.error}，点击重试</Text>}
-              </View>
+              </View>}
               {thread?.has_more && <Text className='privateMessageFooter privateMessageAction' onClick={() => loadThread(id, true)}>{entry.loadingMore ? '加载中…' : '加载更早消息'}</Text>}
               {thread?.messages.map(message => <View key={privateMessageKey(id, message)} id={`private-message-${id}-${message.id}`} className={`privateMessageBubbleRow ${message.mine ? 'privateMessageBubbleRow--mine' : ''}`}>
-                <UserAvatar className='privateMessageSenderAvatar' username={message.mine ? username : thread.peer.username} src={message.mine ? data.selfAvatar || '' : thread.peer.avatar} size={48} />
+                <UserAvatar className='privateMessageSenderAvatar' username={message.mine ? username : thread.peer.username} src={message.mine ? data.selfAvatar || '' : thread.peer.avatar} size={48} onClick={message.mine ? undefined : () => openPeerProfile(thread.peer.username)} />
                 <View className={`privateMessageBubble ${message.mine ? 'privateMessageBubble--mine' : ''}`}>
-                  <Text className='privateMessageText' selectable>{message.text}</Text><Text className='privateMessageTime'>{message.created} · {messageStateLabel(message.state)}</Text>
+                  <Text className='privateMessageText' selectable>{message.text}</Text><Text className='privateMessageTime'>{message.created}</Text>
                 </View>
               </View>)}
               {thread && !thread.messages.length && <Text className='privateMessageFooter'>暂无可显示的消息</Text>}
@@ -321,8 +326,6 @@ function MessageThreadView() {
             {PRIVATE_BUCKETS.map(bucket => data.buckets[bucket].error && <Text key={bucket} className='privateMessageError' onClick={() => loadBucket(bucket, data.buckets[bucket].retryMore)}>{bucket === 0 ? '会话记录' : '请求记录'}发现失败，点击重试</Text>)}
             {PRIVATE_BUCKETS.some(bucket => data.buckets[bucket].loading || data.buckets[bucket].loadingMore) ? <Text className='privateMessageFooter'>正在查找会话记录…</Text>
               : PRIVATE_BUCKETS.some(bucket => data.buckets[bucket].cursor) && <Text className='privateMessageFooter privateMessageAction' onClick={() => PRIVATE_BUCKETS.forEach(bucket => loadBucket(bucket, true))}>加载更多会话记录</Text>}
-            <Text className='privateMessageFooter'>{PRIVATE_BUCKETS.some(bucket => !data.buckets[bucket].completed || data.buckets[bucket].cursor || data.buckets[bucket].error)
-              ? '会话记录尚未全部加载，已发现的记录仍可查看' : '已显示当前发现的会话记录'}</Text>
           </View>}
           {data.notice && <Text className='privateMessageNotice'>{data.notice}</Text>}
           {data.postError && <Text className='privateMessageError'>{data.postError}。未提交成功时可手动重试</Text>}

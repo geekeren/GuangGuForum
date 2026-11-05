@@ -1,5 +1,5 @@
 import type { HTMLElement } from "node-html-parser";
-import { getDisplayName } from "./utils/displayName";
+import { parseListAuthor } from "./utils/displayName";
 
 export type SearchScope = "all" | "title" | "topic" | "reply";
 export type SearchSort = "relevance" | "newest";
@@ -99,13 +99,13 @@ export function parseSearchResults(body: HTMLElement | undefined, page = 1): Sea
     }
     const meta = text(item.querySelector(".meta"));
     const author = item.querySelector('.meta a[href^="/u/"]');
-    const username = text(author);
+    const authorInfo = parseListAuthor(item.querySelector('.meta'), text(author), author?.getAttribute('href'));
     return {
       title: text(title),
       link,
       category: text(item.querySelector('.meta a[href^="/node/"]')),
-      username,
-      displayName: getDisplayName(item.querySelector('.meta'), username, author?.getAttribute('href')),
+      username: authorInfo.username,
+      displayName: authorInfo.displayName,
       publishedAt: meta.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/)?.[0] || "",
       matchType: meta.split("·").pop()?.trim() || "",
       excerpt: text(item.querySelector(".excerpt")),

@@ -2,7 +2,7 @@ import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
 import { CacheAPIFunc } from "../types";
 import type { HTMLElement } from "node-html-parser";
-import { getDisplayName } from "../utils/displayName";
+import { parseListAuthor } from "../utils/displayName";
 
 export interface Notification {
   username: string;
@@ -62,7 +62,7 @@ function parseNotifications(body: HTMLElement | undefined): Notification[] {
   const items = body?.querySelectorAll('.notification-item') || [];
   return notifications?.map((notification, index) => ({
     ...notification,
-    displayName: getDisplayName(items[index]?.querySelector('.title'), notification.username, notification.userLink),
+    ...parseListAuthor(items[index]?.querySelector('.title'), notification.username, notification.userLink),
   }));
 }
 

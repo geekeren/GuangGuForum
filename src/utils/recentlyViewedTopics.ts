@@ -23,6 +23,7 @@ function normalize(value: unknown): RecentlyViewedTopic[] {
     return [{ tid: item.tid, title: item.title, link: `/t/${item.tid}`,
       avatarUrl,
       author: typeof item.author === 'string' ? item.author : undefined,
+      ...(typeof item.displayName === 'string' && item.displayName.trim() ? { displayName: item.displayName.trim() } : {}),
       viewedAt: typeof item.viewedAt === 'number' && Number.isFinite(item.viewedAt) && item.viewedAt > 0 ? item.viewedAt : undefined }];
   }).slice(0, MAX_RECENTLY_VIEWED_TOPICS);
 }

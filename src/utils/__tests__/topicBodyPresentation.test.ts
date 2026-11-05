@@ -9,7 +9,7 @@ const compile = (file: string) => sass.compileString(read(file), { loadPaths: [r
 describe('shared topic body and native list presentation', () => {
   it('uses the same body variant for preview and detail while comments retain default rendering', () => {
     expect(read('src/pages/createTopic/index.tsx')).toContain("<HtmlRender html={previewContent} variant='body' />");
-    expect(read('src/pages/topicDetail/index.tsx')).toContain("<HtmlRender html={topicDetail.content} variant='body' />");
+    expect(read('src/pages/topicDetail/index.tsx')).toContain("<HtmlRender html={topicDetail.content} variant='body' fullBleedImages />");
     expect(read('src/pages/topicDetail/index.tsx')).toContain('<HtmlRender html={comment.content} />');
     expect(read('src/components/HtmlRender/index.tsx')).toContain("props.variant === 'body' ? ' htmlWrap--body' : ''");
   });
