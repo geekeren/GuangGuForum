@@ -1,14 +1,8 @@
 @import "../../vars.scss";
 
 .recentViewedHeader { display: flex; flex-direction: row; align-items: center; padding: 20rpx 28rpx; border-bottom: 1rpx solid $border-color; }
-.recentViewedSummary { flex: 1; min-width: 0; font-size: 22rpx; color: $text-faint; }
-.recentViewedClear {
-  flex: none; margin: 0 0 0 16rpx; padding: 8rpx 12rpx; font-size: 24rpx; line-height: 1.4; background: transparent; color: $text-muted;
-  &::after { border: none; }
-}
-.recentViewedNotice { display: block; padding: 12rpx 28rpx; color: $text-faint; font-size: 22rpx; }
-.recentViewedError { padding: 16rpx 28rpx; color: $text-muted; background: $surfaceAlt; font-size: 22rpx; line-height: 1.6; }
+.recentViewedSummary { flex: 1; min-width: 0; font-size: 12.61PX; color: $text-faint; }
 .recentViewedItem { display: flex; flex-direction: row; align-items: center; gap: 20rpx; padding: 24rpx 28rpx; border-bottom: 1rpx solid $border-color; &:last-child { border-bottom: none; } &:active { background: $surfaceAlt; } }
 .recentViewedItemBody { flex: 1; min-width: 0; }
-.recentViewedTitle { display: block; color: $text-primary; font-size: 27rpx; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.recentViewedTime { display: block; margin-top: 8rpx; color: $text-faint; font-size: 22rpx; }
+.recentViewedTitle { display: block; color: $text-primary; font-size:14.91PX; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.recentViewedTime { display: block; margin-top: 8rpx; color: $text-faint; font-size: 12.61PX; }

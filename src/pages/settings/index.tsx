@@ -7,6 +7,7 @@ import ArrowRightIcon from "../../assets/arrow-right.svg?raw";
 import ThemedIcon from "../../components/ThemedIcon";
 import { linkHandler } from "../../utils/linkHandler";
 import { getCachedUsername } from "../../utils/currentUser";
+import { APP_ROUTES } from '../../utils/appRoutes';
 import { cacheService, CacheCategory, type CategoryStats } from "../../utils/CacheService";
 import AddToDesktopGuide, { checkMiniProgramAdded } from "../../components/AddToDesktopGuide";
 import Navbar from "../../components/Navbar";
@@ -276,7 +277,7 @@ export default function Settings() {
     [
       { label: "外观", desc: THEME_LABELS[themePreference], action: handleThemeChange },
       { label: '图床设置', desc: 'ImgURL Token · 图片压缩', action: () => {
-        Taro.navigateTo({ url: '/pages/settings/image-setting' });
+        Taro.navigateTo({ url: APP_ROUTES.imageSettings });
       } },
     ],
     [

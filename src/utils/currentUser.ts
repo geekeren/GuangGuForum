@@ -1,5 +1,6 @@
 import { getRecentTopics } from "guanggu-forum-api";
 import { cacheService } from "./CacheService";
+export { subscribeCurrentAccount } from "./currentAccountEvents";
 
 export function getCachedUsername(): string {
   return cacheService.get<string>("current_username") || "";

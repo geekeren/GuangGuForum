@@ -9,7 +9,7 @@
   border: 1rpx solid $border-color;
   border-radius: $radius-md;
   background: $surfaceAlt;
-  font-size: 28rpx;
+  font-size: 16.05PX;
   box-sizing: border-box;
 }
 .mentionEditorSurface { position: relative; width: 100%; flex: none; }
@@ -33,11 +33,18 @@
   color: $text-primary;
 }
 
+.mentionEditorInput,
+.mentionEditorInput textarea,
+.mentionEditorInput .taro-textarea,
+.mentionEditorInput .weui-textarea {
+  caret-color: var(--theme-input-caret, #0754d7);
+}
+
 .mentionEditor--skyline {
   width: 100%;
 
   .mentionEditorInput {
-    font-size: 28rpx;
+    font-size: 16.05PX;
     box-sizing: border-box;
   }
 }
@@ -51,7 +58,7 @@
   transition: height 200ms ease;
 }
 .mentionCandidates--visible { height: 176rpx; }
-.mentionCandidatesTitle { display: block; color: $text-muted; font-size: 22rpx; height: 36rpx; line-height: 36rpx; }
+.mentionCandidatesTitle { display: block; color: $text-muted; font-size: 12.61PX; height: 36rpx; line-height: 36rpx; }
 .mentionCandidatesList { height: 128rpx; width: 100%; overflow: hidden; }
 .mentionCandidatesTrack { display: flex; flex-direction: row; height: 128rpx; }
 .mentionCandidate {
@@ -67,14 +74,14 @@
 .mentionCandidate:active { background: $color-brand-soft; }
 .mentionCandidateAvatarWrap { position: relative; width: 54rpx; height: 54rpx; flex: none; }
 .mentionCandidateOwnerBadge { position: absolute; top: -4rpx; left: 50%; transform: translateX(-50%); }
-.mentionCandidateBadge { display: block; flex: none; padding: 0 6rpx; border-radius: 6rpx; background: $color-brand-soft; color: $color-brand; font-size: 18rpx; height: 24rpx; line-height: 24rpx; white-space: nowrap; }
+.mentionCandidateBadge { display: block; flex: none; padding: 0 6rpx; border-radius: 6rpx; background: $color-brand-soft; color: $color-brand; font-size: 10.32PX; height: 24rpx; line-height: 24rpx; white-space: nowrap; }
 .mentionCandidateAvatar { display: block; width: 54rpx; height: 54rpx; border-radius: 27rpx; flex: none; }
 .mentionCandidateName {
   display: -webkit-box;
   width: 100%;
   margin-top: 8rpx;
   color: $text-primary;
-  font-size: 22rpx;
+  font-size: 12.61PX;
   line-height: 28rpx;
   max-height: 56rpx;
   text-align: center;
@@ -84,4 +91,4 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-.mentionCandidatesEmpty { display: block; color: $text-muted; font-size: 24rpx; }
+.mentionCandidatesEmpty { display: block; color: $text-muted; font-size: 13.76PX; }

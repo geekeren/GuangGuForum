@@ -1,5 +1,6 @@
 import { View, Text, Picker, Radio, RadioGroup } from "@tarojs/components";
 import { ClearableTextarea } from "../../../components/ClearableInput";
+import TopicTitle from '../TopicTitle';
 import { BRAND_COLOR } from "../../../utils/theme";
 import { escapeTopicHtml } from '../../../utils/topicDocument';
 import type { TopicTypeDefinition, RenderFormContext, OnActivateContext } from "./registry";
@@ -39,20 +40,7 @@ const datingDef: TopicTypeDefinition = {
 
     return (
       <View className="editorSection">
-        <ClearableTextarea
-          ref={titleRef}
-          className="titleInput"
-          placeholder="一句话介绍自己"
-          placeholderClass="titlePlaceholder"
-          cursorColor={BRAND_COLOR}
-          maxlength={120}
-          value={title}
-          onInput={handleTitleInput}
-          autoHeight
-          confirmType="next"
-          onConfirm={() => focusRef(requirementsRef)}
-          onDeleteWhenEmpty={() => focusRef(requirementsRef)}
-        />
+        <TopicTitle inputRef={titleRef} editorRef={getRef('content')} value={title} onInput={handleTitleInput} onNext={() => focusRef(requirementsRef)} />
         <View className="fieldRow">
           <View className="fieldGroup fieldGroup--inline fieldGroup--half">
             <Text className="fieldLabel">性别</Text>
@@ -98,6 +86,7 @@ const datingDef: TopicTypeDefinition = {
             value={fields.requirements}
             onInput={(v) => setField("requirements", v)}
             autoHeight
+            showConfirmBar={false}
             onDeleteWhenEmpty={() => focusRef(titleRef)}
           />
         </View>

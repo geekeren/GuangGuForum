@@ -3,10 +3,50 @@ import { request } from "../client";
 import { URLS } from "../urls";
 import { getUrl } from "../utils/urls";
 
+/**
+ * Upstream `gzk_mentions` binding (built by `uid-mentions-20261104.js`).
+ * `start`/`end` are UTF-16 offsets into the submitted `content`; `end = start + label.length`
+ * (the textarea's trailing space is not part of the range). `reply_id` is 0 unless the
+ * mention targets a specific floor.
+ */
+export interface GzkMentionBinding {
+  uid: number;
+  reply_id: number;
+  start: number;
+  end: number;
+  label: string;
+}
+
 export interface CreateNewConmmentPayload {
   tid: string;
   content: string;
   _xsrf: string;
+  mentions?: GzkMentionBinding[];
+}
+
+export const MAX_GZK_MENTIONS = 16;
+
+/** Drop malformed bindings without reordering the valid ones. */
+export function sanitizeGzkMentions(mentions?: GzkMentionBinding[]): GzkMentionBinding[] {
+  if (!Array.isArray(mentions)) return [];
+  const sanitized: GzkMentionBinding[] = [];
+  for (const binding of mentions) {
+    if (!binding || typeof binding !== "object") continue;
+    if (!Number.isSafeInteger(binding.uid) || binding.uid <= 0) continue;
+    if (!Number.isSafeInteger(binding.reply_id) || binding.reply_id < 0) continue;
+    if (!Number.isFinite(binding.start) || !Number.isFinite(binding.end)) continue;
+    if (binding.end <= binding.start) continue;
+    if (typeof binding.label !== "string" || !binding.label.startsWith("@")) continue;
+    sanitized.push({
+      uid: binding.uid,
+      reply_id: binding.reply_id,
+      start: binding.start,
+      end: binding.end,
+      label: binding.label,
+    });
+    if (sanitized.length >= MAX_GZK_MENTIONS) break;
+  }
+  return sanitized;
 }
 
 export class CommentSubmissionError extends Error {
@@ -17,11 +57,15 @@ export class CommentSubmissionError extends Error {
 }
 
 export async function createNewComment(payload: CreateNewConmmentPayload) {
-  const { tid } = payload;
+  const { tid, mentions, ...fields } = payload;
   return request(getUrl(URLS.TOPIC_DETAIL, { tid }), {
     method: "POST",
     data: {
-      ...payload,
+      ...fields,
+      // The native form submits tid as well as using it in the topic URL.
+      tid,
+      // Upstream always submits the field, defaulting to an empty array.
+      gzk_mentions: JSON.stringify(sanitizeGzkMentions(mentions)),
     },
     header: {
       "Content-Type": "application/x-www-form-urlencoded",

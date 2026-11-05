@@ -416,7 +416,7 @@ export default function Search() {
             <View className='searchItemMeta'>
               <TopicTag label={result.category} />
               <Text className='searchMetaDot'>·</Text>
-              <Text className='searchItemUser'>{result.username}</Text>
+              <Text className='searchItemUser'>{result.displayName?.trim() || result.username}</Text>
               <Text className='searchMetaDot'>·</Text>
               <Text className='searchItemDate'>{result.publishedAt}</Text>
             </View>

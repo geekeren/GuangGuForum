@@ -16,6 +16,10 @@ const fixture = `<div class="container"><div class="row">
 
 function result(html = fixture) { return { body: parse(html), rawRes: { statusCode: 200 } }; }
 
+const legacyAuthor = '<a href="/u/letiankaimen" class="reply-username gzk-legacy-id"><span class="username">letiankaimen</span></a>';
+const displayAuthor = (extra = "") =>
+  `<a class="gzk-display-name " href="/u/62936" data-gzk-mention-user="62936" data-username="letiankaimen" data-display-name="乐天鱼" data-avatar="/static/avatar/36/foo.png"${extra}><bdi>乐天鱼</bdi></a>`;
+
 describe("topic detail precise reply data", () => {
   it("parses each actual reply id without losing individual timestamps or heading data", async () => {
     vi.mocked(request).mockResolvedValueOnce(result());
@@ -107,5 +111,128 @@ describe("topic detail precise reply data", () => {
     vi.mocked(request).mockResolvedValueOnce(result());
     await getTopicDetail({ tid: "123", replyId: "789/evil" });
     expect(request).toHaveBeenLastCalledWith("/t/123", expect.anything());
+  });
+});
+
+describe("display-name authors", () => {
+  it("keeps legacy-only author markup unchanged", async () => {
+    const html = fixture.replace(
+      '<span class="floor">#4</span>',
+      `${legacyAuthor}<span class="floor">#4</span>`,
+    ).replace(
+      '<h3 class="title">主题</h3>',
+      `<h3 class="title">主题</h3><div class="meta">${legacyAuthor}<span>Lv. 12</span></div>`,
+    );
+    vi.mocked(request).mockResolvedValueOnce(result(html));
+    const detail = await getTopicDetail({ tid: "123" });
+    expect(detail).toMatchObject({ author: "letiankaimen", authorLevel: "Lv. 12", authorUsername: "letiankaimen" });
+    expect(detail.authorUserId).toBeUndefined();
+    expect(detail.comments[0]).toMatchObject({ author: "letiankaimen", authorUsername: "letiankaimen" });
+    expect(detail.comments[0].authorUserId).toBeUndefined();
+  });
+
+  it("uses the display nickname for a reply and exposes handle, uid, avatar and level", async () => {
+    const html = fixture.replace(
+      '<span class="floor">#4</span>',
+      `${legacyAuthor}${displayAuthor()}<span>Lv3</span><span class="floor">#4</span>`,
+    );
+    vi.mocked(request).mockResolvedValueOnce(result(html));
+    const detail = await getTopicDetail({ tid: "123" });
+    expect(detail.comments[0]).toMatchObject({
+      author: "乐天鱼",
+      authorUsername: "letiankaimen",
+      authorUserId: "62936",
+      authorAvatarUrl: "/static/avatar/36/foo.png",
+      authorLevel: "Lv3",
+    });
+  });
+
+  it("applies display-name parsing to the topic author", async () => {
+    const html = fixture.replace(
+      '<h3 class="title">主题</h3>',
+      `<h3 class="title">主题</h3><div class="meta">${legacyAuthor}${displayAuthor()}<span>Lv. 12</span></div>`,
+    );
+    vi.mocked(request).mockResolvedValueOnce(result(html));
+    const detail = await getTopicDetail({ tid: "123" });
+    expect(detail).toMatchObject({
+      author: "乐天鱼",
+      authorUsername: "letiankaimen",
+      authorUserId: "62936",
+      authorAvatarUrl: "/static/avatar/36/foo.png",
+      authorLevel: "Lv. 12",
+    });
+  });
+
+  it("parses a mixed reply list where only some replies use display names", async () => {
+    const html = fixture
+      .replace(
+        '<span class="floor">#4</span>',
+        `${legacyAuthor}${displayAuthor()}<span>Lv3</span><span class="floor">#4</span>`,
+      )
+      .replace(
+        '<span class="floor">#5</span>',
+        '<span class="username"><a href="/u/other_handle">other_handle</a></span><span class="floor">#5</span>',
+      );
+    vi.mocked(request).mockResolvedValueOnce(result(html));
+    const detail = await getTopicDetail({ tid: "123" });
+    expect(detail.comments[0]).toMatchObject({ author: "乐天鱼", authorUserId: "62936", authorLevel: "Lv3" });
+    expect(detail.comments[1]).toMatchObject({ author: "other_handle", authorUsername: "other_handle" });
+    expect(detail.comments[1].authorUserId).toBeUndefined();
+    expect(detail.comments[1].authorLevel).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "rendered nickname first",
+      `<a class="gzk-display-name" href="/u/62936" data-gzk-mention-user="62936" data-username="letiankaimen" data-display-name="备用名"><bdi>乐天鱼</bdi></a>`,
+      "乐天鱼",
+    ],
+    [
+      "data-display-name before the legacy handle",
+      `<a class="gzk-display-name" href="/u/62936" data-gzk-mention-user="62936" data-username="letiankaimen" data-display-name="备用名"><bdi>   </bdi></a>`,
+      "备用名",
+    ],
+    [
+      "legacy .username when the display name is blank",
+      `<a class="gzk-display-name" href="/u/62936" data-gzk-mention-user="62936" data-username="letiankaimen"><bdi></bdi></a>`,
+      "letiankaimen",
+    ],
+  ])("falls back for a blank display name using %s", async (_label, anchor, expected) => {
+    const html = fixture
+      .replace('<span class="floor">#4</span>', `${anchor}${legacyAuthor}<span class="floor">#4</span>`)
+      .replace('<h3 class="title">主题</h3>', `<h3 class="title">主题</h3><div class="meta">${anchor}${legacyAuthor}</div>`);
+    vi.mocked(request).mockResolvedValueOnce(result(html));
+    const detail = await getTopicDetail({ tid: "123" });
+    expect(detail.comments[0].author).toBe(expected);
+    expect(detail.author).toBe(expected);
+  });
+
+  it("never derives a level from the display anchor's attributes or title", async () => {
+    const anchor = `<a class="gzk-display-name" title="Lv. 12" data-level="Lv. 12" data-display-name="乐天鱼" href="/u/62936" data-gzk-mention-user="62936" data-username="letiankaimen"><bdi>乐天鱼</bdi></a>`;
+    const html = fixture.replace(
+      '<span class="floor">#4</span>',
+      `${anchor}${legacyAuthor}<span class="floor">#4</span>`,
+    );
+    vi.mocked(request).mockResolvedValueOnce(result(html));
+    const detail = await getTopicDetail({ tid: "123" });
+    expect(detail.comments[0].authorLevel).toBeUndefined();
+  });
+
+  it("applies display-name parsing on the refreshed cached detail path", async () => {
+    const body = parse(fixture.replace(
+      '<h3 class="title">主题</h3>',
+      `<h3 class="title">主题</h3><div class="meta">${legacyAuthor}${displayAuthor()}<span>Lv2</span></div>`,
+    ));
+    vi.mocked(request).mockResolvedValueOnce({ body, rawRes: { statusCode: 200 } });
+    const refreshed = vi.fn();
+    await getTopicDetail({ tid: "123" }, { onRefresh: refreshed });
+    vi.mocked(request).mock.calls.at(-1)![1]!.onRefresh!(body);
+    expect(refreshed).toHaveBeenCalledWith(expect.objectContaining({
+      author: "乐天鱼",
+      authorUsername: "letiankaimen",
+      authorUserId: "62936",
+      authorAvatarUrl: "/static/avatar/36/foo.png",
+      authorLevel: "Lv2",
+    }));
   });
 });

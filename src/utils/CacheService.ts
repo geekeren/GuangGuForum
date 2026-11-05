@@ -2,6 +2,7 @@ import Taro from "@tarojs/taro";
 import type { ICacheService } from "guanggu-forum-api";
 import TopicFileCache, { isTopicFileKey } from "./TopicFileCache";
 import { expirationFor, evictionComparator, STORAGE_HIGH_WATER, STORAGE_LOW_WATER, utf8Size } from "./cachePolicy";
+import { invalidateCurrentAccount } from "./currentAccountEvents";
 
 const META_PREFIX = "__cache_meta_";
 const INDEX_KEY = "__cache_index__";
@@ -34,6 +35,7 @@ export const CACHE_UPGRADE_VERSION = "2026-11-01-v3";
 const SYSTEM_STORAGE_KEYS = new Set([
   "cookies", "current_username", "saved_accounts", "search_preferences", "search_history",
   "add_to_desktop_already_added", "theme_preference", "comment_emoji_usage", "image_compression_enabled",
+  "commentSortAsc",
 ]);
 const AUTH_STORAGE_KEY = /(?:^|[_-])(?:cookies?|password|passwd|pwd|tokens?|session|credentials?|secret|private[_-]?key)(?:$|[_-])/i;
 const LEGACY_BUSINESS_KEYS = new Set(["node_navigation", "legacy_node_navigation", "topic_index"]);
@@ -262,6 +264,7 @@ class CacheService implements ICacheService {
       return success;
     }
 
+    const previousUsername = key === "current_username" ? this.get<string>(key) : null;
     if (!this.prepareStorageWrite(key, stored, clearable)) return false;
     try {
       Taro.setStorageSync(key, stored);
@@ -276,6 +279,10 @@ class CacheService implements ICacheService {
       }
     }
 
+    // Invalidate sensitive observers at the payload commit, even if metadata fails.
+    if (key === "current_username" && previousUsername !== this.get<string>(key)) {
+      invalidateCurrentAccount("changed");
+    }
     const metadataSaved = this.saveMeta(key, {
       key,
       size: this.approxSize(stored),
@@ -330,7 +337,10 @@ class CacheService implements ICacheService {
       const meta = this.getMeta(key);
       if (meta && NON_CLEARABLE_CATEGORIES.has(meta.category)) return;
     }
-    try { Taro.removeStorageSync(key); } catch (e) { console.warn("[CacheService] remove failed", key, e); }
+    try {
+      Taro.removeStorageSync(key);
+      if (key === "current_username" || key === "cookies") invalidateCurrentAccount("signed-out");
+    } catch (e) { console.warn("[CacheService] remove failed", key, e); }
     try { Taro.removeStorageSync(META_PREFIX + key); } catch {}
     this.untrackKey(key);
   }
@@ -340,6 +350,7 @@ class CacheService implements ICacheService {
       if (!force && (isSystemKey(key) || this.getStorageMeta(key)?.category === CacheCategory.System)) return false;
       try {
         Taro.removeStorageSync(key);
+        if (key === "current_username" || key === "cookies") invalidateCurrentAccount("signed-out");
         Taro.removeStorageSync(META_PREFIX + key);
         this.untrackKey(key, true);
         return true;
@@ -546,6 +557,7 @@ class CacheService implements ICacheService {
       return removed;
     }
     Taro.clearStorageSync();
+    invalidateCurrentAccount("signed-out");
     this.saveIndex({ keys: [] });
     return removed;
   }
@@ -578,6 +590,7 @@ class CacheService implements ICacheService {
     if (this.deferredRemovals.size) throw new Error("文件缓存索引清理失败");
     if (!onlyClearable) {
       Taro.clearStorageSync();
+      invalidateCurrentAccount("signed-out");
       this.saveIndex({ keys: [] }, true);
       // New writes begun after the clear epoch are not old pending work.
       await this.reconcileFileIndexAsync();

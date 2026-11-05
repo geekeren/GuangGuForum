@@ -5,6 +5,7 @@ import MentionTextarea, { type MentionEditorHandle } from "../../components/Ment
 import ThemedIcon from "../../components/ThemedIcon";
 import { isSkyline } from "../../utils/renderer";
 import { getCommentBody } from "../../utils/mentions";
+import type { CommentMentionBinding, CommentMentionTarget } from '../../utils/commentMentionBindings';
 import MentionIcon from "../../assets/composer-mention.svg?raw";
 import EmojiIcon from "../../assets/composer-emoji.svg?raw";
 import KeyboardIcon from "../../assets/composer-keyboard.svg?raw";
@@ -23,6 +24,8 @@ interface Props {
   value: string;
   mentionUsers?: string[];
   mentionAvatars?: Record<string, string>;
+  mentionTargets?: CommentMentionTarget[];
+  onMentionInsert?: (binding: CommentMentionBinding) => void;
   topicAuthor?: string;
   stickers?: Sticker[];
   onStickersChange?: (stickers: Sticker[]) => void;
@@ -36,7 +39,7 @@ interface Props {
   onSend: () => void;
 }
 
-export default function CommentComposer({ value, mentionUsers, mentionAvatars, topicAuthor, stickers = [], onStickersChange, photos = [], onPhotosChange, previewAttachments, onAttachmentsChange, sending, onChange, onClose, onSend }: Props) {
+export default function CommentComposer({ value, mentionUsers, mentionAvatars, mentionTargets, onMentionInsert, topicAuthor, stickers = [], onStickersChange, photos = [], onPhotosChange, previewAttachments, onAttachmentsChange, sending, onChange, onClose, onSend }: Props) {
   const skyline = isSkyline();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [activePanel, setActivePanel] = useState<'emoji' | 'more' | null>(null);
@@ -214,6 +217,8 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, t
           className='commentPopupTextarea'
           mentionUsers={mentionUsers}
           mentionAvatars={mentionAvatars}
+          mentionTargets={mentionTargets}
+          onMentionInsert={onMentionInsert}
           topicAuthor={topicAuthor}
           cursorSpacing={skyline ? 0 : 100}
           adjustPosition={!skyline}

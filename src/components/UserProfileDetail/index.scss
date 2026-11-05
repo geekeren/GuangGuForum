@@ -48,7 +48,7 @@
 
       .username {
         min-width: 0;
-        font-size: 38rpx;
+        font-size: 21.79PX;
         font-weight: 700;
         color: $text-primary;
         letter-spacing: -0.5rpx;
@@ -59,7 +59,7 @@
 
       .levelBadge {
         flex-shrink: 0;
-        font-size: 18rpx;
+        font-size: 10.32PX;
         font-weight: 700;
         color: #fff;
         padding: 3rpx 10rpx;
@@ -70,7 +70,7 @@
 
       .nickname {
         display: block;
-        font-size: 26rpx;
+        font-size: 14.91PX;
         color: $text-muted;
         margin-top: 8rpx;
         overflow: hidden;
@@ -80,7 +80,7 @@
 
       .memberInfo {
         display: block;
-        font-size: 22rpx;
+        font-size: 12.61PX;
         color: $text-muted;
         line-height: 1.6;
         margin-top: 8rpx;
@@ -94,7 +94,7 @@
       background: var(--theme-surface, #fff);
       color: $color-brand;
       border: 1rpx solid rgba(28, 134, 209, 0.25);
-      font-size: 24rpx;
+      font-size: 13.76PX;
       font-weight: 600;
       line-height: 1;
     }
@@ -122,14 +122,14 @@
         align-items: center;
 
         .stat-value {
-          font-size: 38rpx;
+          font-size: 21.79PX;
           font-weight: 700;
           color: $text-primary;
           letter-spacing: -0.5rpx;
         }
 
         .stat-label {
-          font-size: 22rpx;
+          font-size: 12.61PX;
           color: $text-muted;
           margin-top: 4rpx;
         }
@@ -147,7 +147,7 @@
 
     .cardTitle {
       display: block;
-      font-size: 30rpx;
+      font-size: 17.2PX;
       font-weight: 600;
       color: $text-primary;
       margin-bottom: 16rpx;
@@ -158,7 +158,7 @@
       flex-direction: row;
       padding: 12rpx 0;
       border-bottom: 1rpx solid $border-color;
-      font-size: 26rpx;
+      font-size: 14.91PX;
 
       &:last-child {
         border-bottom: none;
@@ -202,7 +202,7 @@
       position: relative;
 
       .tabLabel {
-        font-size: 28rpx;
+        font-size: 16.05PX;
         font-weight: 500;
         color: $text-muted;
       }
@@ -221,7 +221,7 @@
       &--active .tabLabel {
         font-weight: 700;
         color: $color-brand;
-        font-size: 28rpx;
+        font-size: 16.05PX;
       }
     }
   }
@@ -243,7 +243,7 @@
     }
 
     .topicTitle {
-      font-size: 28rpx;
+      font-size: 16.05PX;
       font-weight: 500;
       line-height: 1.5;
       color: $text-primary;
@@ -259,7 +259,7 @@
       flex-direction: row;
       align-items: center;
       margin-top: 12rpx;
-      font-size: 22rpx;
+      font-size: 12.61PX;
       color: $text-faint;
       gap: 12rpx;
 
@@ -310,7 +310,7 @@
 
     .replyTitle {
       display: block;
-      font-size: 22rpx;
+      font-size: 12.61PX;
       color: $text-faint;
       margin-bottom: 8rpx;
       overflow: hidden;
@@ -323,7 +323,7 @@
     }
 
     .replyContent {
-      font-size: 28rpx;
+      font-size: 16.05PX;
       line-height: 1.5;
       color: $text-primary;
       overflow: hidden;
@@ -338,7 +338,7 @@
     display: block;
     text-align: center;
     padding: 80rpx 32rpx;
-    font-size: 26rpx;
+    font-size: 14.91PX;
     line-height: 1.6;
     color: $text-muted;
   }
@@ -485,5 +485,21 @@
 
   .emptyTip {
     color: var(--theme-text-tertiary, #a6a6aa);
+  }
+}
+
+// Only an explicitly opted-in Me page yields hero paint ownership to its root.
+// Match dark specificity so neither the component root nor card hides that paint.
+.meProfile.meProfile--ready .userProfileDetail.userProfileDetail--pageBackground {
+  background: transparent;
+
+  .profileCard { background: transparent; }
+
+  .profileBody {
+    background: $bgColor;
+    // Prevent the first card's existing 20rpx margin collapsing out of the canvas.
+    // Zero-spacing flex contains both card margins in WebView and Skyline.
+    display: flex;
+    flex-direction: column;
   }
 }

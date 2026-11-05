@@ -28,6 +28,10 @@ export function createNativeEditorAdapter(context: NativeEditorContext, current:
   const valid = () => !disposed && current();
   const assertCurrent = () => { if (!valid()) throw new Error('Editor disposed or replaced'); };
   const invoke = <T>(fn: (options: Callback<T>) => void) => call(fn, timeout);
+  const applyFormat = (name: string, value?: string) => {
+    if (value === undefined) context.format(name);
+    else context.format(name, value);
+  };
   const enqueue = <T>(job: () => Promise<T>): Promise<T> => {
     const task = queue.then(async () => {
       assertCurrent(); busy = true;
@@ -57,10 +61,13 @@ export function createNativeEditorAdapter(context: NativeEditorContext, current:
     }); },
     hydrate(delta: TopicDelta) { return enqueue(() => invoke(callbacks => context.setContents({ delta, ...callbacks }))); },
     // Native format is void: the following snapshot/status event is the only observable result.
-    format(name: string, value?: string) { return enqueue(async () => { context.format(name, value); }); },
+    format(name: string, value?: string) { return enqueue(async () => { applyFormat(name, value); }); },
     insertText(text: string) { return enqueue(() => invoke(callbacks => context.insertText({ text, ...callbacks }))); },
-    insertImage(src: string, id: string, alt: string) {
-      return enqueue(() => invoke(callbacks => context.insertImage({ src, alt, nowrap: true, data: { attachmentId: id }, ...callbacks })));
+    insertImage(src: string, id: string, alt: string, current?: () => boolean) {
+      return enqueue(() => {
+        if (current && !current()) throw new Error('Image insertion cancelled');
+        return invoke(callbacks => context.insertImage({ src, alt, nowrap: true, data: { attachmentId: id }, ...callbacks }));
+      });
     },
     shortcut(plan: ShortcutPlan, revision: () => boolean) {
       return enqueue(async () => {
@@ -71,7 +78,7 @@ export function createNativeEditorAdapter(context: NativeEditorContext, current:
           guard(); await invoke(callbacks => context.deleteText!({ ...deletion, ...callbacks }));
         }
         guard(); await invoke(callbacks => context.setSelection!({ ...plan.selection, ...callbacks }));
-        guard(); context.format(plan.format.name, plan.format.value);
+        guard(); applyFormat(plan.format.name, plan.format.value);
         await invoke(callbacks => context.setSelection!({ index: plan.caret, length: 0, ...callbacks }));
         guard();
         // Do not blindly toggle bold again: setSelection/status controls caret inheritance.

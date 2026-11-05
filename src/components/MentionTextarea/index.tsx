@@ -3,7 +3,8 @@ import Taro from "@tarojs/taro";
 import { ComponentProps, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { AI_MENTION_USERNAME, getMentionSegments, getMentionQuery, getMentionCandidates, replaceInlineMention } from "../../utils/mentions";
 import UserAvatar from '../UserAvatar';
-import { isSkyline } from "../../utils/renderer";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
+import type { CommentMentionBinding, CommentMentionTarget } from '../../utils/commentMentionBindings';
 import "./index.scss";
 
 export interface MentionEditorHandle {
@@ -15,6 +16,8 @@ type Props = ComponentProps<typeof Textarea> & {
   candidatesStyle?: ComponentProps<typeof View>["style"];
   mentionUsers?: string[];
   mentionAvatars?: Record<string, string>;
+  mentionTargets?: CommentMentionTarget[];
+  onMentionInsert?: (binding: CommentMentionBinding) => void;
   topicAuthor?: string;
   editorRef?: Ref<MentionEditorHandle>;
 };
@@ -24,7 +27,8 @@ type CandidateTouchEvent = { touches?: Array<{ clientX: number }> };
 type MentionSelection = { start: number; end: number };
 type NativeTextarea = { value: string; setAttribute: (name: string, value: number) => void };
 
-export default function MentionTextarea({ value = "", onInput, onBlur, onSelectionChange, className, style, mentionUsers = [], mentionAvatars = {}, topicAuthor, editorRef, candidatesStyle, ...props }: Props) {
+export default function MentionTextarea({ value = "", onInput, onBlur, onSelectionChange, className, style, mentionUsers = [], mentionAvatars = {}, mentionTargets = [], onMentionInsert, topicAuthor, editorRef, candidatesStyle, ...props }: Props) {
+  const skyline = usePageRenderer() === "skyline";
   const textRef = useRef(value);
   const lastValue = useRef(value);
   const caretRef = useRef({ start: value.length, end: value.length });
@@ -70,7 +74,7 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
 
   const applyEdit = (next: string, cursor: number) => {
     const maxLength = props.maxlength ?? 140;
-    if (props.disabled || (maxLength >= 0 && next.length > maxLength)) return;
+    if (props.disabled || (maxLength >= 0 && next.length > maxLength)) return false;
     // Update the native value/caret without dismissing and reopening the keyboard.
     setSelection(cursor);
     setMentionSelection(null);
@@ -78,12 +82,22 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
     setCandidateOffset(0);
     setQuery(getMentionQuery(next, cursor));
     emit(next, cursor);
+    return true;
   };
 
   const selectUser = (username: string) => {
     if (!query || props.disabled || composingRef.current || pan.current?.moved) return;
+    const start = query.start;
     const next = replaceInlineMention(textRef.current, query, username);
-    applyEdit(next.value, next.cursor);
+    if (!applyEdit(next.value, next.cursor)) return;
+    // Only an explicit selection with one verified identity creates a binding.
+    const matches = mentionTargets.filter(target => target.label === username);
+    const ids = new Set(matches.map(target => target.uid));
+    const uid = matches[0]?.uid;
+    if (uid !== undefined && ids.size === 1 && Number.isSafeInteger(uid) && uid > 0) {
+      const label = `@${username}`;
+      onMentionInsert?.({ uid, reply_id: 0, start, end: start + label.length, label });
+    }
   };
 
   const insertText = (inserted: string) => {
@@ -107,7 +121,7 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
   }));
 
   return (
-    <View className={`mentionEditor${isSkyline() ? " mentionEditor--skyline" : ""} ${className || ""}`} style={style}>
+    <View className={`mentionEditor${skyline ? " mentionEditor--skyline" : ""} ${className || ""}`} style={style}>
       <View className={`mentionCandidates${query ? ' mentionCandidates--visible' : ''}`} ariaHidden={!query} style={candidatesStyle}>
         {query && <>
           <Text className='mentionCandidatesTitle'>提及用户</Text>

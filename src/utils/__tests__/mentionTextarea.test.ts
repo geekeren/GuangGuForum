@@ -34,6 +34,47 @@ function find(tree: any, cls: string) { return all(tree).find(e => e.props?.clas
 beforeEach(() => { harness.state = []; harness.refs = []; vi.mocked(isSkyline).mockReturnValue(false); });
 
 describe("inline mention editor", () => {
+  it.each([false, true])('automatically includes the AI once and labels it and the topic author (Skyline=%s)', skyline => {
+    vi.mocked(isSkyline).mockReturnValue(skyline);
+    let value = '';
+    const change = vi.fn(event => { value = event.detail.value; });
+    const users = ['author', 'ordinary', 'huanxituo', 'huanxituo'];
+    const extra = { topicAuthor: 'author', focus: true, holdKeyboard: true };
+    input(editor(value, change, users, undefined, extra)).onInput({ detail: { value: '@', cursor: 1 } });
+    let tree = editor(value, change, users, undefined, extra);
+    const candidates = all(tree).filter(e => e.props?.className === 'mentionCandidate');
+    expect(candidates.map(e => e.props.ariaLabel)).toEqual(['提及author', '提及ordinary', '提及huanxituo']);
+    expect(find(candidates[0], 'mentionCandidateBadge').props.children).toBe('楼主');
+    expect(find(candidates[1], 'mentionCandidateBadge')).toBeUndefined();
+    expect(find(candidates[2], 'mentionCandidateBadge--ai').props.children).toBe('AI');
+    candidates[2].props.onClick();
+    expect(value).toBe('@huanxituo ');
+    tree = editor(value, change, users, undefined, extra);
+    expect(input(tree).focus).toBe(true);
+    expect(input(tree).holdKeyboard).toBe(true);
+    expect(input(tree).topicAuthor).toBeUndefined();
+  });
+  it('offers AI without any participants and filters it by the query', () => {
+    let value = '';
+    const change = vi.fn(event => { value = event.detail.value; });
+    input(editor(value, change)).onInput({ detail: { value: '@', cursor: 1 } });
+    expect(find(editor(value, change), 'mentionCandidateName').props.children).toBe('huanxituo');
+    input(editor(value, change)).onInput({ detail: { value: '@huan', cursor: 5 } });
+    expect(find(editor(value, change), 'mentionCandidateName').props.children).toBe('huanxituo');
+    input(editor(value, change)).onInput({ detail: { value: '@unknown', cursor: 8 } });
+    expect(find(editor(value, change), 'mentionCandidate')).toBeUndefined();
+  });
+  it('does not suggest an already mentioned AI and allows it to have both badges', () => {
+    let value = '';
+    const change = vi.fn(event => { value = event.detail.value; });
+    const extra = { topicAuthor: 'huanxituo' };
+    input(editor(value, change, [], undefined, extra)).onInput({ detail: { value: '@', cursor: 1 } });
+    let tree = editor(value, change, [], undefined, extra);
+    expect(all(tree).filter(e => e.props?.className?.split(' ').includes('mentionCandidateBadge')).map(e => e.props.children)).toEqual(['楼主', 'AI']);
+    input(tree).onInput({ detail: { value: '@huanxituo @', cursor: 11 } });
+    tree = editor(value, change, [], undefined, extra);
+    expect(find(tree, 'mentionCandidate')).toBeUndefined();
+  });
   it.each([false, true])("renders mentions as ordinary native textarea text (Skyline=%s)", (skyline) => {
     vi.mocked(isSkyline).mockReturnValue(skyline);
     const value = "前文 @Alice 后文";
@@ -330,7 +371,7 @@ describe("inline mention editor", () => {
     event.touches[0].clientX = -1000;
     updatedList.onTouchMove(event);
     next = editor(value, change, users, undefined, extra);
-    expect(find(next, 'mentionCandidatesTrack').props.style.transform).toBe('translateX(-300px)');
+    expect(find(next, 'mentionCandidatesTrack').props.style.transform).toBe('translateX(-360px)');
     const endList = find(next, 'mentionCandidatesList').props;
     event.touches[0].clientX = 100;
     endList.onTouchStart(event);

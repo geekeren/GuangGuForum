@@ -1,4 +1,5 @@
 import type { HTMLElement } from "node-html-parser";
+import { getDisplayName } from "./utils/displayName";
 
 export type SearchScope = "all" | "title" | "topic" | "reply";
 export type SearchSort = "relevance" | "newest";
@@ -19,6 +20,7 @@ export interface SearchResult {
   link: string;
   category: string;
   username: string;
+  displayName?: string;
   publishedAt: string;
   matchType: string;
   excerpt: string;
@@ -96,11 +98,14 @@ export function parseSearchResults(body: HTMLElement | undefined, page = 1): Sea
       throw new Error("搜索结果格式异常，请稍后重试");
     }
     const meta = text(item.querySelector(".meta"));
+    const author = item.querySelector('.meta a[href^="/u/"]');
+    const username = text(author);
     return {
       title: text(title),
       link,
       category: text(item.querySelector('.meta a[href^="/node/"]')),
-      username: text(item.querySelector('.meta a[href^="/u/"]')),
+      username,
+      displayName: getDisplayName(item.querySelector('.meta'), username, author?.getAttribute('href')),
       publishedAt: meta.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/)?.[0] || "",
       matchType: meta.split("·").pop()?.trim() || "",
       excerpt: text(item.querySelector(".excerpt")),

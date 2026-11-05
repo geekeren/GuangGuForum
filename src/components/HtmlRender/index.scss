@@ -21,7 +21,7 @@
 
   .metaCardTag {
     flex-shrink: 0;
-    font-size: 22rpx;
+    font-size: 12.61PX;
     font-weight: 600;
     padding: 4rpx 14rpx;
     border-radius: 6rpx;
@@ -35,13 +35,13 @@
   }
 
   .metaCardRow {
-    font-size: 24rpx;
+    font-size: 13.76PX;
     color: $text-sub;
     line-height: 1.5;
   }
 
   .metaCardLink {
-    font-size: 24rpx;
+    font-size: 13.76PX;
     color: var(--theme-accent-text, #0754d7);
     word-break: break-all;
     line-height: 1.5;
@@ -67,7 +67,7 @@
   user-select: text;
   -webkit-user-select: text;
   color: $text-sub;
-  font-size: 30rpx;
+  font-size: 17.2PX;
   line-height: 1.7;
   word-break: break-word;
 
@@ -108,14 +108,14 @@
   }
 
   .h5-h1 {
-    font-size: 44rpx;
+    font-size: 25.23PX;
     margin: 40rpx 0 20rpx;
     padding-bottom: 16rpx;
     border-bottom: 2rpx solid $border-color;
   }
 
   .h5-h2 {
-    font-size: 38rpx;
+    font-size: 21.79PX;
     line-height: 1.225;
     margin: 36rpx 0 16rpx;
     padding-bottom: 12rpx;
@@ -123,25 +123,25 @@
   }
 
   .h5-h3 {
-    font-size: 34rpx;
+    font-size: 19.49PX;
     line-height: 1.43;
     margin: 28rpx 0 12rpx;
   }
 
   .h5-h4 {
-    font-size: 32rpx;
+    font-size: 18.35PX;
     font-weight: 600;
     margin: 24rpx 0 10rpx;
   }
 
   .h5-h5 {
-    font-size: 30rpx;
+    font-size: 17.2PX;
     font-weight: 600;
     margin: 20rpx 0 8rpx;
   }
 
   .h5-h6 {
-    font-size: 28rpx;
+    font-size: 16.05PX;
     font-weight: 600;
     color: $text-muted;
     margin: 20rpx 0 8rpx;
@@ -159,6 +159,7 @@
     padding-left: 40rpx;
     margin: 10rpx 0;
     line-height: 1.6;
+    min-height: 1.6em;
     list-style: none;
   }
 
@@ -200,7 +201,7 @@
       left: 0;
       color: $color-brand;
       font-weight: 700;
-      font-size: 26rpx;
+      font-size: 14.91PX;
     }
   }
 
@@ -220,7 +221,7 @@
     margin: 20rpx 0;
     border-radius: 0 $radius-sm $radius-sm 0;
     color: $text-muted;
-    font-size: 28rpx;
+    font-size: 16.05PX;
   }
 
   // ── Inline code (Vue orange → brand dark) ──
@@ -229,7 +230,7 @@
     background: var(--theme-brand-soft, rgba($color-brand, 0.08));
     padding: 4rpx 10rpx;
     border-radius: 6rpx;
-    font-size: 26rpx;
+    font-size: 14.91PX;
     color: var(--theme-code-text, $color-brand-dark);
     font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   }
@@ -241,7 +242,7 @@
     padding: 20rpx 24rpx;
     margin: 20rpx 0;
     overflow-x: auto;
-    font-size: 26rpx;
+    font-size: 14.91PX;
     line-height: 1.6;
   }
 
@@ -308,7 +309,7 @@
   // ── Links ──
   .html-link {
     color: var(--theme-accent-text, #0754d7);
-    font-size: 28rpx;
+    font-size: 16.05PX;
     word-break: break-all;
 
     &:active {
@@ -321,7 +322,7 @@
       background: $color-brand-soft;
       padding: 0 12rpx;
       border-radius: 10rpx;
-      font-size: 26rpx;
+      font-size: 14.91PX;
       line-height: 1.4;
       vertical-align: middle;
       color: var(--theme-accent-text, #0754d7);
@@ -336,7 +337,7 @@
       display: inline-block;
       max-width: 100%;
       color: var(--theme-accent-text, #0754d7);
-      font-size: 26rpx;
+      font-size: 14.91PX;
       font-weight: 500;
       font-style: normal;
       line-height: 1.5;
@@ -353,7 +354,7 @@
   }
 
   .html-mentionLabel {
-    font-size: 26rpx;
+    font-size: 14.91PX;
     font-weight: 500;
     line-height: 1.4;
     color: var(--theme-accent-text, #0754d7);
@@ -367,9 +368,9 @@
     align-items: center;
     gap: 6rpx;
     max-width: 100%;
-    padding: 0 10rpx;
+    padding: 4rpx 10rpx;
     margin: 0 6rpx;
-    line-height: 1;
+    line-height: 1.4;
     box-sizing: border-box;
     border-radius: 20rpx;
     background: $color-brand-soft;
@@ -387,11 +388,27 @@
   .html-linkLabel {
     display: block;
     min-width: 0;
-    font-size: 26rpx;
-    line-height: 1;
+    font-size: 14.91PX;
+    line-height: 1.4;
     color: var(--theme-accent-text, #0754d7);
     white-space: nowrap;
     overflow: hidden;
+  }
+}
+
+// Topic body typography is shared by detail and publish preview, not comments.
+.htmlWrap--body {
+  color: $text-sub;
+  font-size: 16.05PX;
+  line-height: 1.6;
+  user-select: auto;
+
+  .html {
+    font-size: inherit;
+    line-height: inherit;
+    .h5-p { margin: 0 0 12rpx; }
+    .h5-p:last-child { margin-bottom: 0; }
+    .h5-img { max-width: 100%; border-radius: $radius-sm; overflow: hidden; margin: 12rpx 0; }
   }
 }
 
@@ -443,7 +460,7 @@
       top: 0;
       color: $color-brand;
       font-weight: 700;
-      font-size: 26rpx;
+      font-size: 14.91PX;
     }
 
   }

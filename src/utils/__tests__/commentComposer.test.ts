@@ -6,6 +6,8 @@ import CommentComposer from "../../pages/topicDetail/CommentComposer";
 import { STICKERS } from "../stickers";
 import { getCommonEmojiUsage, recordCommentEmojiUsage } from "../emojiUsage";
 import { compressCommentPhoto } from "../commentPhotos";
+import { photoAttachment, stickerAttachment, type CommentAttachment } from "../commentAttachments";
+import { isImageCompressionEnabled } from '../imageCompressionPreferences';
 
 const harness = vi.hoisted(() => ({ state: [] as any[], cursor: 0, refs: [] as any[], refCursor: 0 }));
 vi.mock("react", () => ({
@@ -25,6 +27,7 @@ vi.mock("../../components/ThemedIcon", () => ({ default: "ThemedIcon" }));
 vi.mock("../../components/MentionTextarea", () => ({ default: "MentionTextarea" }));
 vi.mock("../renderer", () => ({ isSkyline: vi.fn(() => true) }));
 vi.mock("../commentPhotos", () => ({ compressCommentPhoto: vi.fn() }));
+vi.mock('../imageCompressionPreferences', () => ({ isImageCompressionEnabled: vi.fn() }));
 vi.mock("../emojiUsage", async (importOriginal) => ({
   ...await importOriginal<typeof import('../emojiUsage')>(),
   getCommonEmojiUsage: vi.fn(),
@@ -36,7 +39,7 @@ function elements(tree: any): any[] {
   if (!tree || typeof tree !== "object") return [];
   return [tree, ...elements(tree.props?.children)];
 }
-const props = { value: "@first 正文内容", stickers: [] as typeof STICKERS, onStickersChange: vi.fn(), photos: [] as string[], onPhotosChange: vi.fn(), sending: false, onChange: vi.fn(), onClose: vi.fn(), onSend: vi.fn() };
+const props = { value: "@first 正文内容", stickers: [] as typeof STICKERS, onStickersChange: vi.fn(), photos: [] as string[], onPhotosChange: vi.fn(), previewAttachments: undefined as CommentAttachment[] | undefined, onAttachmentsChange: undefined as ((next: CommentAttachment[]) => void) | undefined, sending: false, onChange: vi.fn(), onClose: vi.fn(), onSend: vi.fn() };
 function render() {
   harness.cursor = 0; harness.refCursor = 0;
   return CommentComposer(props);
@@ -49,15 +52,70 @@ beforeEach(() => {
   props.value = "@first 正文内容"; props.sending = false;
   props.stickers = [];
   props.photos = [];
+  props.previewAttachments = undefined;
+  props.onAttachmentsChange = undefined;
   vi.clearAllMocks();
   props.onPhotosChange.mockImplementation((photos: string[]) => { props.photos = photos; });
   vi.mocked(isSkyline).mockReturnValue(true);
   vi.mocked(getCommonEmojiUsage).mockReturnValue({ emojis: ['👍', '😂'], stickers: [STICKERS[0]] });
   vi.mocked(Taro.chooseMedia).mockResolvedValue({ tempFiles: [{ tempFilePath: '/tmp/photo.jpg' }] } as any);
   vi.mocked(compressCommentPhoto).mockImplementation(async path => path);
+  vi.mocked(isImageCompressionEnabled).mockReturnValue(true);
 });
 
 describe("Skyline comment sheet with WebView fallback", () => {
+  it.each(['camera', 'album'] as const)('keeps original %s photos without compression when the preference is disabled', async source => {
+    vi.mocked(isImageCompressionEnabled).mockReturnValue(false);
+    find(render(), 'commentPopupMore').onClick();
+    await elements(render()).find(e => e.props?.ariaLabel === (source === 'camera' ? '拍照' : '照片'))!.props.onClick();
+    expect(compressCommentPhoto).not.toHaveBeenCalled();
+    expect(props.photos).toEqual(['/tmp/photo.jpg']);
+    expect(vi.mocked(Taro.chooseMedia).mock.calls[0][0].sizeType).toEqual(['original']);
+  });
+  it.each([true, false])('appends mixed additions and scrolls to the newest stable item in Skyline=%s', async skyline => {
+    vi.mocked(isSkyline).mockReturnValue(skyline);
+    props.onAttachmentsChange = next => {
+      props.previewAttachments = next;
+      props.stickers = next.flatMap(item => item.kind === 'sticker' ? [item.sticker] : []);
+      props.photos = next.flatMap(item => item.kind === 'photo' ? [item.path] : []);
+    };
+    props.onAttachmentsChange([stickerAttachment(STICKERS[0]), photoAttachment('/tmp/old.jpg')]);
+    let tree = render();
+    const oldFirstTarget = find(tree, 'commentStickerPreviews').scrollIntoView;
+    find(tree, 'commentPopupMore').onClick();
+    await elements(render()).find(e => e.props?.ariaLabel === '拍照')!.props.onClick();
+    tree = render();
+    const imageSources = () => elements(render()).filter(e => e.props?.className === 'commentStickerPreviewImage').map(e => e.props.src);
+    expect(imageSources()).toEqual([STICKERS[0].url, '/tmp/old.jpg', '/tmp/photo.jpg']);
+    const firstPhotoTarget = find(tree, 'commentStickerPreviews').scrollIntoView;
+    expect(firstPhotoTarget).not.toBe(oldFirstTarget);
+    expect(find(tree, 'commentStickerPreviews').scrollWithAnimation).toBe(true);
+    expect(elements(tree).some(e => e.props?.id === firstPhotoTarget)).toBe(true);
+    find(tree, 'commentPopupEmoji').onClick();
+    find(render(), 'commentPopupSticker').onClick();
+    tree = render();
+    expect(imageSources()).toEqual([STICKERS[0].url, '/tmp/old.jpg', '/tmp/photo.jpg', STICKERS[0].url]);
+    expect(find(tree, 'commentStickerPreviews').scrollIntoView).not.toBe(firstPhotoTarget);
+    const previews = elements(tree).filter(e => e.props?.className?.split(' ').includes('commentStickerPreview'));
+    expect(new Set(previews.map(e => e.key)).size).toBe(4);
+    elements(previews[3]).find(e => e.props?.className === 'commentStickerRemove')!.props.onClick();
+    expect(imageSources()).toEqual([STICKERS[0].url, '/tmp/old.jpg', '/tmp/photo.jpg']);
+    expect(props.previewAttachments?.[0].id).toBe(previews[0].key);
+    expect(find(render(), 'MentionTextarea').focus).toBe(false);
+  });
+  it('appends a selected photo batch while keeping the picker selection order', async () => {
+    props.onAttachmentsChange = next => {
+      props.previewAttachments = next;
+      props.stickers = next.flatMap(item => item.kind === 'sticker' ? [item.sticker] : []);
+      props.photos = next.flatMap(item => item.kind === 'photo' ? [item.path] : []);
+    };
+    props.onAttachmentsChange([photoAttachment('/tmp/old.jpg')]);
+    find(render(), 'commentPopupMore').onClick();
+    vi.mocked(Taro.chooseMedia).mockResolvedValueOnce({ tempFiles: [{ tempFilePath: '/tmp/new1.jpg' }, { tempFilePath: '/tmp/new2.jpg' }] } as any);
+    await elements(render()).find(e => e.props?.ariaLabel === '照片')!.props.onClick();
+    expect(props.photos).toEqual(['/tmp/old.jpg', '/tmp/new1.jpg', '/tmp/new2.jpg']);
+    expect(elements(render()).filter(e => e.props?.className === 'commentStickerPreviewImage').map(e => e.props.src)).toEqual(props.photos);
+  });
   it('previews only compressed paths, retaining valid images when another compression fails', async () => {
     find(render(), 'commentPopupMore').onClick();
     vi.mocked(Taro.chooseMedia).mockResolvedValueOnce({ tempFiles: [{ tempFilePath: '/tmp/original.jpg' }, { tempFilePath: '/tmp/bad.png' }] } as any);

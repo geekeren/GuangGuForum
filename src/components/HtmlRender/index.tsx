@@ -6,6 +6,7 @@ import { isUserMentionLink, linkChipLabel, linkHandler } from "../../utils/linkH
 import "./index.scss";
 import { URLS } from "guanggu-forum-api";
 import { isSkyline } from "../../utils/renderer";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
 import LinkChipIcon from "../../assets/link-chip.svg";
 import { isCustomStickerUrl } from "../../utils/stickers";
 
@@ -35,6 +36,7 @@ function parseTopicMeta(html: string): {
 
 interface Props {
   html: string;
+  variant?: 'body';
 }
 
 function setNodeName(element: TaroElement, name: "text" | "view" | "span") {
@@ -302,11 +304,11 @@ const MetaCard = ({ meta }: { meta: TopicMeta }) => {
 };
 
 const HtmlRender = (props: Props) => {
+  const skyline = usePageRenderer() === "skyline";
   const { html } = props;
   const htmlEle = createRef<TaroElement>();
 
   const { meta, cleanHtml } = useMemo(() => parseTopicMeta(html), [html]);
-  const skyline = isSkyline();
   // Root text has no parser parent; put it in a neutral block for normalization.
   const renderHtml = skyline ? `<div>${cleanHtml}</div>` : cleanHtml;
 
@@ -315,7 +317,7 @@ const HtmlRender = (props: Props) => {
   }, []);
 
   return (
-    <View className={skyline ? "htmlWrap htmlWrap--skyline" : "htmlWrap"}>
+    <View className={`htmlWrap${skyline ? ' htmlWrap--skyline' : ''}${props.variant === 'body' ? ' htmlWrap--body' : ''}`}>
       {meta && <MetaCard meta={meta} />}
       {/* Keep Span reachable for dynamic inline HTML templates, not as a block host. */}
       {skyline && <Span style={{ display: 'none' }} />}

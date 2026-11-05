@@ -41,7 +41,7 @@ describe("online search parser", () => {
   it("extracts real metadata, decoded text, node options and pagination", () => {
     const response = parseSearchResults(parse(fixture), 2);
     expect(response.results).toEqual([{
-      title: "示例 & 标题", link: "/t/123?p=2", category: "楼市房产", username: "example",
+      title: "示例 & 标题", link: "/t/123?p=2", category: "楼市房产", username: "example", displayName: "example",
       publishedAt: "2024-10-15 11:55:33", matchType: "主题正文", excerpt: "包含关键词的摘要 & 文本",
     }]);
     expect(response).toMatchObject({ page: 2, previousPage: 1, nextPage: 3, status: "第 2 页 · 同一主题的命中已合并" });

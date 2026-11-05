@@ -6,6 +6,23 @@
   display: flex;
   flex-direction: column;
 
+  .userProfileNavbar { flex-shrink: 0; width: 100%; background: $bgColor; }
+
+  .userPrivateMessageAction { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12rpx; flex-shrink: 0; padding: 16rpx 18rpx; border-radius: 20rpx; background: var(--theme-accent-muted, #e8efff); color: var(--theme-accent-text, #0754d7); font-size: 12PX; line-height: 1.4; }
+  .userPrivateMessageIcon { width: 28rpx; height: 28rpx; flex-shrink: 0; }
+
+  .userProfileDetail .profileCard {
+    padding-bottom: 20rpx;
+
+    .stats {
+      margin-top: 48rpx;
+      width: auto;
+      margin-left: 24rpx;
+      margin-right: 24rpx;
+      padding: 0;
+    }
+  }
+
   .userScroll {
     flex: 1;
     height: 0;

@@ -1,5 +1,5 @@
 import { View, Text, Input, Textarea } from "@tarojs/components";
-import { forwardRef, useRef, useState } from "react";
+import { forwardRef, useRef, useState, type CSSProperties } from "react";
 import "./index.scss";
 
 const ZWSP = "​";
@@ -15,6 +15,8 @@ interface ClearableInputProps {
   type?: string;
   password?: boolean;
   cursorColor?: string;
+  style?: CSSProperties;
+  disabled?: boolean;
   maxlength?: number;
   autoFocus?: boolean;
   focus?: boolean;
@@ -32,8 +34,11 @@ interface ClearableTextareaProps {
   onFocus?: () => void;
   onBlur?: () => void;
   cursorColor?: string;
+  style?: CSSProperties;
+  disabled?: boolean;
   maxlength?: number;
   autoHeight?: boolean;
+  focus?: boolean;
   cursorSpacing?: number;
   adjustPosition?: boolean;
   showConfirmBar?: boolean;
@@ -54,6 +59,8 @@ export const ClearableInput = forwardRef<any, ClearableInputProps>((props, ref) 
     type,
     password,
     cursorColor,
+    style,
+    disabled,
     maxlength,
     autoFocus,
     focus,
@@ -66,6 +73,7 @@ export const ClearableInput = forwardRef<any, ClearableInputProps>((props, ref) 
   const wasEmptyRef = useRef(false);
 
   const handleInput = (e: any) => {
+    if (disabled) return;
     const val = e.detail.value.replace(ZWSP, "");
     if (!val && wasEmptyRef.current && onDeleteWhenEmpty) {
       onDeleteWhenEmpty();
@@ -97,6 +105,8 @@ export const ClearableInput = forwardRef<any, ClearableInputProps>((props, ref) 
         placeholder={placeholder}
         placeholderClass={placeholderClass}
         value={displayValue}
+        style={style}
+        disabled={disabled}
         onInput={handleInput}
         onFocus={handleFocus}
         onBlur={handleBlur}
@@ -110,7 +120,7 @@ export const ClearableInput = forwardRef<any, ClearableInputProps>((props, ref) 
         onConfirm={onConfirm}
       />
       {value ? (
-        <View className="clearableBtn" onClick={() => onInput("")}>
+        <View className="clearableBtn" onClick={() => { if (!disabled) onInput(""); }}>
           <Text className="clearableBtnText">✕</Text>
         </View>
       ) : null}
@@ -128,8 +138,11 @@ export const ClearableTextarea = forwardRef<any, ClearableTextareaProps>((props,
     onFocus,
     onBlur,
     cursorColor,
+    style,
+    disabled,
     maxlength,
     autoHeight,
+    focus,
     cursorSpacing,
     adjustPosition,
     showConfirmBar,
@@ -142,6 +155,7 @@ export const ClearableTextarea = forwardRef<any, ClearableTextareaProps>((props,
   const wasEmptyRef = useRef(false);
 
   const handleInput = (e: any) => {
+    if (disabled) return;
     const val = e.detail.value.replace(ZWSP, "");
     if (!val && wasEmptyRef.current && onDeleteWhenEmpty) {
       onDeleteWhenEmpty();
@@ -172,21 +186,24 @@ export const ClearableTextarea = forwardRef<any, ClearableTextareaProps>((props,
         placeholder={placeholder}
         placeholderClass={placeholderClass}
         value={displayValue}
+        style={style}
+        disabled={disabled}
         onInput={handleInput}
         onFocus={handleFocus}
         onBlur={handleBlur}
         maxlength={maxlength}
         autoHeight={autoHeight}
+        focus={focus}
         cursorSpacing={cursorSpacing}
         adjustPosition={adjustPosition}
         showConfirmBar={showConfirmBar}
         confirmType={confirmType as any}
         onConfirm={onConfirm}
-        // cursorColor 不在 Taro TextareaProps 类型中但运行时支持
+        // 兼容旧调用方；微信原生模板未绑定 cursor-color，光标样式应通过 style/CSS 设置
         {...({ cursorColor } as any)}
       />
       {value ? (
-        <View className="clearableBtn clearableBtn--textarea" onClick={() => onInput("")}>
+        <View className="clearableBtn clearableBtn--textarea" onClick={() => { if (!disabled) onInput(""); }}>
           <Text className="clearableBtnText">✕</Text>
         </View>
       ) : null}

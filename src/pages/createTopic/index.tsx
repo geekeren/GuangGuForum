@@ -1,4 +1,4 @@
-import { getScrollViewType } from "../../utils/renderer";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
 import { View, Text, ScrollView } from "@tarojs/components";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useState, useEffect, useRef } from "react";
@@ -14,16 +14,26 @@ import { cacheService, CacheCategory } from "../../utils/CacheService";
 import Navbar from "../../components/Navbar";
 import HtmlRender from "../../components/HtmlRender";
 import NodePicker from "../../components/NodePicker";
+import ThemedIcon from '../../components/ThemedIcon';
+import NormalTypeIcon from '../../assets/topic-type-normal.svg?raw';
+import RepostTypeIcon from '../../assets/topic-type-repost.svg?raw';
+import EventTypeIcon from '../../assets/topic-type-event.svg?raw';
+import DatingTypeIcon from '../../assets/topic-type-dating.svg?raw';
+import PublishNodeIcon from '../../assets/topic-publish-node.svg?raw';
+import PreviewIcon from '../../assets/topic-preview.svg?raw';
+import ArrowIcon from '../../assets/arrow-right.svg?raw';
+import SendIcon from '../../assets/composer-send.svg?raw';
 import { TOPIC_TYPE_REGISTRY, ALL_TYPES, ALL_HIDDEN_NODES } from "./topicTypes/registry";
 import type { TopicType } from "./topicTypes/registry";
-import { isSkyline } from "../../utils/renderer";
 import TopicEditor, { restoreTopicAttachments, type TopicAttachment } from './TopicEditor';
 import { serializeTopicDocumentHtml, topicMarkdownToSafeHtml, escapeTopicHtml, isSafeTopicImageUrl, type TopicDocument } from '../../utils/topicDocument';
 import type { EditorSnapshot } from './RichTopicBody';
+import { TOPIC_TITLE_MAX_LENGTH } from './TopicTitle';
 import "./index.scss";
 
 const LAST_NODE_KEY = "last_selected_node";
 const LAST_DRAFT_KEY = "topic_draft_last";
+const TYPE_ICONS: Record<TopicType, string> = { normal: NormalTypeIcon, repost: RepostTypeIcon, event: EventTypeIcon, dating: DatingTypeIcon };
 
 function getDraftKey(type: TopicType, nodeSlug: string): string {
   return `topic_draft_${type}_${nodeSlug}`;
@@ -37,7 +47,7 @@ function hasContent(title: string, content: string, typeFields: Record<string, a
 const FROM_MINI = '<p><em>本帖发自<a href="https://www.guozaoke.com/t/91893">小程序</a></em></p>';
 
 export default function CreateTopic() {
-  const skyline = isSkyline();
+  const skyline = usePageRenderer() === "skyline";
   const [nodeGroups, setNodeGroups] = useState<NodeGroup[]>([]);
   const [selectedNodeSlug, setSelectedNodeSlug] = useState("water");
   const [showNodePicker, setShowNodePicker] = useState(false);
@@ -48,9 +58,10 @@ export default function CreateTopic() {
   const [typeFields, setTypeFields] = useState<Record<string, any>>({});
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [previewClosing, setPreviewClosing] = useState(false);
+  const previewCloseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const previewGeneration = useRef(0);
   const [bodyHeight, setBodyHeight] = useState("100vh");
   const [draftRestored, setDraftRestored] = useState(false);
-  const [draftSavedAt, setDraftSavedAt] = useState("");
   const [attachmentDrafts, setAttachmentDrafts] = useState<Record<string, TopicAttachment[]>>({});
   const [editorRevision, setEditorRevision] = useState(0);
   const [document, setDocument] = useState<TopicDocument | undefined>(undefined);
@@ -58,10 +69,10 @@ export default function CreateTopic() {
   const snapshotLock = useRef(false);
   const bodySnapshot = useRef<EditorSnapshot>({ markdown: '', errors: [], unsupported: [] });
   const snapshotBoundary = useRef(0);
-  useEffect(() => () => { active.current = false; snapshotBoundary.current++; }, []);
+  useEffect(() => () => { active.current = false; snapshotBoundary.current++; previewGeneration.current++; clearTimeout(previewCloseTimer.current); }, []);
   const submitLock = useRef(false);
   const published = useRef(false);
-  const previewContext = useRef<{ title: string; node: string; owner: string; boundary: number } | null>(null);
+  const previewContext = useRef<{ title: string; node: string; nodeName: string; owner: string; boundary: number } | null>(null);
 
   const refMap = useRef<Record<string, any>>({});
   const getRef = (key: string) => {
@@ -134,9 +145,7 @@ export default function CreateTopic() {
     if (skyline) return;
     const sys = Taro.getSystemInfoSync();
     const navH = 44 + (sys.statusBarHeight || 0);
-    const safeBottom = sys.safeArea ? sys.screenHeight - sys.safeArea.bottom : 0;
-    const btnAreaH = 28 + 56 + 16 + safeBottom;
-    setBodyHeight(`calc(100vh - ${navH + btnAreaH}px)`);
+    setBodyHeight(`calc(100vh - ${navH}px)`);
   }, []);
 
   // Node navigation
@@ -193,7 +202,6 @@ export default function CreateTopic() {
     if (d) {
       setTopicType(draftType);
       if (draftType === "normal") setSelectedNodeSlug(draftNode);
-      if (d.savedAt) setDraftSavedAt(d.savedAt);
       if (d.title) setTitle(d.title);
       updateBody(d.content || '', d.document);
       if (d.typeFields) setTypeFields(d.typeFields);
@@ -214,13 +222,12 @@ export default function CreateTopic() {
   // Auto-save draft — isolated by type + node
   useEffect(() => {
     if (!draftRestored) return;
-    if (!hasContent(title, content, typeFields) && !attachments.length) { setDraftSavedAt(""); return; }
+    if (!hasContent(title, content, typeFields) && !attachments.length) return;
     const timer = setTimeout(() => {
       const savedAt = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
       cacheService.set(draftKey, { savedAt, title, content: bodySnapshot.current.markdown, document: bodySnapshot.current.document, typeFields, attachments }, { category: CacheCategory.Topic });
       cacheService.set(LAST_DRAFT_KEY, { topicType, nodeSlug: resolvedNodeSlug || "water" }, { category: CacheCategory.Topic });
-      setDraftSavedAt(savedAt);
     }, 800);
     return () => clearTimeout(timer);
   }, [draftRestored, topicType, title, content, document, resolvedNodeSlug, typeFields, attachments]);
@@ -246,7 +253,6 @@ export default function CreateTopic() {
     snapshotBoundary.current++;
     updateBody('');
     setTypeFields(currentDef.initialFields);
-    setDraftSavedAt("");
     setAttachmentDrafts(prev => ({ ...prev, [attachmentDraftKey]: [] }));
     setEditorRevision(prev => prev + 1);
     const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
@@ -300,13 +306,11 @@ export default function CreateTopic() {
     let newTitle = "";
     let newContent = "";
     let newFields = def.initialFields;
-    let newSavedAt = "";
     const d = cacheService.get<{ title: string; content: string; document?: TopicDocument; typeFields: Record<string, any>; savedAt: string }>(newDraftKey);
     if (d) {
       newTitle = d.title || "";
       newContent = d.content || "";
       newFields = d.typeFields || def.initialFields;
-      newSavedAt = d.savedAt || "";
     }
 
     // Update LAST_DRAFT_KEY immediately
@@ -317,7 +321,6 @@ export default function CreateTopic() {
     setTitle(newTitle);
     updateBody(newContent, d?.document);
     setTypeFields(newFields);
-    setDraftSavedAt(newSavedAt);
 
     // Call onActivate with the new fields
     const result = def.onActivate?.({ fields: newFields, setField, getRef });
@@ -375,6 +378,10 @@ export default function CreateTopic() {
       Taro.showToast({ title: "请输入标题", icon: "none" });
       return null;
     }
+    if (title.length > TOPIC_TITLE_MAX_LENGTH) {
+      Taro.showToast({ title: `标题最多${TOPIC_TITLE_MAX_LENGTH}字，请缩短后再预览`, icon: 'none' });
+      return null;
+    }
     if (candidates.some(item => item.kind === 'photo' && item.owner !== getCachedUsername())) {
       Taro.showToast({ title: '图片所属账号已变化，请移除后重新上传', icon: 'none' });
       return null;
@@ -405,7 +412,11 @@ export default function CreateTopic() {
       const snapshot = await snapshotBody();
       const finalContent = validateForm(snapshot);
       if (finalContent && active.current) {
-        previewContext.current = { title: title.trim(), node: resolvedNodeSlug, owner: getCachedUsername(), boundary: snapshotBoundary.current };
+        clearTimeout(previewCloseTimer.current); previewCloseTimer.current = undefined; previewGeneration.current++;
+        setPreviewClosing(false);
+        getRef('content').current?.dismissTools?.();
+        try { void Taro.hideKeyboard().catch(() => {}); } catch {}
+        previewContext.current = { title: title.trim(), node: resolvedNodeSlug, nodeName: resolvedNodeName, owner: getCachedUsername(), boundary: snapshotBoundary.current };
         setPreviewContent(finalContent);
       }
     } catch { if (active.current) Taro.showToast({ title: '正文读取失败，请点击正文后重试', icon: 'none' }); }
@@ -413,11 +424,17 @@ export default function CreateTopic() {
   };
 
   const closePreview = () => {
+    if (previewCloseTimer.current !== undefined) return;
+    const generation = previewGeneration.current;
     setPreviewClosing(true);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      if (previewCloseTimer.current !== timer) return;
+      previewCloseTimer.current = undefined;
+      if (!active.current || generation !== previewGeneration.current) return;
       setPreviewContent(null);
       setPreviewClosing(false);
     }, 250);
+    previewCloseTimer.current = timer;
   };
 
   const confirmSubmit = async () => {
@@ -432,7 +449,8 @@ export default function CreateTopic() {
       closePreview();
       return;
     }
-    setPreviewContent(null);
+    clearTimeout(previewCloseTimer.current); previewCloseTimer.current = undefined; previewGeneration.current++;
+    setPreviewClosing(false); setPreviewContent(null);
     setSubmitting(true);
     submitLock.current = true;
     Taro.showLoading({ title: "发布中...", mask: true });
@@ -463,31 +481,36 @@ export default function CreateTopic() {
   return (
     <View className={`createTopic${skyline ? " createTopic--skyline" : ""}`}>
       <Navbar title="发帖" back home titleStyle={{ opacity: 1 }} />
-      <ScrollView type={getScrollViewType()} scrollY style={skyline ? undefined : { height: bodyHeight }} className="createTopicBody" enhanced showScrollbar={false}>
-        <View className="section typeSection">
-        <Text className="typeLabel">发布类型</Text>
-        <View className="typeRow">
-          {ALL_TYPES.map((t) => (
-            <View
-              key={t.key}
-              className={`typeTag ${topicType === t.key ? "typeTag--active" : ""}`}
-              onClick={() => handleTopicTypeChange(t.key as TopicType)}
-            >
-              <Text className="typeTagText">{t.label}</Text>
+      <ScrollView type={skyline ? 'custom' : undefined} scrollY style={skyline ? undefined : { height: bodyHeight }} className="createTopicBody" enhanced showScrollbar={false}>
+        <View className="section typeConfig">
+          <View className="typeSection">
+            <View className="typeRow">
+              {ALL_TYPES.map((t) => (
+                <View
+                  key={t.key}
+                  className={`typeTag ${topicType === t.key ? "typeTag--active" : ""}`}
+                  onClick={() => handleTopicTypeChange(t.key as TopicType)}
+                >
+                  <ThemedIcon src={TYPE_ICONS[t.key as TopicType]} color={topicType === t.key ? '#fff' : undefined} tone='secondary' className='typeTagIcon' />
+                  <Text className="typeTagText">{t.label}</Text>
+                </View>
+              ))}
             </View>
-          ))}
+          </View>
         </View>
-      </View>
-
-      <View className="section nodeSection">
-        <View className="pickerItem" onClick={openNodePicker}>
-          <Text className="pickerLabel">发布到</Text>
-          <Text className={`pickerValue ${nodeLocked ? "pickerValue--locked" : ""}`} {...(skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {})}>
-            {resolvedNodeName}
-          </Text>
-          {!nodeLocked && <Text className="arrow">▼</Text>}
-        </View>
-      </View>
+          <View className="section nodeSection">
+            <View className="pickerItem" onClick={openNodePicker}>
+              <ThemedIcon src={PublishNodeIcon} tone='accent' className='publishNodeIcon' />
+              <Text className="pickerLabel">发布到</Text>
+              <Text className={`pickerValue ${nodeLocked ? "pickerValue--locked" : ""}`} {...(skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {})}>
+                {resolvedNodeName}
+              </Text>
+              {!nodeLocked && <ThemedIcon src={ArrowIcon} tone='secondary' className='publishNodeArrow' />}
+            </View>
+            <View className={`previewBtn${submitting ? ' previewBtn--disabled' : ''}`} ariaRole='button' ariaLabel='预览帖子' onClick={handleSubmit}>
+              <ThemedIcon src={PreviewIcon} tone='accent' className='previewBtnIcon' /><Text className='previewBtnText'>{submitting ? '发布中...' : '预览'}</Text>
+            </View>
+          </View>
 
       {currentDef.renderForm({
         fields: typeFields,
@@ -502,6 +525,7 @@ export default function CreateTopic() {
         renderContentInput: (placeholder, previousRef) => <TopicEditor
           key={`${attachmentDraftKey}:${editorRevision}`} inputRef={getRef('content')} previousRef={previousRef}
           placeholder={placeholder} value={content} document={document} onChange={updateBody} disabled={submitting || !!previewContent}
+          onClear={clearForm}
           attachments={attachments} onAttachmentsChange={update => setAttachmentDrafts(prev => ({
             ...prev, [attachmentDraftKey]: update(prev[attachmentDraftKey] ?? []),
           }))}
@@ -510,43 +534,29 @@ export default function CreateTopic() {
 
       </ScrollView>
 
-      {draftSavedAt && (
-        <Text className="draftTime">草稿已保存于 {draftSavedAt}</Text>
-      )}
-
-      <View className="btnRow">
-        <View className="clearBtn" onClick={clearForm}>
-          <Text className="clearBtnText">清空</Text>
-        </View>
-        <View
-          className={`submitBtn ${submitting ? "submitBtn--disabled" : ""}`}
-          onClick={handleSubmit}
-        >
-          <Text className="submitBtnText">{submitting ? "发布中..." : "预览"}</Text>
-        </View>
-      </View>
-
       {previewContent && (
-        <View className={`repostMask${previewClosing ? " repostMask--closing" : ""}`} onClick={closePreview}>
-          <View className={`repostSheet${previewClosing ? " repostSheet--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
-            <View className="repostSheetHeader">
-              <Text className="repostSheetTitle">预览</Text>
-              <View className="repostSheetClose" onClick={closePreview}>
-                <Text className="repostSheetCloseText">✕</Text>
+        <View className={`topicPreviewMask${previewClosing ? " topicPreviewMask--closing" : ""}`} onClick={closePreview}>
+          <View className={`topicPreviewSheet${previewClosing ? " topicPreviewSheet--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
+            <View className='topicPreviewHandle' />
+            <View className="topicPreviewHeader">
+              <Text className="topicPreviewHeading">帖子预览</Text>
+              <View className="topicPreviewClose" ariaRole='button' ariaLabel='关闭预览' onClick={closePreview}>
+                <Text>×</Text>
               </View>
             </View>
-            <ScrollView type={getScrollViewType()} scrollY className="repostSheetScroll" style={skyline ? undefined : { height: "calc(80vh - 200rpx - env(safe-area-inset-bottom))" }}>
-              <View className="previewContentWrap">
-                <Text className="previewContentTitle">{title.trim()}</Text>
-                <HtmlRender html={previewContent} />
+            <ScrollView type={skyline ? 'custom' : undefined} scrollY className="topicPreviewScroll" enhanced showScrollbar={false}>
+              <View className="topicPreviewCard">
+                <View className='topicPreviewNode'><ThemedIcon src={PublishNodeIcon} tone='accent' className='topicPreviewNodeIcon' /><Text>{previewContext.current?.nodeName}</Text></View>
+                <Text className="topicPreviewTitle">{previewContext.current?.title}</Text>
+                <HtmlRender html={previewContent} variant='body' />
               </View>
             </ScrollView>
-            <View className="repostSheetActions">
-              <View className="repostSheetCancel" onClick={closePreview}>
-                <Text className="repostSheetCancelText">取消</Text>
+            <View className="topicPreviewActions">
+              <View className="topicPreviewCancel" ariaRole='button' onClick={closePreview}>
+                <Text>取消</Text>
               </View>
-              <View className="repostSheetConfirm" onClick={confirmSubmit}>
-                <Text className="repostSheetConfirmText">确认发布</Text>
+              <View className={`topicPreviewPublish${submitting ? ' topicPreviewPublish--disabled' : ''}`} ariaRole='button' onClick={confirmSubmit}>
+                <ThemedIcon src={SendIcon} color='#fff' className='topicPreviewSendIcon' /><Text>{submitting ? '发布中...' : '发布'}</Text>
               </View>
             </View>
           </View>

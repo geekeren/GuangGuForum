@@ -1,4 +1,4 @@
-import { getScrollViewType } from "../../../utils/renderer";
+import { usePageScrollViewType } from "../../../hooks/usePageRenderer";
 import { useEffect, useRef, useState } from "react";
 import {
   getHotNodes,
@@ -9,11 +9,13 @@ import {
 import "./index.scss";
 
 import TopicList from "./topicList";
-import Taro, { useReady } from "@tarojs/taro";
+import Taro from "@tarojs/taro";
 import { ScrollView, Text, View } from "@tarojs/components";
 import { rpxToPx } from "../../../utils/dimension";
 import { fetchAndCacheNodeNavigation } from "../../../utils/nodeNavigation";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
+import { useTheme } from "../../../hooks/useTheme";
+import { THEME_PALETTES } from "../../../utils/themePreferences";
 
 interface TabConfig {
   title: string;
@@ -28,13 +30,17 @@ const defaultTabs: TabConfig[] = [
   { title: "我的关注", type: "interest" },
 ];
 
-export default function Topics({ initialTab }: { initialTab?: string }) {
-  const [currentTabIndex, setCurrentTabIndex] = useState(0);
+export default function Topics({ initialTab, active = true }: { initialTab?: string; active?: boolean }) {
+  const scrollViewType = usePageScrollViewType();
+  const { theme } = useTheme();
+  const palette = THEME_PALETTES[theme];
+  const initialTabIndex = initialTab === "interest" ? 3 : 0;
+  const [currentTabIndex, setCurrentTabIndex] = useState(initialTabIndex);
   const [tabPaneHeight, setTabPaneHeight] = useState(400);
   const [tabs, setTabs] = useState<TabConfig[] | null>(null);
-  const [loadedTabs, setLoadedTabs] = useState<Record<number, boolean>>({ 0: true });
+  const [loadedTabs, setLoadedTabs] = useState<Record<number, boolean>>({ [initialTabIndex]: true });
   const [refreshKey, setRefreshKey] = useState(0);
-  const [scrollIntoView, setScrollIntoView] = useState("tab_0");
+  const [scrollIntoView, setScrollIntoView] = useState(`tab_${initialTabIndex}`);
   const [publishGeneration, setPublishGeneration] = useState(0);
   const consumedPublications = useRef<Record<string, number>>({});
   const listRefs = useRef<Record<number, any>>({});
@@ -58,16 +64,21 @@ export default function Topics({ initialTab }: { initialTab?: string }) {
     if (hotNodesData) setTabs(toTabs(hotNodesData));
   }, [hotNodesData]);
 
-  useReady(() => {
+  // A lazy-mounted tab can miss page Ready; measure only after it becomes visible.
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
     Taro.nextTick(() => {
+      if (cancelled) return;
       Taro.createSelectorQuery()
         .select(`#list_container`)
         .boundingClientRect((res) => {
-          res?.height && setTabPaneHeight(Math.max(0, res.height - rpxToPx(76)));
+          if (!cancelled && res?.height) setTabPaneHeight(Math.max(0, res.height - rpxToPx(76)));
         })
         .exec();
     });
-  });
+    return () => { cancelled = true; };
+  }, [active]);
 
   useEffect(() => {
     const handler = () => {
@@ -131,7 +142,7 @@ export default function Topics({ initialTab }: { initialTab?: string }) {
     >
       <View className="tab-header">
         <ScrollView
-          type={getScrollViewType()}
+          type={scrollViewType}
           scrollX
           enableFlex
           style={{ flexDirection: 'row' }}
@@ -139,16 +150,30 @@ export default function Topics({ initialTab }: { initialTab?: string }) {
           scrollWithAnimation
           scrollIntoView={scrollIntoView}
         >
-          {activeTabs.map((tab, index) => (
-            <View
-              id={`tab_${index}`}
-              key={`${tab.type}_${tab.node || ''}_${index}`}
-              className={`tab-item ${index === currentTabIndex ? 'tab-item--active' : ''}`}
-              onClick={() => handleClick(index)}
-            >
-              <Text>{tab.title}</Text>
-            </View>
-          ))}
+          {/* Keep pill colors together inside ScrollView instead of inheriting a mixed theme cascade. */}
+          {activeTabs.map((tab, index) => {
+            const selected = index === currentTabIndex;
+            const color = selected ? "#fff" : palette["text-primary"];
+            return (
+              <View
+                id={`tab_${index}`}
+                key={`${tab.type}_${tab.node || ''}_${index}`}
+                className={`tab-item ${selected ? 'tab-item--active' : ''}`}
+                style={{
+                  color,
+                  background: selected
+                    ? theme === "dark" ? palette["tab-active-background"] : "linear-gradient(150deg, #4b8cff, #0754ee)"
+                    : theme === "dark" ? palette["tab-inactive-background"] : "rgba(255, 255, 255, 0.78)",
+                  border: theme === "dark" ? `1rpx solid ${selected ? "transparent" : palette["border-subtle"]}` : "none",
+                  lineHeight: theme === "dark" ? "52rpx" : "54rpx",
+                  boxShadow: theme === "dark" ? "none" : selected ? "0 4rpx 12rpx rgba(31, 105, 255, 0.15)" : palette["shadow-sm"],
+                }}
+                onClick={() => handleClick(index)}
+              >
+                <Text style={{ color }}>{tab.title}</Text>
+              </View>
+            );
+          })}
         </ScrollView>
       </View>
       {activeTabs.map((tab, index) => (

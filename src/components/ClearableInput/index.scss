@@ -9,6 +9,14 @@
     box-sizing: border-box;
   }
 
+  .clearableControl,
+  .clearableControl input,
+  .clearableControl textarea,
+  .clearableControl .weui-input,
+  .clearableControl .weui-textarea {
+    caret-color: var(--theme-input-caret, #0754d7);
+  }
+
   .clearableBtn {
     position: absolute;
     right: 16rpx;
@@ -25,7 +33,7 @@
   }
 
   .clearableBtnText {
-    font-size: 20rpx;
+    font-size: 11.47PX;
     color: #fff;
     line-height: 1;
   }

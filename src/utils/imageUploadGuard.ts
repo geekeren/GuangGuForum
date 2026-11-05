@@ -1,8 +1,9 @@
 import Taro from '@tarojs/taro';
 import { getImageHostSettings, ImageHostSettingsError } from 'guanggu-forum-api';
 import { getCachedUsername } from './currentUser';
+import { APP_ROUTES } from './appRoutes';
 
-const IMAGE_SETTINGS_PAGE = '/pages/settings/image-setting';
+const IMAGE_SETTINGS_PAGE = APP_ROUTES.imageSettings;
 let navigation: Promise<void> | null = null;
 
 export async function openImageHostSettings(): Promise<void> {

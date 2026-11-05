@@ -1,0 +1,12 @@
+<template name="topic-control-content">
+  <view class="format-button {{thumbnail ? 'format-button--thumbnail' : ''}} {{disabled ? 'format-button--disabled' : ''}}" aria-role="button" aria-label="{{label}}" aria-disabled="{{disabled}}" bindtouchstart="formatStart" catchtouchend="formatEnd" bindtouchmove="formatMove" catchtouchcancel="formatCancel" catchtap="formatTap">
+    <view wx:if="{{!thumbnail}}" class="format-button__glyph" style="background: {{active ? background : 'transparent'}};">
+      <image class="format-button__icon" src="{{icon}}" mode="aspectFit" />
+    </view>
+    <image wx:else class="format-button__thumbnail" src="{{icon}}" mode="aspectFit" />
+    <view wx:if="{{caption || loading}}" class="format-button__overlay">
+      <view wx:if="{{loading}}" class="format-button__spinner" />
+      <text wx:if="{{caption}}" class="format-button__caption">{{caption}}</text>
+    </view>
+  </view>
+</template>

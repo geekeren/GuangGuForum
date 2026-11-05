@@ -62,6 +62,16 @@ beforeEach(() => {
 });
 
 describe('returning to topic lists after publishing', () => {
+  it.each(['  列表昵称 😀  ', '   ', undefined])('renders optional author display name without changing avatar identity (%s)', displayName => {
+    const list = makeList(vi.fn());
+    list.setState({ topics: [{ link: '/t/13', title: 'Fixture topic', username: 'fixture-account', userLink: '/u/fixture-account', displayName, userAvatarUrl: '', category: '水', lastUpdated: '', commentCount: '' }] });
+    const item = elements(list.render()).find(node => node.props?.topic?.link === '/t/13');
+    const component = typeof item.type === 'function' ? item.type : item.type.type;
+    const nodes = elements(component(item.props));
+    expect(nodes.find(node => node.props.className === 'userName').props.children).toBe(displayName?.trim() || 'fixture-account');
+    expect(nodes.find(node => node.type === 'UserAvatar').props.username).toBe('fixture-account');
+    expect(list.state.topics[0].username).toBe('fixture-account');
+  });
   it('returns a refreshed list to the latest topics and releases controlled scroll position after scrolling', async () => {
     const getTopics = vi.fn().mockResolvedValue([{ link: '/t/1' }]);
     const list = makeList(getTopics);

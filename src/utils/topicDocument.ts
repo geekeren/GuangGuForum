@@ -73,7 +73,10 @@ export function normalizeTopicDelta(input: unknown): TopicDelta {
             (typeof attribute === 'number' && !Number.isFinite(attribute))) {
             errors.push('文档样式值无效'); continue;
           }
-          attributes![key] = attribute;
+          // WeChat snapshots use semantic aliases; older drafts used boolean strings.
+          const semanticInline = key === 'bold' && attribute === 'strong' || key === 'italic' && attribute === 'em';
+          attributes![key] = semanticInline ? true : (key === 'bold' || key === 'italic') && (attribute === 'true' || attribute === 'false')
+            ? attribute === 'true' : attribute;
         }
       }
     }

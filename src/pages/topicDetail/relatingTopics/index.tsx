@@ -22,7 +22,7 @@ const RelatingTopics = ({ topicDetail }: Props) => {
           }}
         >
           <View className={styles.left}>
-            <UserAvatar username={usernameFromUserLink(topic.authorLink)} src={topic.authorAvatarUrl} size={44} className={styles.avatar} />
+            <UserAvatar username={usernameFromUserLink(topic.authorLink)} src={topic.authorAvatarUrl} size={54} className={styles.avatar} />
           </View>
           <Text className={styles.right}>{topic.title}</Text>
         </View>

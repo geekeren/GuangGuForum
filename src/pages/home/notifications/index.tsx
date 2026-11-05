@@ -1,9 +1,9 @@
-import { getScrollViewType } from "../../../utils/renderer";
-import { View, Image, Text, ScrollView } from "@tarojs/components";
+import { View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useRef, useState } from "react";
 import { parse, Node } from "node-html-parser";
 import { getNotifications, resolveSearchResult } from "guanggu-forum-api";
+import { usePageScrollViewType } from "../../../hooks/usePageRenderer";
 import { useCurrentUsername } from "../../../hooks/useCurrentUsername";
 import HtmlRender from "../../../components/HtmlRender";
 import Loading from "../../../components/Loading";
@@ -14,15 +14,18 @@ import ThemedIcon from "../../../components/ThemedIcon";
 import { useTheme } from "../../../hooks/useTheme";
 import { THEME_PALETTES } from "../../../utils/themePreferences";
 import { svgIconSource } from "../../../utils/svgIcon";
-import ReplyIcon from "../../../assets/notification-replies.svg";
-import AnnouncementIcon from "../../../assets/notification-announcements.svg";
+import ReplyIcon from "../../../assets/notification-replies.svg?raw";
+import AnnouncementIcon from "../../../assets/notification-announcements.svg?raw";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
 import { buildTopicReplyRoute, parseTopicReplyLink, replyPlainText } from "../../../utils/topicReplyRoute";
 import { getUnreadNotificationCount, subscribeUnreadNotifications } from "../../../utils/unreadNotifications";
 import { fetchAndCacheNodeNavigation, getCachedNodeNavigation } from "../../../utils/nodeNavigation";
+import PrivateMessageIcon from '../../../assets/notification.svg?raw';
+import { APP_ROUTES } from '../../../utils/appRoutes';
 import "./index.scss";
 
-const Notifications = ({ active }: { active?: boolean }) => {
+const Notifications = ({ active = true }: { active?: boolean }) => {
+  const scrollViewType = usePageScrollViewType();
   const { theme } = useTheme();
   const notificationSource = svgIconSource(NotificationIcon, THEME_PALETTES[theme]["accent-text"]);
   const { username, loading: checkingLogin, error: loginError, retry } = useCurrentUsername(active);
@@ -70,58 +73,37 @@ const Notifications = ({ active }: { active?: boolean }) => {
     }
   };
 
-  if (checkingLogin && !username) return <Loading />;
-
-  // 未登录时和“我的”页保持一致：给出可直接登录的入口，而不是一个无法自愈的错误页。
-  if (!username) {
-    return (
-      <View className='notificationsPage' style={{ height: "100%" }}>
-        <View className='loginPromptWrap'>
-          <LoginPrompt
-            icon='消息'
-            iconSrc={notificationSource}
-            title='登录后查看消息'
-            desc='接收回复和提及通知'
-          />
-          {loginError && (
-            <Text className='loginRetryHint' onClick={retry}>账号信息加载失败，点击重试</Text>
-          )}
-        </View>
-      </View>
-    );
-  }
-
-  if (requestError) {
-    return (
-      <View className='notificationsPage notificationsPage--center'>
-        <View className='emptyState' onClick={() => { retry(); setAttempt((value) => value + 1); }}>
-          <Text className='emptyTitle'>消息加载失败，点击重试</Text>
-          <Text className='emptyDesc'>保留登录状态，请检查网络后重试</Text>
-        </View>
-      </View>
-    );
-  }
-
+  const messageNavigation = <View className={`messageHubCategories messageHubCategories--${theme}`}>
+    <View className='messageHubCategory messageHubCategory--active' onClick={() => setScrollTop(0)}>
+      <View className='messageHubCategoryIcon messageHubCategoryIcon--replies'><ThemedIcon src={ReplyIcon} tone='accent-text' className='messageHubIcon' />{unread > 0 && <View className='messageHubUnreadDot' />}</View>
+      <Text className='messageHubCategoryLabel'>评论回复</Text>
+    </View>
+    <View className='messageHubCategory' onClick={() => { void Taro.navigateTo({ url: APP_ROUTES.messages }); }}>
+      <View className='messageHubCategoryIcon messageHubCategoryIcon--private'><ThemedIcon src={PrivateMessageIcon} tone='accent-text' className='messageHubIcon' /></View>
+      <Text className='messageHubCategoryLabel'>私信</Text>
+    </View>
+    <View className='messageHubCategory' onClick={openAnnouncements}>
+      <View className='messageHubCategoryIcon messageHubCategoryIcon--announcements'><ThemedIcon src={AnnouncementIcon} tone='accent-text' className='messageHubIcon' /></View>
+      <Text className='messageHubCategoryLabel'>社区公告</Text>
+    </View>
+  </View>;
   return (
     <View className='notificationsPage' style={{ height: "100%" }}>
-      <View className='notificationTabs'>
-        <View
-          className='notificationTab notificationTab--active'
-          onClick={() => setScrollTop(0)}
-        >
-          <Image src={ReplyIcon} svg className='notificationTabIcon' />
-          <Text className='notificationTabLabel'>评论回复</Text>
-          {unread > 0 && <View className='notificationTabDot' />}
+      <ScrollView type={scrollViewType} scrollY enhanced scrollTop={scrollTop} onScroll={() => setScrollTop(undefined)} className='notificationsList'>
+      {messageNavigation}
+      {checkingLogin && !username ? <View className='notificationStatus'><Loading /></View>
+        : !username ? <View className='loginPromptWrap'>
+          <LoginPrompt icon='消息' iconSrc={notificationSource} title='登录后查看消息' desc='接收回复和提及通知' />
+          {loginError && <Text className='loginRetryHint' onClick={retry}>账号信息加载失败，点击重试</Text>}
         </View>
-        <View
-          className='notificationTab'
-          onClick={openAnnouncements}
-        >
-          <Image src={AnnouncementIcon} svg className='notificationTabIcon' />
-          <Text className='notificationTabLabel'>社区公告</Text>
+        : requestError ? (
+        <View className='notificationStatus'>
+          <View className='emptyState' onClick={() => { retry(); setAttempt((value) => value + 1); }}>
+            <Text className='emptyTitle'>评论回复加载失败，点击重试</Text>
+            <Text className='emptyDesc'>私信入口仍可使用，请检查网络后重试</Text>
+          </View>
         </View>
-      </View>
-      {loading && !notifications ? (
+      ) : loading && !notifications ? (
         <View className='notificationStatus'><Loading /></View>
       ) : !notifications || notifications.length === 0 ? (
         <View className='notificationStatus'>
@@ -132,7 +114,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
           </View>
         </View>
       ) : (
-        <ScrollView type={getScrollViewType()} scrollY enhanced scrollTop={scrollTop} onScroll={() => setScrollTop(undefined)} className='notificationsList'>
+        <View className='notificationRows'>
           {notifications.map((item, index) => {
             const title = notificationTitle(item.titleHtml, item.topicTitle);
             return (
@@ -148,7 +130,8 @@ const Notifications = ({ active }: { active?: boolean }) => {
               <View className='notificationAvatar' onClick={(e) => {
                 e.stopPropagation();
                 Taro.navigateTo({ url: `/pages/user/index?username=${encodeURIComponent(item.username)}` });
-              }}>
+              }}
+              >
                 <UserAvatar username={item.username} src={item.userAvatarUrl} size={70} className='avatarImg' />
               </View>
               <View className='notificationBody'>
@@ -164,7 +147,7 @@ const Notifications = ({ active }: { active?: boolean }) => {
                       });
                     }}
                   >
-                    {item.username}
+                    {item.displayName?.trim() || item.username}
                   </Text>
                   <Text className='notificationBadge'>{title.badge}</Text>
                 </View>
@@ -194,8 +177,9 @@ const Notifications = ({ active }: { active?: boolean }) => {
             </View>
             );
           })}
-        </ScrollView>
+        </View>
       )}
+      </ScrollView>
     </View>
   );
 };

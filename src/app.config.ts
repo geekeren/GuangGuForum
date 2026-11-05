@@ -5,13 +5,30 @@ export default defineAppConfig({
     "pages/topicDetail/index",
     "pages/node/topicList/index",
     "pages/user/index",
-    "pages/createTopic/index",
     "pages/webview/index",
     "pages/linkPreview/index",
-    "pages/settings/index",
-    "pages/settings/image-setting",
     "pages/search/index",
+    "pages/createTopic/index",
   ],
+  subPackages: [
+    {
+      root: "pages/secondary",
+      name: "secondary",
+      pages: [
+        "messages/index",
+        "messages/thread",
+        "settings/index",
+        "settings/image-setting",
+        "settings/edit-profile",
+      ],
+    },
+  ],
+  preloadRule: {
+    "pages/home/index": {
+      network: "all",
+      packages: ["secondary"],
+    },
+  },
   window: {
     navigationStyle: "custom",
     backgroundTextStyle: "@backgroundTextStyle",

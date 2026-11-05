@@ -1,4 +1,3 @@
-import { getScrollViewType } from "../../../../utils/renderer";
 import React, { Component, createRef } from "react";
 import { OpenContainer, ScrollView, ShareElement, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
@@ -16,6 +15,7 @@ import { splitTopicAnnouncement } from "../../../../utils/topicAnnouncement";
 import { urlPathVaiable } from "../../../../utils/urls";
 import PullDownRefresh, { PullDownRefreshRef } from "../../../../components/PullDownRefresh";
 import { isSkyline } from "../../../../utils/renderer";
+import { PageRendererContext, type PageRenderer } from "../../../../hooks/usePageRenderer";
 
 const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
   const {
@@ -63,7 +63,7 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
               <View className='avatar'>
                 <UserAvatar username={username} src={userAvatarUrl} size={32} />
               </View>
-              <Text className='userName' overflow='ellipsis' maxLines={1}>{username}</Text>
+              <Text className='userName' overflow='ellipsis' maxLines={1}>{topic.displayName?.trim() || username}</Text>
             </View>
             <Text className='lastUpdateTime' overflow='ellipsis' maxLines={1}>{lastUpdated}更新</Text>
           </View>
@@ -96,12 +96,15 @@ interface State {
 }
 
 export default class TopicList extends Component<TopicListProps, State> {
+  static contextType = PageRendererContext;
+  private readonly fallbackRenderer: PageRenderer;
   pullDownRef = createRef<PullDownRefreshRef>();
   requestRevision = 0;
   loading = true;
 
   constructor(props, state) {
     super(props, state);
+    this.fallbackRenderer = (this.context as PageRenderer | undefined) ?? (isSkyline() ? "skyline" : "webview");
     this.state = {
       topics: [],
       loadingPage: 1,
@@ -192,6 +195,7 @@ export default class TopicList extends Component<TopicListProps, State> {
   }
 
   render() {
+    const skyline = ((this.context as PageRenderer | undefined) ?? this.fallbackRenderer) === "skyline";
     const { topics } = this.state;
     const { announcement, topics: regularTopics } = splitTopicAnnouncement(topics);
     const scrollViewHeight = this.props.style?.height;
@@ -203,8 +207,8 @@ export default class TopicList extends Component<TopicListProps, State> {
       >
         {topics.length > 0 ? (
           <ScrollView
-            type={getScrollViewType()}
-            className={isSkyline() ? 'topicList topicList--skyline' : 'topicList'}
+            type={skyline ? 'custom' : undefined}
+            className={skyline ? 'topicList topicList--skyline' : 'topicList'}
             scrollY
             scrollTop={this.state.scrollTop}
             enhanced

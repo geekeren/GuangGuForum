@@ -1,8 +1,7 @@
-import { getScrollViewType } from "../../utils/renderer";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
 import { RootPortal, View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { ReactNode, useEffect, useState } from "react";
-import { isSkyline } from "../../utils/renderer";
 import { useTheme } from "../../hooks/useTheme";
 import { themeVariables } from "../../utils/themePreferences";
 import "./index.scss";
@@ -22,7 +21,7 @@ export default function BottomSheet({ visible, title, onClose, children, footer,
   const [present, setPresent] = useState(visible);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [viewport, setViewport] = useState<ReturnType<typeof Taro.getWindowInfo>>();
-  const skyline = isSkyline();
+  const skyline = usePageRenderer() === "skyline";
 
   useEffect(() => {
     if (visible) {
@@ -59,7 +58,7 @@ export default function BottomSheet({ visible, title, onClose, children, footer,
           <Text className='bottomSheetTitle'>{title}</Text>
           <View className='bottomSheetClose' onClick={onClose}><Text>✕</Text></View>
         </View>
-        <ScrollView type={getScrollViewType()} scrollY enhanced className='bottomSheetBody'>{children}</ScrollView>
+        <ScrollView type={skyline ? 'custom' : undefined} scrollY enhanced className='bottomSheetBody'>{children}</ScrollView>
         {footer && <View className='bottomSheetFooter' style={{ paddingBottom: `calc(20rpx + ${safeBottom}px)` }}>{footer}</View>}
       </View>
     </View>

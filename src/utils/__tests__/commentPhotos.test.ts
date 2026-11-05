@@ -2,8 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Taro from '@tarojs/taro';
 import { compressCommentPhoto } from '../commentPhotos';
 
-vi.mock('@tarojs/taro', () => ({ default: { getImageInfo: vi.fn(), compressImage: vi.fn() } }));
-beforeEach(() => { vi.resetAllMocks(); });
+const files = vi.hoisted(() => ({ getFileInfo: vi.fn() }));
+vi.mock('@tarojs/taro', () => ({ default: { getImageInfo: vi.fn(), compressImage: vi.fn(), showToast: vi.fn(), getFileSystemManager: () => files } }));
+beforeEach(() => {
+  vi.resetAllMocks();
+  files.getFileInfo.mockImplementation(({ filePath, success }: any) => success({ size: filePath.includes('original') ? 3276800 : 460800 }));
+});
 
 describe('comment photo compression', () => {
   it.each([
@@ -21,6 +25,10 @@ describe('comment photo compression', () => {
     expect(await compressCommentPhoto('/tmp/original.jpg')).toBe('/tmp/compressed.jpg');
     expect(Taro.compressImage).toHaveBeenCalledWith({ src: '/tmp/original.jpg', quality: 80, compressedWidth: targetWidth, compressedHeight: targetHeight });
     expect(Taro.getImageInfo).toHaveBeenLastCalledWith({ src: '/tmp/compressed.jpg' });
+    expect(Taro.showToast).toHaveBeenCalledWith({
+      title: `压缩前：${width}x${height} px / 3200.0 KB\n压缩后：${targetWidth}x${targetHeight} px / 450.0 KB`,
+      icon: 'none', duration: 5000,
+    });
   });
   it.each([[0, 1], [1, 0], [-1, 10], [NaN, 10], [Infinity, 10]])('rejects invalid dimensions %sx%s', async (width, height) => {
     vi.mocked(Taro.getImageInfo).mockResolvedValue({ width, height } as any);
@@ -41,5 +49,27 @@ describe('comment photo compression', () => {
     vi.mocked(Taro.getImageInfo).mockResolvedValue({ width: 4000, height: 3000 } as any);
     vi.mocked(Taro.compressImage).mockResolvedValue({ tempFilePath: '/tmp/still-large.jpg' } as any);
     await expect(compressCommentPhoto('/tmp/original.jpg')).rejects.toThrow('size limit');
+    expect(Taro.showToast).not.toHaveBeenCalled();
+  });
+  it('reports actual output dimensions and fractional KB instead of estimates', async () => {
+    vi.mocked(Taro.getImageInfo).mockResolvedValueOnce({ width: 4000, height: 3000 } as any)
+      .mockResolvedValueOnce({ width: 1918, height: 1438 } as any);
+    vi.mocked(Taro.compressImage).mockResolvedValue({ tempFilePath: '/tmp/compressed.jpg' } as any);
+    files.getFileInfo.mockImplementation(({ filePath, success }: any) => success({ size: filePath.includes('original') ? 1536 : 512 }));
+    await compressCommentPhoto('/tmp/original.jpg');
+    expect(Taro.showToast).toHaveBeenCalledWith({
+      title: '压缩前：4000x3000 px / 1.5 KB\n压缩后：1918x1438 px / 0.5 KB',
+      icon: 'none', duration: 5000,
+    });
+  });
+  it('keeps a successfully compressed image when file size lookup fails', async () => {
+    vi.mocked(Taro.getImageInfo).mockResolvedValue({ width: 800, height: 600 } as any);
+    vi.mocked(Taro.compressImage).mockResolvedValue({ tempFilePath: '/tmp/compressed.jpg' } as any);
+    files.getFileInfo.mockImplementation(({ fail }: any) => fail(new Error('unreadable')));
+    expect(await compressCommentPhoto('/tmp/original.jpg')).toBe('/tmp/compressed.jpg');
+    expect(Taro.showToast).toHaveBeenCalledWith({
+      title: '压缩前：800x600 px / 大小读取失败\n压缩后：800x600 px / 大小读取失败',
+      icon: 'none', duration: 5000,
+    });
   });
 });

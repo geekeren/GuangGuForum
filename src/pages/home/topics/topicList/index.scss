@@ -1,7 +1,7 @@
 @import "../../../../vars.scss";
 
 .topicList {
-  font-size: 28rpx;
+  font-size: 16.05PX;
   box-sizing: border-box;
   height: 100%;
   background: transparent;
@@ -16,7 +16,7 @@
   .listFooter {
     text-align: center;
     padding: 32rpx 0 40rpx;
-    font-size: 24rpx;
+    font-size: 13.76PX;
     color: $text-muted;
   }
 
@@ -41,7 +41,7 @@
     .title {
       width: 100%;
       min-width: 0;
-      font-size: 30rpx;
+      font-size: 17.2PX;
       font-weight: 600;
       line-height: 1.4;
       color: var(--theme-text-primary, #080d18);
@@ -79,7 +79,7 @@
         max-width: 158rpx;
         flex-shrink: 1;
         box-sizing: border-box;
-        font-size: 22rpx;
+        font-size: 12.61PX;
         font-weight: 600;
         color: #0754d7;
         background: var(--theme-brand-soft, #e4eeff);
@@ -129,7 +129,7 @@
           min-width: 0;
           flex-shrink: 1;
           margin-left: 8rpx;
-          font-size: 23rpx;
+          font-size:13.76PX;
           color: var(--theme-text-sub, #50576a);
           overflow: hidden;
           text-overflow: ellipsis;
@@ -140,7 +140,7 @@
       .lastUpdateTime {
         min-width: 0;
         flex-shrink: 1;
-        font-size: 22rpx;
+        font-size: 12.61PX;
         color: var(--theme-text-muted, #656c85);
         white-space: nowrap;
         overflow: hidden;
@@ -153,7 +153,7 @@
         align-items: center;
         flex-shrink: 0;
         color: var(--theme-text-sub, #242b43);
-        font-size: 23rpx;
+        font-size:13.76PX;
 
         .commentCount {
           white-space: nowrap;
@@ -215,14 +215,14 @@
   justify-content: center;
 
   .emptyTitle {
-    font-size: 30rpx;
+    font-size: 17.2PX;
     font-weight: 600;
     color: $text-sub;
   }
 
   .emptyDesc {
     margin-top: 12rpx;
-    font-size: 26rpx;
+    font-size: 14.91PX;
     line-height: 1.6;
     text-align: center;
     color: $text-muted;

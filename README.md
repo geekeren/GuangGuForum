@@ -269,8 +269,14 @@ yarn dev:weapp
 ### 构建
 
 ```bash
-yarn build:weapp
+yarn build:weapp --env production
 ```
+
+发布前先停止 watch，再执行生产构建；不要让两次构建同时写入 `dist/`。生产构建压缩 JavaScript，并保留中文的 UTF-8 编码，避免不必要的 Unicode 转义膨胀。Skyline 所需的 CSS 双冒号兼容处理保持不变。
+
+开发 watch 保留 source map 便于本地调试，生产构建不生成 Taro source map。开发者工具打包配置额外忽略 `.map` 文件，避免开发产物进入代码包；`uploadWithSourceMap` 保持开启，开发者工具自身的线上映射设置不变。对比包体积时，应比较相同生产构建的原始文件字节数，不将 gzip 大小或开发 source map 算作小程序代码体积。
+
+小程序使用两个代码包：主包承载首页、详情、搜索、发帖、登录、用户主页、节点和链接页面；唯一的非独立分包 `secondary` 承载私信和设置等非常用页面，首页按 `network: all` 预加载。私信与设置注册在 `pages/secondary/` 下的轻量入口，复用原功能目录，跳转统一使用 `src/utils/appRoutes.ts` 的注册路径；原 `pages/messages/`、`pages/settings/` 仅保留实现，不再注册为页面。共有运行时、工具和模板仍由主包提供，分包减少的是首次下载的主包体积，不代表全部代码体积等量减少。
 
 ## 项目约定
 

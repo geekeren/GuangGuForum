@@ -37,13 +37,13 @@ afterEach(() => {
 describe("navbar shared-element opt-out", () => {
   it.each(["skyline", "webview"])("keeps settings actions outside ShareElement under %s", renderer => {
     vi.stubGlobal("getCurrentPages", () => [{ renderer }]);
-    const openSettings = () => Taro.navigateTo({ url: "/pages/settings/index" });
+    const openSettings = () => Taro.navigateTo({ url: "/pages/secondary/settings/index" });
     const action = createElement("image", { onClick: openSettings });
     const tree = Navbar({ shared: false, leftAction: action });
     expect(tree.props.className).toBe("customNavbar");
     expect(elements(tree).some(element => element.type === "ShareElement" || element.props?.mapkey)).toBe(false);
     openSettings();
-    expect(Taro.navigateTo).toHaveBeenCalledWith({ url: "/pages/settings/index" });
+    expect(Taro.navigateTo).toHaveBeenCalledWith({ url: "/pages/secondary/settings/index" });
   });
 
   it("preserves the settings title and back action without a shared wrapper", () => {

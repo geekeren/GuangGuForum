@@ -15,6 +15,8 @@ function normalizeSummary(value: unknown): TopicSummary | null {
       topic[field] = text;
     }
     if (!topic.link.trim()) return null;
+    // Presentation metadata must survive the bounded index without changing its identity key.
+    if (typeof source.displayName === "string") topic.displayName = source.displayName;
     const pinned = source.isPinned;
     if (pinned !== undefined) {
       if (typeof pinned !== "boolean") return null;

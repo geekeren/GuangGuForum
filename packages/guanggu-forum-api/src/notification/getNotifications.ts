@@ -1,9 +1,12 @@
 import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
 import { CacheAPIFunc } from "../types";
+import type { HTMLElement } from "node-html-parser";
+import { getDisplayName } from "../utils/displayName";
 
 export interface Notification {
   username: string;
+  displayName?: string;
   userLink: string;
   userAvatarUrl: string;
   topicTitle: string;
@@ -12,7 +15,7 @@ export interface Notification {
   content: string;
 }
 
-const domStructure: DataDom<Notification> = {
+const domStructure: DataDom<Omit<Notification, 'displayName'>> = {
   _selector: ".notification-item",
   _type: "array",
   _item: "object",
@@ -54,6 +57,15 @@ const domStructure: DataDom<Notification> = {
   },
 };
 
+function parseNotifications(body: HTMLElement | undefined): Notification[] {
+  const notifications = getDataFromHtml<Omit<Notification, 'displayName'>>(body, domStructure) as unknown as Notification[];
+  const items = body?.querySelectorAll('.notification-item') || [];
+  return notifications?.map((notification, index) => ({
+    ...notification,
+    displayName: getDisplayName(items[index]?.querySelector('.title'), notification.username, notification.userLink),
+  }));
+}
+
 export interface GetNotificationsParam {
   page?: number;
 }
@@ -72,9 +84,9 @@ export const getNotifications: CacheAPIFunc<GetNotificationsParam, Notification[
       p: String(page),
     },
     onRefresh: options?.onRefresh
-      ? (body) => options.onRefresh!(getDataFromHtml(body, domStructure) as Notification[])
+      ? (body) => options.onRefresh!(parseNotifications(body))
       : undefined,
   }).then(({ body }) => {
-    return getDataFromHtml(body, domStructure) as Notification[];
+    return parseNotifications(body);
   });
 };

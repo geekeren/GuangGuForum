@@ -4,28 +4,28 @@ import Taro from "@tarojs/taro";
 import TopicDetail from "../../pages/topicDetail";
 import CommentComposer from "../../pages/topicDetail/CommentComposer";
 
-const harness = vi.hoisted(() => ({ state: [] as any[], cursor: 0, sortAsc: false, level: undefined as string | undefined }));
-vi.mock("react", async (original) => ({
-  ...await original<any>(),
+const harness = vi.hoisted(() => ({ state: [] as any[], cleanups: [] as any[], cursor: 0, skyline: true, sortAsc: false, level: undefined as string | undefined }));
+vi.mock("react", () => ({
   useState: (initial: any) => {
     const index = harness.cursor++;
     if (!(index in harness.state)) harness.state[index] = typeof initial === "function" ? initial() : initial;
     return [harness.state[index], (next: any) => { harness.state[index] = typeof next === "function" ? next(harness.state[index]) : next; }];
   },
   useRef: (value: any) => ({ current: value }),
-  useEffect: vi.fn(),
+  useEffect: (effect: any) => { if (effect.toString().includes('subscribeCommentSort')) harness.cleanups.push(effect()); },
 }));
 vi.mock("@tarojs/components", () => Object.fromEntries(["Button", "Image", "ScrollView", "ShareElement", "Text", "View"].map(name => [name, name])));
 vi.mock("@tarojs/taro", () => ({
-  default: { showActionSheet: vi.fn(), navigateTo: vi.fn(), getCurrentInstance: vi.fn(() => ({})), nextTick: vi.fn() },
+  default: { showActionSheet: vi.fn(), showToast: vi.fn(), navigateTo: vi.fn(), getCurrentInstance: vi.fn(() => ({})), nextTick: vi.fn() },
   useRouter: () => ({ path: "/pages/topicDetail/index", params: { tid: "1" } }),
-  useReady: vi.fn(), useDidShow: vi.fn(), useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(),
+  useReady: vi.fn(), useDidShow: vi.fn(), useDidHide: vi.fn(), useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(),
 }));
 vi.mock("guanggu-forum-api", () => ({
   getTopicDetail: vi.fn(), commentUpvote: vi.fn(), createNewComment: vi.fn(), URLS: {},
   urlPathVaiable: () => () => ({ params: { node: "tech" } }),
 }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
+vi.mock("../renderer", () => ({ isSkyline: () => harness.skyline, getScrollViewType: () => 'custom' }));
 vi.mock("../../hooks/useDataWithCache", () => ({
   useDataWithCache: () => ({
     request: vi.fn(), setData: vi.fn(),
@@ -40,9 +40,13 @@ vi.mock("../../hooks/useDataWithCache", () => ({
     },
   }),
 }));
-vi.mock("../CacheService", () => ({ cacheService: { get: () => harness.sortAsc, set: vi.fn() }, CacheCategory: { Other: "other" } }));
+vi.mock("../CacheService", () => ({ cacheService: { get: () => harness.sortAsc, set: (_key: string, value: boolean) => { harness.sortAsc = value; return true; } }, CacheCategory: { Other: "other" } }));
 vi.mock("../localAssets", () => ({ getFromLocalCache: (url: string) => url }));
 vi.mock("../auth", () => ({ openLoginModal: vi.fn() }));
+vi.mock("../../assets/wechat.svg", () => ({ default: '/synthetic-wechat.svg' }));
+vi.mock("../../pages/topicDetail/CommentComposer", () => ({ default: 'CommentComposer' }));
+vi.mock("../../components/UserAvatar", () => ({ default: 'UserAvatar' }));
+vi.mock("../../components/ThemedIcon", () => ({ default: 'ThemedIcon' }));
 vi.mock("../../components/Navbar", () => ({ default: "Navbar" }));
 vi.mock("../../components/TopicTag", () => ({ default: "TopicTag" }));
 vi.mock("../../components/HtmlRender", () => ({ default: "HtmlRender" }));
@@ -60,8 +64,8 @@ function elements(tree: any): any[] {
 function render() { harness.cursor = 0; return TopicDetail(); }
 function find(tree: any, className: string) { return elements(tree).find(e => e.props?.className?.split(" ").includes(className))!; }
 const styles = () => readFileSync("src/pages/topicDetail/index.scss", "utf8");
-beforeEach(() => { harness.state = []; harness.sortAsc = false; harness.level = undefined; vi.clearAllMocks(); vi.stubGlobal("getCurrentPages", () => [{ renderer: "skyline" }]); });
-afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => { harness.state = []; harness.skyline = true; harness.sortAsc = false; harness.level = undefined; vi.clearAllMocks(); vi.stubGlobal("getCurrentPages", () => [{ renderer: "skyline" }]); });
+afterEach(() => { harness.cleanups.forEach(cleanup => cleanup?.()); harness.cleanups = []; vi.unstubAllGlobals(); });
 
 describe("compact topic detail reference contracts", () => {
   it("uses local rounded cards and smaller author rows without altering shared HTML semantics", () => {
@@ -81,6 +85,7 @@ describe("compact topic detail reference contracts", () => {
   });
 
   it.each(["skyline", "webview"])("keeps author, category and real footer values in compact rows on %s", (renderer) => {
+    harness.skyline = renderer === 'skyline';
     vi.stubGlobal("getCurrentPages", () => [{ renderer }]);
     const tree = render();
     expect(find(tree, "author").props.children).toBe("MixedCaseAuthor");
@@ -100,6 +105,7 @@ describe("compact topic detail reference contracts", () => {
   });
 
   it.each(["skyline", "webview"])("renders supplied levels separately with explicit spacing on %s", (renderer) => {
+    harness.skyline = renderer === 'skyline';
     vi.stubGlobal("getCurrentPages", () => [{ renderer }]);
     expect(elements(render()).filter(e => e.props?.className === "authorLevel")).toHaveLength(0);
     harness.level = "Lv. 12";

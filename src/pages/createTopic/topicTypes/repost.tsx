@@ -4,6 +4,7 @@ import Taro from "@tarojs/taro";
 import { fetchLinkSummary } from "guanggu-forum-api";
 import type { LinkSummary } from "guanggu-forum-api";
 import { ClearableInput, ClearableTextarea } from "../../../components/ClearableInput";
+import TopicTitle from '../TopicTitle';
 import LinkPreviewCard from "../../../components/LinkPreviewCard";
 import { LinkPreviewHeader } from "../../../components/LinkPreviewCard/Header";
 import HtmlRender from "../../../components/HtmlRender";
@@ -194,20 +195,7 @@ const repostDef: TopicTypeDefinition = {
             onBlur={handleSourceUrlBlur}
           />
         </View>
-        <ClearableTextarea
-          ref={titleRef}
-          className="titleInput"
-          placeholder="标题"
-          placeholderClass="titlePlaceholder"
-          cursorColor={BRAND_COLOR}
-          maxlength={120}
-          value={title}
-          onInput={handleTitleInput}
-          autoHeight
-          confirmType="next"
-          onConfirm={() => focusRef(sourceUrlRef)}
-          onDeleteWhenEmpty={() => focusRef(sourceUrlRef)}
-        />
+        <TopicTitle inputRef={titleRef} editorRef={getRef('content')} value={title} onInput={handleTitleInput} onNext={() => focusRef(sourceUrlRef)} />
         {fields.sourceUrl ? (
           <View className="fieldGroup">
             <Text className="fieldLabel">摘要</Text>
@@ -218,6 +206,7 @@ const repostDef: TopicTypeDefinition = {
               placeholderClass="fieldPlaceholder"
               cursorColor={BRAND_COLOR}
               maxlength={-1}
+              showConfirmBar={false}
               value={fields.summary}
               onInput={(v) => setField("summary", v)}
               onDeleteWhenEmpty={() => focusRef(titleRef)}

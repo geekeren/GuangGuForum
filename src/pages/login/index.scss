@@ -40,7 +40,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    font-size: 40rpx;
+    font-size: 22.93PX;
     font-weight: 700;
     letter-spacing: -1rpx;
     box-shadow: $shadow-glow;
@@ -48,7 +48,7 @@
   }
 
   .loginTitle {
-    font-size: 48rpx;
+    font-size: 27.52PX;
     font-weight: 700;
     color: $text-primary;
     letter-spacing: -0.6rpx;
@@ -56,7 +56,7 @@
 
   .loginSubtitle {
     display: block;
-    font-size: 26rpx;
+    font-size: 14.91PX;
     color: $text-muted;
     margin-top: 12rpx;
   }
@@ -88,7 +88,7 @@
   }
 
   .inputLabel {
-    font-size: 26rpx;
+    font-size: 14.91PX;
     font-weight: 600;
     color: $text-sub;
     margin-bottom: 12rpx;
@@ -102,14 +102,14 @@
     border: 1rpx solid $border-color;
     border-radius: $radius-sm;
     padding: 0 28rpx;
-    font-size: 28rpx;
+    font-size: 16.05PX;
     color: $text-primary;
     box-sizing: border-box;
   }
 
   .inputPlaceholder {
     color: $text-faint;
-    font-size: 28rpx;
+    font-size: 16.05PX;
   }
 
   .accountSuggestions {
@@ -138,7 +138,7 @@
   }
 
   .accountSuggestionText {
-    font-size: 28rpx;
+    font-size: 16.05PX;
     color: $text-sub;
   }
 }
@@ -151,7 +151,7 @@
     border: none;
     border-radius: $radius-md;
     color: #fff;
-    font-size: 30rpx;
+    font-size: 17.2PX;
     font-weight: 600;
     box-shadow: $shadow-glow;
     height: 88rpx;
@@ -198,7 +198,7 @@
 
     .checkmark {
       color: #fff;
-      font-size: 24rpx;
+      font-size: 13.76PX;
       line-height: 1;
     }
   }
@@ -206,7 +206,7 @@
   .agreementText {
     flex: 1;
     min-width: 0;
-    font-size: 22rpx;
+    font-size: 12.61PX;
     color: $text-muted;
     line-height: 1.7;
   }
@@ -220,13 +220,13 @@
 .loginFooter {
   margin-top: 36rpx;
   text-align: center;
-  font-size: 24rpx;
+  font-size: 13.76PX;
   color: $text-faint;
 
   .webTip {
     display: block;
     margin-top: 20rpx;
-    font-size: 22rpx;
+    font-size: 12.61PX;
     color: $text-faint;
     line-height: 1.6;
   }

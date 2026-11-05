@@ -58,6 +58,31 @@ describe("bounded topic index", () => {
     expect(mergeTopicIndex(previous, [huge, topic(3), { ...huge, link: "/t/4" }])!.data).toEqual([topic(1), topic(2), topic(3)]);
   });
 
+  it("retains nickname metadata without merging different topic identities", () => {
+    const first = { ...topic(1), displayName: " 同名 👋 " };
+    const second = { ...topic(2), username: "other-account", userLink: "/u/other-account", displayName: " 同名 👋 " };
+    const result = mergeTopicIndex(null, [first, second])!;
+    expect(result.data).toEqual([first, second]);
+    const updated = { ...first, displayName: "新昵称" };
+    expect(mergeTopicIndex(result, [updated])!.data).toEqual([second, updated]);
+    expect(first.displayName).toBe(" 同名 👋 ");
+  });
+
+  it("counts nickname UTF-8 bytes against the exact index capacity boundary", () => {
+    const base = { ...topic(1), displayName: "" };
+    const room = TOPIC_INDEX_MAX_BYTES - bytes(envelope([base]));
+    const exact = { ...base, displayName: "x".repeat(room) };
+    expect(bytes(envelope([exact]))).toBe(TOPIC_INDEX_MAX_BYTES);
+    expect(mergeTopicIndex(null, [exact])!.data).toEqual([exact]);
+    const oversized = { ...exact, displayName: exact.displayName + "😀" };
+    expect(mergeTopicIndex(envelope([topic(2)]), [oversized])!.data).toEqual([topic(2)]);
+  });
+
+  it("ignores invalid optional display metadata without replacing account fields", () => {
+    const result = mergeTopicIndex(null, [{ ...topic(1), displayName: {} }, { ...topic(2), displayName: null }])!;
+    expect(result.data).toEqual([topic(1), topic(2)]);
+  });
+
   it("rejects bad individual fields safely while preserving valid neighbors", () => {
     const throwing = Object.defineProperty(topic(9), "title", { get() { throw new Error("bad getter"); } });
     const cyclic = { ...topic(8), extra: null as any }; cyclic.extra = cyclic;

@@ -52,7 +52,7 @@
   .authorLevel {
     margin-left: 8rpx;
     flex-shrink: 0;
-    font-size: 21rpx;
+    font-size:12.61PX;
     line-height: 1.35;
     color: $text-muted;
     white-space: nowrap;
@@ -70,7 +70,7 @@
 
     .header {
       .title {
-        font-size: 34rpx;
+        font-size: 19.49PX;
         font-weight: 700;
         line-height: 1.4;
         color: $text-primary;
@@ -117,7 +117,7 @@
 
           .author {
             display: block;
-            font-size: 27rpx;
+            font-size:14.91PX;
             font-weight: 700;
             line-height: 1.35;
             color: $text-primary;
@@ -129,7 +129,7 @@
           .moreInfo {
             display: flex;
             flex-direction: row;
-            font-size: 21rpx;
+            font-size:12.61PX;
             line-height: 1.4;
             color: $text-faint;
             margin-top: 2rpx;
@@ -144,25 +144,6 @@
     .content {
       overflow: hidden;
       padding: 16rpx 0 4rpx;
-      line-height: 1.6;
-      font-size: 28rpx;
-      color: $text-sub;
-      user-select: auto;
-
-      .html {
-        font-size: inherit;
-        line-height: inherit;
-        .h5-p { margin: 0 0 12rpx; }
-        .h5-p:last-child { margin-bottom: 0; }
-      }
-
-      image,
-      img {
-        max-width: 100%;
-        border-radius: $radius-sm;
-        overflow: hidden;
-        margin: 12rpx 0;
-      }
     }
 
     .extra {
@@ -170,7 +151,7 @@
       flex-direction: row;
       justify-content: flex-end;
       align-items: center;
-      font-size: 21rpx;
+      font-size:12.61PX;
       color: $text-faint;
       padding-top: 8rpx;
 
@@ -194,7 +175,7 @@
       border-radius: 12rpx;
       background: var(--theme-brand-soft, #eaf0ff);
       color: var(--theme-accent-text, #0754d7);
-      font-size: 23rpx;
+      font-size:13.76PX;
       font-weight: 600;
       line-height: 1.4;
       box-sizing: border-box;
@@ -223,7 +204,7 @@
 
     .header {
       font-weight: 700;
-      font-size: 30rpx;
+      font-size: 18.35PX;
       color: $text-primary;
       margin-bottom: 8rpx;
       min-height: 44rpx;
@@ -269,7 +250,7 @@
   // 评论列表
   // ────────────────────────────────────────────────────────────
   .comments {
-    font-size: 28rpx;
+    font-size: 16.05PX;
 
     .comment-item {
       display: flex;
@@ -312,7 +293,7 @@
         .comment-author {
           min-width: 0;
           flex: 0 1 auto;
-          font-size: 27rpx;
+          font-size:16.05PX;
           font-weight: 700;
           line-height: 1.35;
           color: $text-primary;
@@ -327,7 +308,7 @@
           border-radius: 8rpx;
           background: var(--theme-surface-alt, #f0f2f7);
           color: $text-muted;
-          font-size: 21rpx;
+          font-size:12.61PX;
           line-height: 1.4;
         }
 
@@ -335,7 +316,7 @@
           margin: 6rpx 0 8rpx;
           user-select: auto;
           color: $text-sub;
-          font-size: 28rpx;
+          font-size: 16.05PX;
           line-height: 1.65;
 
           .html {
@@ -350,7 +331,7 @@
         }
 
         .comment-line3 {
-          font-size: 21rpx;
+          font-size:12.61PX;
           line-height: 1.4;
           color: $text-faint;
           display: flex;
@@ -366,7 +347,7 @@
             flex-direction: row;
             align-items: center;
             flex-shrink: 0;
-            font-size: 23rpx;
+            font-size:13.76PX;
             color: $text-muted;
             gap: 4rpx;
 
@@ -399,19 +380,19 @@
       padding: 48rpx 0;
 
       .emptyIcon {
-        font-size: 64rpx;
+        font-size: 36.69PX;
         margin-bottom: 20rpx;
       }
 
       .emptyTitle {
-        font-size: 30rpx;
+        font-size: 17.2PX;
         font-weight: 600;
         color: $text-primary;
         margin-bottom: 8rpx;
       }
 
       .emptyDesc {
-        font-size: 24rpx;
+        font-size: 13.76PX;
         color: $text-muted;
         margin-bottom: 32rpx;
       }
@@ -419,7 +400,7 @@
       .emptyBtn {
         background: linear-gradient(135deg, $color-brand, $color-brand-dark);
         color: #fff;
-        font-size: 28rpx;
+        font-size: 16.05PX;
         font-weight: 600;
         padding: 16rpx 64rpx;
         border-radius: 40rpx;
@@ -433,7 +414,8 @@
   // ────────────────────────────────────────────────────────────
   .relatingTopics {
     line-height: 1.5;
-    font-size: 26rpx;
+    // Matches the post body typography (HtmlRender body variant).
+    font-size: 16.05PX;
     margin-bottom: 16rpx;
   }
 
@@ -450,7 +432,7 @@
     justify-content: center;
     align-items: center;
     background: $surface;
-    font-size: 28rpx;
+    font-size: 16.05PX;
     box-sizing: border-box;
     position: relative;
     padding: 12rpx 22rpx max(12rpx, env(safe-area-inset-bottom));
@@ -464,7 +446,7 @@
       align-items: center;
       box-sizing: border-box;
       padding: 14rpx 28rpx;
-      font-size: 26rpx;
+      font-size: 14.91PX;
       color: $text-faint;
       height: 64rpx;
     }
@@ -498,7 +480,7 @@
           border-radius: 14rpx;
           background: $color-brand;
           color: #fff;
-          font-size: 18rpx;
+          font-size: 10.32PX;
           line-height: 28rpx;
           text-align: center;
           padding: 0 6rpx;
@@ -510,7 +492,7 @@
         background: linear-gradient(135deg, $color-brand, $color-brand-dark);
         border-radius: 32rpx;
         color: #fff;
-        font-size: 24rpx;
+        font-size: 13.76PX;
         font-weight: 600;
         display: inline-flex;
         flex-direction: row;
@@ -637,7 +619,7 @@
     padding: 0;
     width: 100%;
     box-sizing: border-box;
-    font-size: 28rpx;
+    font-size: 16.05PX;
     min-height: 136rpx;
     max-height: none;
     overflow: visible;
@@ -677,7 +659,7 @@
   .commentPopupToolIcon { width: 46rpx; height: 46rpx; }
   .commentPopupSubmit { flex: none; }
   .commentPopupTools { min-width: 0; flex-shrink: 1; }
-  .commentPopupMinimum { color: $text-faint; font-size: 22rpx; margin-right: 16rpx; }
+  .commentPopupMinimum { color: $text-faint; font-size: 12.61PX; margin-right: 16rpx; }
   .commentPopupSend {
     display: flex;
     flex-direction: row;
@@ -694,7 +676,7 @@
     border-radius: 40rpx;
     background: $color-brand;
     color: #fff;
-    font-size: 28rpx;
+    font-size: 16.05PX;
     font-weight: 600;
     line-height: 1;
     &::after { border: none; }
@@ -712,7 +694,7 @@
     justify-content: center;
     height: 64rpx;
     border-radius: 16rpx;
-    font-size: 38rpx;
+    font-size: 21.79PX;
     &:active { background: $surfaceAlt; }
   }
   .commentPopupEmojiPanel {
@@ -729,12 +711,12 @@
   }
   .commentPopupPanelTabs { display: flex; flex-direction: row; flex: none; height: 72rpx; align-items: center; padding: 0 24rpx; }
   .commentPopupMoreActions { display: flex; flex-direction: row; padding: 36rpx 24rpx; }
-  .commentPopupMoreAction { display: flex; flex-direction: column; align-items: center; width: 33.333%; flex: none; color: $text-muted; font-size: 24rpx; }
+  .commentPopupMoreAction { display: flex; flex-direction: column; align-items: center; width: 33.333%; flex: none; color: $text-muted; font-size: 13.76PX; }
   .commentPopupMoreSquare { display: flex; align-items: center; justify-content: center; width: 112rpx; height: 112rpx; margin-bottom: 16rpx; border-radius: 24rpx; background: $surfaceAlt; }
   .commentPopupMoreIcon { width: 52rpx; height: 52rpx; }
   .commentPopupAttachmentRegion { width: 100%; flex: none; overflow: hidden; transition: height 200ms ease; }
-  .commentPopupPhotoNotice { display: block; height: 32rpx; line-height: 32rpx; font-size: 22rpx; color: $text-muted; }
-  .commentPopupPanelTab { padding: 12rpx 24rpx; color: $text-muted; font-size: 26rpx; border-radius: 16rpx; }
+  .commentPopupPhotoNotice { display: block; height: 32rpx; line-height: 32rpx; font-size: 12.61PX; color: $text-muted; }
+  .commentPopupPanelTab { padding: 12rpx 24rpx; color: $text-muted; font-size: 14.91PX; border-radius: 16rpx; }
   .commentPopupPanelTab--active { color: $color-brand; background: $color-brand-soft; }
   .commentPopupPanelScroll { flex: 1; height: 0; min-height: 0; width: 100%; }
   .commentPopupEmojiGrid {
@@ -744,8 +726,8 @@
     box-sizing: border-box;
     padding: 16rpx 24rpx;
   }
-  .commentPopupCommonHeading { display: block; flex: none; margin: 12rpx 0; font-size: 24rpx; color: $text-muted; }
-  .commentPopupCommonEmpty { display: block; flex: none; padding: 16rpx 0 28rpx; font-size: 24rpx; color: $text-muted; }
+  .commentPopupCommonHeading { display: block; flex: none; margin: 12rpx 0; font-size: 13.76PX; color: $text-muted; }
+  .commentPopupCommonEmpty { display: block; flex: none; padding: 16rpx 0 28rpx; font-size: 13.76PX; color: $text-muted; }
   .commentPopupPanelRow { display: flex; flex-direction: row; width: 100%; flex: none; }
   .commentPopupPanelEmoji { width: 12.5%; flex: none; min-width: 0; }
   .commentPopupSticker { width: 20%; flex: none; min-width: 0; display: flex; flex-direction: column; align-items: center; padding: 8rpx; box-sizing: border-box; }
@@ -759,12 +741,12 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     border-radius: 12rpx; background: rgba(0, 0, 0, 0.45); color: #fff;
   }
-  .commentPhotoUploadLabel { font-size: 20rpx; line-height: 1.4; padding: 0 4rpx; text-align: center; }
+  .commentPhotoUploadLabel { font-size: 11.47PX; line-height: 1.4; padding: 0 4rpx; text-align: center; }
   .commentPhotoUploadSpinner {
     width: 32rpx; height: 32rpx; border: 3rpx solid rgba(255, 255, 255, 0.4); border-top-color: #fff;
     border-radius: 50%; margin-bottom: 12rpx; animation: commentPhotoSpin 900ms linear infinite;
   }
-  .commentStickerRemove { position: absolute; top: 0; right: 0; width: 40rpx; height: 40rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; background: $surfaceAlt; color: $text-primary; font-size: 32rpx; }
+  .commentStickerRemove { position: absolute; top: 0; right: 0; width: 40rpx; height: 40rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; background: $surfaceAlt; color: $text-primary; font-size: 18.35PX; }
 
 }
 

@@ -1,6 +1,7 @@
 import { View, Text, Picker } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { ClearableInput, ClearableTextarea } from "../../../components/ClearableInput";
+import { ClearableInput } from "../../../components/ClearableInput";
+import TopicTitle from '../TopicTitle';
 import { BRAND_COLOR } from "../../../utils/theme";
 import { escapeTopicHtml } from '../../../utils/topicDocument';
 import type { TopicTypeDefinition, RenderFormContext, OnActivateContext } from "./registry";
@@ -44,20 +45,7 @@ const eventDef: TopicTypeDefinition = {
 
     return (
       <View className="editorSection">
-        <ClearableTextarea
-          ref={titleRef}
-          className="titleInput"
-          placeholder="活动名称"
-          placeholderClass="titlePlaceholder"
-          cursorColor={BRAND_COLOR}
-          maxlength={120}
-          value={title}
-          onInput={handleTitleInput}
-          autoHeight
-          confirmType="next"
-          onConfirm={() => focusRef(eventLocationRef)}
-          onDeleteWhenEmpty={() => focusRef(eventLocationRef)}
-        />
+        <TopicTitle inputRef={titleRef} editorRef={getRef('content')} value={title} onInput={handleTitleInput} onNext={() => focusRef(eventLocationRef)} />
         <View className="fieldGroup fieldGroup--inline">
           <Text className="fieldLabel">活动时间</Text>
           <Picker

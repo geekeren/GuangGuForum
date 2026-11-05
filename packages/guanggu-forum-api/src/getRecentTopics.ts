@@ -1,10 +1,13 @@
 import { HTMLElement } from "node-html-parser";
 import { request } from "./client";
 import { DataDom, getDataFromHtml } from "./utils/getDataFromHtml";
-import { ApiOptions, CacheAPIFunc } from "./types";
+import { CacheAPIFunc } from "./types";
+import { getDisplayName } from "./utils/displayName";
 
 export interface TopicSummary {
   username: string;
+  /** Presentation label; account identity remains in the existing fields. */
+  displayName?: string;
   category: string;
   lastUpdated: string;
   userLink: string;
@@ -15,7 +18,7 @@ export interface TopicSummary {
   isPinned?: boolean;
 }
 
-export const domStructure: DataDom<Omit<TopicSummary, "isPinned">> = {
+export const domStructure: DataDom<Omit<TopicSummary, "isPinned" | "displayName">> = {
   _attribute: "",
   _type: "array",
   _item: "object",
@@ -65,9 +68,10 @@ export const domStructure: DataDom<Omit<TopicSummary, "isPinned">> = {
 export function parseTopicSummaries(body?: HTMLElement): TopicSummary[] {
   if (!body) return [];
   const items = body.querySelectorAll(".topics .topic-item");
-  const topics = getDataFromHtml(body, domStructure) as unknown as TopicSummary[];
+  const topics = getDataFromHtml<Omit<TopicSummary, 'isPinned' | 'displayName'>>(body, domStructure) as unknown as TopicSummary[];
   return topics.map((topic, index) => ({
     ...topic,
+    displayName: getDisplayName(items[index].querySelector('.meta'), topic.username, topic.userLink),
     isPinned: !!items[index].querySelector(".title .icon-pushpin"),
   }));
 }

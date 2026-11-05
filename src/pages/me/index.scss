@@ -1,8 +1,10 @@
 @import "../../vars.scss";
 
+// A visual fade distance only, never a navbar/card layout height.
+$meHeroFade: 360rpx;
+
 .meProfile {
   background: $bgColor;
-  padding-bottom: 32rpx;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -34,14 +36,24 @@
   height: 42rpx;
 }
 
-.settingsIcon {
-  width: 42rpx;
-  height: 42rpx;
+.meProfileScroll { flex: 1; width: 100%; height: 0; min-height: 0; }
+.meProfileEditIcon { flex-shrink: 0; width: 42rpx; height: 42rpx; }
+.meProfileNavbar { flex-shrink: 0; width: 100%; background: $bgColor; }
+.meProfile .customNavbar { flex-shrink: 0; }
+
+// One page-owned, bounded backdrop spans the fixed navbar and transparent hero.
+// This is paint size only: navbar/card geometry remains their natural height.
+.meProfile--ready {
+  background-image: linear-gradient(180deg, var(--theme-brand-soft, #e0eaff) 0, var(--theme-surface-soft, #edf3ff) ($meHeroFade * 0.6), $bgColor $meHeroFade);
+
+  .meProfileNavbar { background: transparent; }
 }
 
 .themePageHost--dark .meProfile {
   background: var(--theme-profile-bg, #000000);
   color: var(--theme-text-primary, #f2f2f2);
+
+  &.meProfile--ready { background-image: none; }
 
   .navCapsule {
     background: var(--theme-profile-surface, #1c1c1e);

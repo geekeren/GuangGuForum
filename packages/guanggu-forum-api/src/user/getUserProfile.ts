@@ -1,12 +1,15 @@
 import { HTMLElement } from "node-html-parser";
+import url from "url";
 import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
 import { getUrl } from "../utils/urls";
 import { URLS } from "../urls";
 import { CacheAPIFunc } from "../types";
+import { getDisplayName } from "../utils/displayName";
 
 export interface UserTopicSummary {
   username: string;
+  displayName?: string;
   category: string;
   lastUpdated: string;
   userLink: string;
@@ -25,9 +28,12 @@ export interface UserReply {
 
 export interface UserProfile {
   username: string;
+  displayName?: string;
   avatarUrl: string;
   website: string;
   memberNumber: string;
+  /** UID from the profile's trusted private-message CTA; never derived from display IDs. */
+  messageRecipientId?: number;
   joinDate: string;
   id: string;
   nickname: string;
@@ -61,7 +67,7 @@ interface UserProfileRaw {
   replyCount: string;
   favoriteCount: string;
   reputation: string;
-  topics: UserTopicSummary[];
+  topics: Omit<UserTopicSummary, 'displayName'>[];
   replies: UserReply[];
   moreTopicsLink: string;
   moreRepliesLink: string;
@@ -268,28 +274,51 @@ function parseLevel(root: HTMLElement | null | undefined): string {
   return badge || "";
 }
 
-function parseProfile(body: any): UserProfile {
+function parseMessageRecipientId(body: HTMLElement): number | undefined {
+  const links = body.querySelectorAll('.profile .ui-header a.gzk-dm-profile-link');
+  if (links.length !== 1) return undefined;
+  const href = links[0].getAttribute('href') || '';
+  // Accept only this exact relative path or exact canonical HTTPS origin. Do not
+  // reinterpret protocol-relative, credentialed, encoded-path or cross-site URLs.
+  if (!href.startsWith('/messages/new?') && !href.startsWith('https://www.guozaoke.com/messages/new?')) return undefined;
+  if (/[\s\\\\]/.test(href)) return undefined;
+  const parsed = url.parse(href, true);
+  if (parsed.pathname !== '/messages/new' || parsed.hash || parsed.auth) return undefined;
+  if (parsed.protocol && (parsed.protocol !== 'https:' || parsed.host !== 'www.guozaoke.com')) return undefined;
+  if (Object.keys(parsed.query).length !== 1 || !Object.prototype.hasOwnProperty.call(parsed.query, 'to')) return undefined;
+  const recipient = parsed.query.to;
+  if (typeof recipient !== 'string' || !/^[1-9]\d*$/.test(recipient)) return undefined;
+  const id = Number(recipient);
+  return Number.isSafeInteger(id) && id > 0 ? id : undefined;
+}
+
+function parseProfile(body: HTMLElement | undefined): UserProfile | null {
   if (!body) {
     return null;
   }
-  const raw = getDataFromHtml(body, domStructure) as UserProfileRaw;
+  const raw = getDataFromHtml<UserProfileRaw>(body, domStructure);
   if (!raw.username) {
     return null;
   }
 
+  const messageRecipientId = parseMessageRecipientId(body);
   const details: Record<string, string> = {};
   (raw.profileDetails || []).forEach((item) => {
     details[item.label] = item.value;
   });
 
+  const nickname = details["昵称"] || "";
+  const topicItems = body.querySelectorAll('.sidebar-left .topic-lists .topic-item');
   return {
     username: raw.username,
+    displayName: getDisplayName(body.querySelector('.profile .ui-header'), nickname.trim() || raw.username),
     avatarUrl: raw.avatarUrl,
     website: raw.website,
     memberNumber: raw.memberNumber,
+    ...(messageRecipientId === undefined ? {} : { messageRecipientId }),
     joinDate: raw.joinDate,
     id: details["ID"] || "",
-    nickname: details["昵称"] || "",
+    nickname,
     city: details["城市"] || "",
     email: details["Email"] || "",
     blog: details["Blog"] || "",
@@ -298,7 +327,10 @@ function parseProfile(body: any): UserProfile {
     favoriteCount: raw.favoriteCount,
     reputation: raw.reputation,
     level: parseLevel(body),
-    topics: raw.topics || [],
+    topics: (raw.topics || []).map((topic, index) => ({
+      ...topic,
+      displayName: getDisplayName(topicItems[index]?.querySelector('.meta'), topic.username, topic.userLink),
+    })),
     replies: raw.replies || [],
     moreTopicsLink: raw.moreTopicsLink,
     moreRepliesLink: raw.moreRepliesLink,

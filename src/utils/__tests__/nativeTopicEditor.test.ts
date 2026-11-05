@@ -49,8 +49,11 @@ describe('native topic editor adapter', () => {
   });
 });
 describe('conservative appended Markdown shortcuts', () => {
-  it.each([['#', '# ', 'header', 'h1'], ['##', '## ', 'header', 'h2'], ['###', '### ', 'header', 'h3'], ['-', '- ', 'list', 'bullet'], ['1.', '1. ', 'list', 'ordered']])('converts %s delimiter', (before, after, name, value) => {
+  it.each([['#', '# ', 'header', 'h1'], ['##', '## ', 'header', 'h2'], ['###', '### ', 'header', 'h3'], ['-', '- ', 'list', 'bullet']])('converts %s delimiter', (before, after, name, value) => {
     expect(planEditorShortcut(plain(before), plain(after), { index: after.length, length: 0 })?.format).toEqual({ name, value });
+  });
+  it('does not convert numbered-list or italic delimiters', () => {
+    expect(planEditorShortcut(plain('1.'), plain('1. '), { index: 3, length: 0 })).toBeNull();
   });
   it('converts bold with exact descending deletions and restored caret', () => {
     expect(planEditorShortcut(plain('前 **文字*'), plain('前 **文字**'), { index: 8, length: 0 })).toMatchObject({

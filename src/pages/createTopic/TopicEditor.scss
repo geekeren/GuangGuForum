@@ -1,50 +1,90 @@
 @import "../../vars.scss";
 
-.topicEditor { min-width: 0; padding-bottom: 184rpx; }
+.topicEditor { min-width: 0; }
+// Keep the draft in its own viewport: page-level scrolling made long posts move
+// the whole form, and the native overlay scrollbar faded away on iOS.
+// The height is measured at runtime so the body fills the space left below it.
+.topicEditorBody { position: relative; min-width: 0; }
+.topicEditorBodyScroll { width: 100%; height: 40vh; min-height: 0; }
+.topicEditorBodyContent { min-width: 0; padding-right: 4rpx; box-sizing: border-box; }
+.topicEditorBodyScrollbar { position: absolute; top: 8rpx; bottom: 8rpx; right: -8rpx; width: 6rpx; pointer-events: none; }
+.topicEditorBodyScrollThumb { position: absolute; right: 0; width: 4rpx; border-radius: 2rpx; background: rgba(140, 140, 140, 0.55); }
 .richTopicBody { color: $text-primary; background: $surface; }
-.topicNativeEditor { width: 100%; min-height: 480rpx; height: auto; font-size: 30rpx; line-height: 1.8; }
-.topicWritingHint { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; color: $text-faint; font-size: 21rpx; padding: 20rpx 0; }
-.topicSourceToggle { flex-shrink: 0; color: $color-brand; padding: 8rpx; }
-.topicEditorNotice, .topicUploadHint { display: block; font-size: 22rpx; line-height: 1.7; color: $text-muted; margin-bottom: 16rpx; }
-.topicEditorFormats { display: flex; align-items: center; height: 72rpx; padding: 0 24rpx; gap: 12rpx; border-top: 1rpx solid $border-color; }
-.topicFormatTool { flex: 1; text-align: center; color: $text-primary; font-size: 26rpx; padding: 12rpx 4rpx; }
+// The outer body ScrollView is the only vertical scroll owner. Native Editor
+// defaults its content to height:100%/overflow-y:auto, creating a second viewport.
+.topicNativeEditor { width: 100%; min-height: 480rpx; height: auto; overflow: visible; font-size: 17.2PX; line-height: 1.8; caret-color: var(--theme-input-caret, #0754d7); }
+.topicNativeEditor .ql-editor { height: auto; overflow: visible; color: inherit; line-height: inherit; caret-color: var(--theme-input-caret, #0754d7); }
+// Preserve native image-selection interaction while it temporarily locks content.
+.topicNativeEditor .ql-editor.scroll-disabled { overflow: hidden; }
+.createTopic .titleInput, .createTopic .topicEditorInput { caret-color: var(--theme-input-caret, #0754d7); }
+// The native editor renders real <ul>/<ol>/<li> nodes. Taro's html transform
+// rewrites a bare `li` selector to `.h5-li` (which never matches). `:is(li)`
+// keeps the tag name intact. The marker participates in the first text line's
+// baseline instead of being absolutely positioned against the item's top edge.
+// Its negative margin reclaims the existing positive padding, not space outside
+// the item: marker [0, 1.5em], gap [1.5em, 1.8em], text starts at 1.8em.
+// Wrapped/empty lines retain their slot; native content/counters/indent stay owned
+// by Editor. Bind color explicitly at the Editor boundary and inherit internally.
+.topicNativeEditor :is(li) { padding-left: 1.8em; min-height: 1.8em; line-height: inherit; color: inherit; }
+.topicNativeEditor :is(li)::before {
+  position: static;
+  display: inline-block;
+  width: 1.5em;
+  margin-left: -1.8em;
+  margin-right: 0.3em;
+  vertical-align: baseline;
+  font-size: inherit;
+  line-height: inherit;
+  text-align: right;
+  color: inherit;
+}
+.topicEditorRecovery { color: $color-brand; font-size: 12.61PX; padding: 8rpx 0; margin-bottom: 16rpx; }
+.topicEditorNotice, .topicUploadHint { display: block; font-size: 12.61PX; line-height: 1.7; color: $text-muted; margin-bottom: 16rpx; }
 .topicRichMentions { display: flex; flex-wrap: wrap; gap: 12rpx; margin: 16rpx 0; }
-.topicMentionChip { color: $color-brand; background: $surfaceAlt; border-radius: 12rpx; padding: 12rpx 18rpx; font-size: 26rpx; }
+.topicMentionChip { color: $color-brand; background: $surfaceAlt; border-radius: 12rpx; padding: 12rpx 18rpx; font-size: 14.91PX; }
 .topicAttachmentRegion { overflow: hidden; transition: height 200ms ease; }
 .topicAttachmentScroll { width: 100%; height: 166rpx; }
 .topicAttachmentTrack { display: flex; flex-direction: row; padding-top: 12rpx; }
 .topicAttachment { position: relative; width: 128rpx; height: 128rpx; margin-right: 16rpx; flex-shrink: 0; border-radius: 16rpx; background: $surfaceAlt; }
 .topicAttachmentImage { display: block; width: 100%; height: 100%; border-radius: 16rpx; }
-.topicAttachmentRemove { position: absolute; top: -10rpx; right: -8rpx; width: 36rpx; height: 36rpx; border-radius: 50%; background: $text-muted; color: $surface; display: flex; flex-direction: row; align-items: center; justify-content: center; z-index: 2; font-size: 28rpx; }
+.topicAttachmentRemove { position: absolute; top: -10rpx; right: -8rpx; width: 36rpx; height: 36rpx; border-radius: 50%; background: $text-muted; color: $surface; display: flex; flex-direction: row; align-items: center; justify-content: center; z-index: 2; font-size: 16.05PX; }
 .topicUploadOverlay { position: absolute; inset: 0; border-radius: 16rpx; background: rgba(0, 0, 0, 0.42); display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .topicUploadOverlay--failed { background: rgba(82, 33, 33, 0.65); }
 .topicUploadSpinner { width: 28rpx; height: 28rpx; border: 3rpx solid rgba(255, 255, 255, 0.35); border-top-color: #fff; border-radius: 50%; animation: topicUploadSpin 800ms linear infinite; }
-.topicUploadText { color: #fff; font-size: 20rpx; line-height: 1.5; margin-top: 10rpx; text-align: center; }
-.topicUploadError { display: block; color: var(--theme-danger, #c74646); font-size: 22rpx; line-height: 1.6; margin-bottom: 16rpx; }
+.topicUploadText { color: #fff; font-size: 11.47PX; line-height: 1.5; margin-top: 10rpx; text-align: center; }
+.topicUploadError { display: block; color: var(--theme-danger, #c74646); font-size: 12.61PX; line-height: 1.6; margin-bottom: 16rpx; }
 .createTopic .topicEditorInput { min-height: 240rpx; }
-.topicEditorToolbar { display: flex; flex-direction: row; align-items: center; padding-top: 16rpx; margin-top: 12rpx; border-top: 1rpx solid $border-color; }
-.topicEditorTool { width: 76rpx; height: 60rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; }
-.topicEditorToolIcon { width: 42rpx; height: 42rpx; }
-.topicAttachmentCount { margin-left: auto; color: $text-faint; font-size: 22rpx; }
-.topicEditorPanelRegion { overflow: hidden; transition: height 200ms ease; }
+.topicEditorToolbar { display: flex; flex-direction: row; align-items: center; flex-wrap: nowrap; background: $surface; border-radius: 20rpx; }
+.topicEditorTool { flex: 1; min-width: 0; height: 72rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; }
+.topicEditorToolIcon { display: block; width: 40rpx; height: 40rpx; }
+.topicEditorToolGlyph { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; flex: none; border-radius: 16rpx; }
+.topicEditorTool--active .topicEditorToolGlyph, .topicEditorTool:active .topicEditorToolGlyph { background: $color-brand-soft; }
+.topicEditorTool--disabled { opacity: 0.35; }
+.topicEditorPanelRegion { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; background: $surfaceAlt; }
+.topicEditorPanelHeader { display: flex; flex-shrink: 0; border-bottom: 1rpx solid $border-color; }
+.topicEditorPanelAction { flex: 1; padding: 16rpx 12rpx; text-align: center; font-size: 12.61PX; color: $color-brand; }
+.topicEditorPanelRegion > .topicEditorPanel { flex: 1; height: 0; min-height: 0; }
 .topicEditorPanel { display: flex; flex-direction: column; height: 100%; min-height: 0; background: $surfaceAlt; border-radius: 16rpx; }
 .topicEditorTabs { display: flex; flex-direction: row; flex-shrink: 0; border-bottom: 1rpx solid $border-color; }
-.topicEditorTab { flex: 1; padding: 20rpx 0; text-align: center; color: $text-muted; font-size: 26rpx; }
+.topicEditorTab { flex: 1; padding: 20rpx 0; text-align: center; color: $text-muted; font-size: 14.91PX; }
 .topicEditorTab--active { color: $color-brand; font-weight: 600; }
 .topicEditorPanelScroll { flex: 1; height: 0; min-height: 0; width: 100%; }
 .topicPanelRow { display: flex; flex-direction: row; width: 100%; }
-.topicPanelEmoji { width: 12.5%; height: 76rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; font-size: 40rpx; flex-shrink: 0; }
+.topicPanelEmoji { width: 12.5%; height: 76rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; font-size: 22.93PX; flex-shrink: 0; }
 .topicPanelSticker { width: 20%; height: 104rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; flex-shrink: 0; }
 .topicPanelStickerImage { width: 84rpx; height: 84rpx; }
-.topicCommonHeading { display: block; color: $text-muted; padding: 16rpx 20rpx 6rpx; font-size: 22rpx; }
-.topicCommonEmpty { display: block; color: $text-faint; padding: 20rpx; font-size: 22rpx; }
-.topicMoreActions { display: flex; flex-direction: row; padding: 32rpx 20rpx; }
-.topicMoreAction { width: 33.333%; display: flex; flex-direction: column; align-items: center; color: $text-muted; font-size: 24rpx; }
-.topicMoreSquare { width: 108rpx; height: 108rpx; border-radius: 24rpx; background: $surface; display: flex; flex-direction: row; align-items: center; justify-content: center; margin-bottom: 16rpx; }
-.topicMoreIcon { width: 56rpx; height: 56rpx; }
+.topicCommonHeading { display: block; color: $text-muted; padding: 16rpx 20rpx 6rpx; font-size: 12.61PX; }
+.topicCommonEmpty { display: block; color: $text-faint; padding: 20rpx; font-size: 12.61PX; }
+.topicMoreActions { display: flex; flex-direction: row; flex-wrap: wrap; padding: 24rpx 20rpx; }
+.topicMoreAction { width: 25%; display: flex; flex-direction: column; align-items: center; color: $text-muted; font-size: 12.61PX; margin-bottom: 22rpx; }
+.topicMoreSquare { width: 88rpx; height: 88rpx; border-radius: 20rpx; background: $surface; display: flex; flex-direction: row; align-items: center; justify-content: center; margin-bottom: 12rpx; }
+.topicMoreIcon { width: 44rpx; height: 44rpx; }
 
 @keyframes topicUploadSpin { to { transform: rotate(360deg); } }
 
-.topicEditorDock { position: fixed; left: 0; right: 0; z-index: 101; background: $surface; padding-bottom: env(safe-area-inset-bottom); box-sizing: border-box; }
-.topicEditorDock .topicEditorToolbar { height: 92rpx; padding: 0 24rpx; margin: 0; box-sizing: border-box; }
-.topicEditorDock .topicEditorPanel { border-radius: 0; }
+.topicEditorDockHost { position: fixed; left: 0; bottom: 0; z-index: 101; display: block; box-sizing: border-box; pointer-events: none; }
+.topicEditorDock { position: absolute; left: 0; bottom: 0; width: 100%; background: $bgColor; border-radius: 24rpx 24rpx 0 0; padding-top: 12rpx; box-sizing: border-box; pointer-events: auto; }
+.topicEditorViewportProbe { position: fixed; left: 0; right: 0; top: 0; bottom: 0; visibility: hidden; pointer-events: none; }
+.topicEditorDock .topicEditorToolbar { height: 80rpx; padding: 0 10rpx; margin: 0 20rpx; box-sizing: border-box; }
+.topicEditorDockHost .topicEditorPanelRegion { pointer-events: auto; }
+.topicEditorDockHost .topicEditorPanel { border-radius: 0; box-sizing: border-box; }

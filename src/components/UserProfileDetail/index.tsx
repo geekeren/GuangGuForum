@@ -8,7 +8,7 @@ import CommentIcon from "../../assets/comment.svg?raw";
 import ThemedIcon from "../ThemedIcon";
 import Loading from "../Loading";
 import RecentlyViewedTopics from '../RecentlyViewedTopics';
-import { isSkyline } from "../../utils/renderer";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
 import "./index.scss";
 
 interface Props {
@@ -16,6 +16,8 @@ interface Props {
   className?: string;
   actions?: React.ReactNode;
   navPaddingTop?: number;
+  /** Opt in when the containing page owns the hero background. */
+  backgroundOwner?: 'page';
   showRecentlyViewed?: boolean;
   active?: boolean;
 }
@@ -28,14 +30,15 @@ const TAB_LIST = [
 
 type TabKey = (typeof TAB_LIST)[number]["key"] | 'recent';
 
-export default function UserProfileDetail({ profile, className = "", actions, navPaddingTop, showRecentlyViewed = false, active = true }: Props) {
-  const skyline = isSkyline();
+export default function UserProfileDetail({ profile, className = "", actions, navPaddingTop, backgroundOwner, showRecentlyViewed = false, active = true }: Props) {
+  const skyline = usePageRenderer() === "skyline";
   const singleLine = skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {};
   const twoLines = skyline ? { overflow: "ellipsis", maxLines: 2 } as const : {};
   const [activeTab, setActiveTab] = useState<TabKey>("topics");
   const [favorites, setFavorites] = useState<FavoriteTopic[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const tabs = showRecentlyViewed ? [...TAB_LIST, { key: 'recent' as const, label: '最近浏览' }] : TAB_LIST;
+  const displayName = profile.nickname?.trim() || profile.displayName?.trim() || profile.username;
 
   useEffect(() => {
     if (activeTab === "favorites" && favorites.length === 0) {
@@ -70,9 +73,7 @@ export default function UserProfileDetail({ profile, className = "", actions, na
     return <TopicTag label={category} onClick={onClick} />;
   };
 
-  return (
-    <View className={`userProfileDetail${skyline ? " userProfileDetail--skyline" : ""}${className ? ` ${className}` : ""}`}>
-      {/* 头像 + 名 + ID + 操作 */}
+  const profileCard = (
       <View className="profileCard" style={{
         paddingTop: navPaddingTop,
       }}>
@@ -82,13 +83,13 @@ export default function UserProfileDetail({ profile, className = "", actions, na
           </View>
           <View className="nameBlock">
             <View className="nameRow">
-              <Text className="username" {...singleLine}>{profile.username}</Text>
+              <Text className="username" {...singleLine}>{displayName}</Text>
               {profile.level && (
                 <Text className="levelBadge">{profile.level}</Text>
               )}
             </View>
-            {profile.nickname && profile.nickname !== profile.username && (
-              <Text className="nickname" {...singleLine}>{profile.nickname}</Text>
+            {displayName !== profile.username && (
+              <Text className="nickname" {...singleLine}>{profile.username}</Text>
             )}
             <Text className="memberInfo">
               {profile.memberNumber}
@@ -116,7 +117,9 @@ export default function UserProfileDetail({ profile, className = "", actions, na
           </View>
         </View>
       </View>
-
+  );
+  const profileBody = (
+    <>
       {/* 个人简介 */}
       {(profile.city || profile.email || profile.blog || profile.website) && (
         <View className="detailCard">
@@ -240,6 +243,13 @@ export default function UserProfileDetail({ profile, className = "", actions, na
             ))}
         </View>
       </View>
+    </>
+  );
+
+  return (
+    <View className={`userProfileDetail${skyline ? " userProfileDetail--skyline" : ""}${className ? ` ${className}` : ""}${backgroundOwner === 'page' ? ' userProfileDetail--pageBackground' : ''}`}>
+      {profileCard}
+      {backgroundOwner === 'page' ? <View className='profileBody'>{profileBody}</View> : profileBody}
     </View>
   );
 }

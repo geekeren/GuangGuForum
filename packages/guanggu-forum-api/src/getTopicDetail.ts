@@ -5,10 +5,16 @@ import { URLS } from "./urls";
 import { DataDom, getDataFromHtml } from "./utils/getDataFromHtml";
 import { CacheAPIFunc } from "./types";
 
+export type CreateCommentStatus = 'ready' | 'form-unavailable' | 'invalid-form' | 'login-required';
+
 export interface TopicDetail {
   tid?: string;
   author: string;
   authorLevel?: string;
+  /** Account handle (legacy `.username` / display anchor `data-username`). */
+  authorUsername?: string;
+  /** Numeric account id from display anchor `data-gzk-mention-user`. */
+  authorUserId?: string;
   authorAvatarUrl: string;
   createTime: string;
   lastReplyTime: string;
@@ -24,6 +30,8 @@ export interface TopicDetail {
     id?: string;
     author: string;
     authorLevel?: string;
+    authorUsername?: string;
+    authorUserId?: string;
     authorAvatarUrl: string;
     content: string;
     floor: string;
@@ -33,6 +41,8 @@ export interface TopicDetail {
   }[];
   commentTotalCount: string;
   createCommentXSRF: string;
+  /** Only a verified, enabled reply form is ready. Absence does not imply a posting restriction. */
+  createCommentStatus?: CreateCommentStatus;
   relatingTopics: {
     authorAvatarUrl: string;
     authorLink?: string;
@@ -190,34 +200,162 @@ const domStructure: DataDom<TopicDetail> = {
   },
 };
 
-function parseAuthor(node: HTMLElement | null | undefined, fallback: string) {
-  const anchor = node?.tagName === "A" && node.getAttribute("href")?.startsWith("/u/")
-    ? node : node?.querySelector('a[href^="/u/"]');
-  const author = anchor?.textContent.trim();
-  if (!author) return { author: fallback };
-  // Inspect distinct sibling nodes, never split a username that happens to contain Lv.
-  let current = anchor!;
-  while (current !== node && current.parentNode) {
+interface ParsedAuthor {
+  author: string;
+  authorLevel?: string;
+  authorUsername?: string;
+  authorUserId?: string;
+  authorAvatarUrl?: string;
+}
+
+const LEVEL_TEXT = /^Lv\.?\s*\d+$/i;
+
+function nodeClasses(node: HTMLElement): string[] {
+  return String(node.getAttribute("class") || "").split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Account anchors and username wrappers are never level nodes. The display-name
+ * anchor in particular carries no level data; its attributes/title must not be
+ * mined for one. Plain siblings (including `a[href="/level"]`) still work.
+ */
+function isAccountNode(node: HTMLElement): boolean {
+  if (!node || node.nodeType !== 1) return false;
+  const classes = nodeClasses(node);
+  if (["username", "reply-username", "gzk-display-name", "gzk-legacy-id"].some((name) => classes.includes(name))) {
+    return true;
+  }
+  return node.tagName === "A" && !!node.getAttribute("href")?.startsWith("/u/");
+}
+
+function findLegacyAnchor(container: HTMLElement | null | undefined): HTMLElement | undefined {
+  if (!container) return undefined;
+  const username = container.querySelector(".username") || undefined;
+  const scoped = username?.tagName === "A" && username.getAttribute("href")?.startsWith("/u/")
+    ? username
+    : username?.querySelector('a[href^="/u/"]') || undefined;
+  if (scoped) return scoped;
+  if (container.tagName === "A" && container.getAttribute("href")?.startsWith("/u/")
+    && !nodeClasses(container).includes("gzk-display-name")) {
+    return container;
+  }
+  return container.querySelector('a[href^="/u/"]:not(.gzk-display-name)') || undefined;
+}
+
+function findLevelAbove(anchor: HTMLElement | undefined, root: HTMLElement | null | undefined): string | undefined {
+  let current: any = anchor;
+  while (current && current !== root && current.parentNode) {
     const parent = current.parentNode;
     const level = parent.childNodes
-      .filter((child) => child !== current)
-      .map((child) => child.textContent.trim())
-      .find((text) => /^Lv\.?\s*\d+$/i.test(text));
-    if (level) return { author, authorLevel: level };
+      .filter((child: any) => child !== current)
+      .filter((child: any) => !isAccountNode(child))
+      .map((child: any) => child.textContent?.trim() || "")
+      .find((text: string) => LEVEL_TEXT.test(text));
+    if (level) return level;
     current = parent;
   }
-  return { author };
+  return undefined;
+}
+
+function parseAuthor(container: HTMLElement | null | undefined, fallback: string): ParsedAuthor {
+  const display = container?.querySelector(".gzk-display-name") || undefined;
+  const legacy = findLegacyAnchor(container);
+  const legacyText = legacy?.textContent.trim()
+    || container?.querySelector(".username")?.textContent.trim()
+    || "";
+  const displayText = display
+    ? display.querySelector("bdi")?.textContent.trim() || display.textContent.trim()
+    : "";
+  // Upstream order: rendered nickname, `data-display-name`, then the legacy handle.
+  const displayName = display
+    ? displayText || display.getAttribute("data-display-name")?.trim() || legacyText
+    : "";
+  const author = (display ? displayName : legacy?.textContent.trim()) || fallback;
+  const result: ParsedAuthor = { author };
+
+  const level = findLevelAbove(display, container) || findLevelAbove(legacy, container);
+  if (level) result.authorLevel = level;
+
+  const username = display?.getAttribute("data-username")?.trim() || legacyText;
+  if (username) result.authorUsername = username;
+
+  const userId = display?.getAttribute("data-gzk-mention-user")?.trim();
+  if (userId && /^\d+$/.test(userId)) result.authorUserId = userId;
+
+  const avatar = display?.getAttribute("data-avatar")?.trim();
+  if (avatar) result.authorAvatarUrl = avatar;
+
+  return result;
+}
+
+function isRenderedContent(node: HTMLElement, boundary: HTMLElement, allowReplyFormLayout = false): boolean {
+  // The verified server layout is region > DIV.ui-content > FORM, not rendered topic HTML.
+  const serverLayout = allowReplyFormLayout && node.tagName === 'FORM'
+    && node.parentNode?.tagName === 'DIV' && node.parentNode.parentNode === boundary
+    ? node.parentNode : null;
+  let current: HTMLElement | null = node;
+  while (current && current !== boundary) {
+    if (nodeClasses(current).some(name => {
+      if (name === 'topic-reply-create') return current !== node || allowReplyFormLayout;
+      if (name === 'ui-content') return current !== serverLayout;
+      return ['topic-detail', 'topic-reply', 'reply-item', 'content'].includes(name);
+    })) return true;
+    current = current.parentNode as HTMLElement | null;
+  }
+  return current !== boundary;
+}
+
+function parseReplyForm(body: HTMLElement | undefined, tid: string): Pick<TopicDetail, 'createCommentXSRF' | 'createCommentStatus'> {
+  const unavailable = { createCommentXSRF: '', createCommentStatus: 'form-unavailable' as const };
+  const invalid = { createCommentXSRF: '', createCommentStatus: 'invalid-form' as const };
+  const root = body?.querySelector('.container .row');
+  if (!root) return unavailable;
+  // Keep the page-layout boundary: a topic or reply may render user-supplied HTML.
+  const regions = root.querySelectorAll('.topic-reply-create').filter(region => !isRenderedContent(region, root));
+  if (!regions.length) return unavailable;
+  if (regions.length !== 1) return invalid;
+  const region = regions[0];
+  const forms = region.querySelectorAll('form').filter(form => !isRenderedContent(form, region, true));
+  const login = forms.some(form => form.getAttribute('action') === '/login'
+    && form.querySelectorAll('input[name="password"][type="password"]').length === 1);
+  const replyForms = forms.filter(form => form.querySelector('textarea[name="content"]'));
+  if (!replyForms.length) return login ? { createCommentXSRF: '', createCommentStatus: 'login-required' } : unavailable;
+  if (replyForms.length !== 1 || forms.length !== 1) return invalid;
+  const form = replyForms[0];
+  const action = form.getAttribute('action');
+  if (form.getAttribute('method')?.toLowerCase() !== 'post' || (action !== '' && action !== `/t/${tid}`)
+    || form.hasAttribute('disabled') || form.querySelector('fieldset[disabled]')) return invalid;
+  const content = form.querySelectorAll('[name="content"]');
+  const tokens = form.querySelectorAll('[name="_xsrf"]');
+  const topicIds = form.querySelectorAll('[name="tid"]');
+  if (content.length !== 1 || content[0].tagName !== 'TEXTAREA' || content[0].hasAttribute('disabled')
+    || content[0].hasAttribute('readonly') || tokens.length !== 1 || tokens[0].tagName !== 'INPUT'
+    || tokens[0].getAttribute('type')?.toLowerCase() !== 'hidden' || tokens[0].hasAttribute('disabled')
+    || topicIds.length > 1) return invalid;
+  // Older form fixtures lack tid; when the server provides it, it must identify this topic.
+  if (topicIds.length && (topicIds[0].tagName !== 'INPUT' || topicIds[0].getAttribute('type')?.toLowerCase() !== 'hidden'
+    || topicIds[0].hasAttribute('disabled') || topicIds[0].getAttribute('value') !== tid)) return invalid;
+  const token = tokens[0].getAttribute('value') || '';
+  if (!token.trim()) return invalid;
+  return { createCommentXSRF: token, createCommentStatus: 'ready' };
 }
 
 function parseTopicDetail(body: HTMLElement | undefined, tid: string): TopicDetail {
   const detail = getDataFromHtml<TopicDetail>(body, domStructure);
   if (!detail) return detail;
   detail.tid = tid;
+  Object.assign(detail, parseReplyForm(body, tid));
   const root = body?.querySelector(".container .row");
-  Object.assign(detail, parseAuthor(root?.querySelector(".topic-detail .main .meta .username"), detail.author));
+  const topicMeta = root?.querySelector(".topic-detail .main .meta");
+  Object.assign(detail, parseAuthor(topicMeta, detail.author));
+  // The same meta can render the last-reply author with display-name markup.
+  detail.lastReplyUser = parseAuthor(
+    topicMeta?.querySelector(".last-reply-username"),
+    detail.lastReplyUser,
+  ).author;
   const replies = root?.querySelectorAll(".topic-reply .reply-item") || [];
   detail.comments.forEach((comment, index) => {
-    Object.assign(comment, parseAuthor(replies[index]?.querySelector(".meta .reply-username .username"), comment.author));
+    Object.assign(comment, parseAuthor(replies[index]?.querySelector(".meta"), comment.author));
   });
   return detail;
 }
@@ -227,6 +365,14 @@ export interface GetTopicDetailParam {
   page?: string;
   replyId?: string;
   latest?: boolean;
+}
+
+function parseTopicResponse(response: Awaited<ReturnType<typeof request>>, tid: string): TopicDetail {
+  if (!response.fromCache && response.rawRes?.statusCode !== 200) throw new Error('帖子加载失败，请重试');
+  if (!response.body?.querySelector('.container .row .topic-detail')) throw new Error('帖子加载失败，请重试');
+  const detail = parseTopicDetail(response.body, tid);
+  if (!detail?.title) throw new Error('帖子加载失败，请重试');
+  return detail;
 }
 
 function getLastCommentPage(body: HTMLElement | undefined, tid: string): string | undefined {
@@ -251,17 +397,15 @@ export const getTopicDetail: CacheAPIFunc<GetTopicDetailParam, TopicDetail> = (
     // Start at the canonical topic, not a historical reply resolver or cached page.
     const topicUrl = getUrl(URLS.TOPIC_DETAIL, { tid });
     return request(topicUrl, { cache: false, cacheApi: 'getTopicDetail', query: {} })
-      .then(async ({ body }) => {
-        const lastPage = getLastCommentPage(body, tid);
+      .then(async (response) => {
+        parseTopicResponse(response, tid);
+        const lastPage = getLastCommentPage(response.body, tid);
         if (lastPage) {
-          const result = await request(topicUrl, {
+          response = await request(topicUrl, {
             cache: false, cacheApi: 'getTopicDetail', query: { p: lastPage },
           });
-          body = result.body;
         }
-        const detail = parseTopicDetail(body, tid);
-        if (!detail?.title) throw new Error('帖子加载失败，请重试');
-        return detail;
+        return parseTopicResponse(response, tid);
       });
   }
   const cache = options?.cache ?? true;
@@ -277,7 +421,5 @@ export const getTopicDetail: CacheAPIFunc<GetTopicDetailParam, TopicDetail> = (
         ? (body) => options.onRefresh!(parseTopicDetail(body, tid))
         : undefined,
     },
-  ).then(({ body }) => {
-    return parseTopicDetail(body, tid);
-  });
+  ).then((response) => parseTopicResponse(response, tid));
 }

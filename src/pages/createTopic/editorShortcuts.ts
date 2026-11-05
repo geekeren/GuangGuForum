@@ -4,7 +4,7 @@ export interface EditorRange { index: number; length: number }
 export interface ShortcutPlan {
   deletions: EditorRange[];
   selection: EditorRange;
-  format: { name: 'header' | 'list' | 'bold'; value: string };
+  format: { name: 'header' | 'list'; value: string } | { name: 'bold'; value?: never };
   caret: number;
 }
 
@@ -39,7 +39,7 @@ export function planEditorShortcut(previous: TopicDelta, next: TopicDelta, range
   if (prefix(previous) !== prefix(next)) return null;
   const line = text.slice(start);
   const heading = /^(#{1,3}) $/.exec(line);
-  const list = line === '- ' ? 'bullet' : line === '1. ' ? 'ordered' : null;
+  const list = line === '- ' ? 'bullet' : null;
   if (heading || list) return {
     deletions: [{ index: start, length: line.length }], selection: { index: start, length: 0 },
     format: heading ? { name: 'header', value: `h${heading[1].length}` } : { name: 'list', value: list! }, caret: start,
@@ -49,6 +49,6 @@ export function planEditorShortcut(previous: TopicDelta, next: TopicDelta, range
   const opening = start + bold[1].length;
   return {
     deletions: [{ index: text.length - 2, length: 2 }, { index: opening, length: 2 }],
-    selection: { index: opening, length: bold[2].length }, format: { name: 'bold', value: 'true' }, caret: text.length - 4,
+    selection: { index: opening, length: bold[2].length }, format: { name: 'bold' }, caret: text.length - 4,
   };
 }

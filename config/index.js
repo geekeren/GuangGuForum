@@ -15,6 +15,10 @@ const config = {
     patterns: [
       { from: "sitemap.json", to: "dist/sitemap.json" },
       { from: "src/theme.json", to: "dist/theme.json" },
+      {
+        from: "src/native-components/topic-format-button",
+        to: "dist/native-components/topic-format-button",
+      },
     ],
     options: {},
   },

@@ -3,7 +3,7 @@ import Taro from "@tarojs/taro";
 import { getNavInfo } from "../../utils/dimension";
 import { useTheme } from "../../hooks/useTheme";
 import { THEME_PALETTES } from "../../utils/themePreferences";
-import { isSkyline } from "../../utils/renderer";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
 import ThemedIcon from "../ThemedIcon";
 import ChevronLeftIcon from "../../assets/chevron-left.svg?raw";
 import HomeIcon from "../../assets/nav-home.svg?raw";
@@ -27,6 +27,7 @@ interface Props {
 const Navbar = (props: Props) => {
   const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, left = false, shareKey, shared = true, leftAction, children } = props;
   const { theme } = useTheme();
+  const skyline = usePageRenderer() === "skyline";
   const surfaceRGB = THEME_PALETTES[theme]["surface-rgb"];
   const { capsulePaddingTop, capsuleHeight, capsuleWidth, capsuleLeft, screenWidth, statusBarHeight, marginSides } = getNavInfo();
   const paddingRight = screenWidth - capsuleLeft + Math.max(marginSides, 12);
@@ -95,7 +96,7 @@ const Navbar = (props: Props) => {
         )}
         <View className={`navContent ${left ? 'navContent--left' : ''}`} style={{ height: capsuleHeight + "px" }}>
           {title && !children && (
-            <Text className="navTitle" style={titleStyle} maxLines={isSkyline() ? 1 : undefined} overflow={isSkyline() ? 'ellipsis' : undefined}>{title}</Text>
+            <Text className="navTitle" style={titleStyle} maxLines={skyline ? 1 : undefined} overflow={skyline ? 'ellipsis' : undefined}>{title}</Text>
           )}
           {children && children}
         </View>
@@ -107,7 +108,7 @@ const Navbar = (props: Props) => {
 
   return <ShareElement
     mapkey={shareKey ?? "navbar"}
-    style={isSkyline() ? { width: "100%", flexShrink: 0 } : undefined}
+    style={skyline ? { width: "100%", flexShrink: 0 } : undefined}
   >{content}</ShareElement>;
 };
 

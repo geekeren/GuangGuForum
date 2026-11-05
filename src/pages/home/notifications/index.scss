@@ -52,7 +52,7 @@
   }
 
   .notificationTabIcon { width: 34rpx; height: 34rpx; flex-shrink: 0; }
-  .notificationTabLabel { font-size: 27rpx; line-height: 1.4; font-weight: 500; color: var(--theme-text-faint, #8792a6); }
+  .notificationTabLabel { font-size:14.91PX; line-height: 1.4; font-weight: 500; color: var(--theme-text-faint, #8792a6); }
   .notificationTabDot { width: 12rpx; height: 12rpx; border-radius: 50%; background: #ff5149; }
 
   .loginPromptWrap {
@@ -66,15 +66,30 @@
   .loginRetryHint {
     display: block;
     text-align: center;
-    font-size: 24rpx;
+    font-size: 13.76PX;
     color: $text-muted;
     padding: 12rpx 0 24rpx;
   }
 
+  .messageHubCategories { display: flex; flex-direction: row; align-items: flex-start; justify-content: space-around; flex-shrink: 0; padding: 26rpx 24rpx 24rpx; }
+  .messageHubCategory { display: flex; flex-direction: column; align-items: center; gap: 14rpx; flex: 1; min-width: 0; }
+  .messageHubCategoryIcon { position: relative; display: flex; flex-direction: row; align-items: center; justify-content: center; width: 80rpx; height: 80rpx; border-radius: 24rpx; background: var(--theme-accent-muted, #e8efff); }
+  .messageHubCategory--active .messageHubCategoryLabel { font-weight: 400; color: var(--theme-accent-text, #0754d7); }
+  .messageHubIcon { width: 40rpx; height: 40rpx; }
+  .messageHubCategoryLabel { display: block; font-size: 14PX; line-height: 1.5; color: var(--theme-text-primary, #10182d); }
+  .messageHubUnreadDot { position: absolute; right: 4rpx; top: 4rpx; width: 14rpx; height: 14rpx; border-radius: 50%; background: #f24b5d; }
+
+  .notificationPrivateEntry { display: flex; flex-direction: row; align-items: center; flex-shrink: 0; gap: 20rpx; margin: 0 22rpx 18rpx; padding: 22rpx 24rpx; border-radius: 24rpx; background: var(--theme-surface, #fff); }
+  .notificationPrivateEntryIcon { width: 42rpx; height: 42rpx; flex-shrink: 0; }
+  .notificationPrivateEntryBody { flex: 1; min-width: 0; }
+  .notificationPrivateEntryTitle { display: block; font-size: 16PX; line-height: 1.5; font-weight: 600; color: var(--theme-text-primary, #10182d); }
+  .notificationPrivateEntryHint { display: block; font-size: 12PX; line-height: 1.6; color: var(--theme-text-muted, #68758d); }
+  .notificationPrivateEntryDot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--theme-accent, #1f69ff); }
+  .notificationPrivateEntryArrow { font-size: 24PX; color: var(--theme-text-faint, #8792a6); }
+
   .notificationStatus {
     position: relative;
-    flex: 1;
-    min-height: 0;
+    min-height: 360rpx;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -121,7 +136,7 @@
     min-width: 0;
     flex-shrink: 1;
     color: var(--theme-text-primary, #10182d);
-    font-size: 29rpx;
+    font-size:17.2PX;
     font-weight: 700;
     line-height: 1.4;
     white-space: nowrap;
@@ -129,8 +144,8 @@
     text-overflow: ellipsis;
     &:active { color: #0754ee; }
   }
-  .notificationBadge { flex-shrink: 0; padding: 4rpx 12rpx; border-radius: 10rpx; background: var(--theme-accent-muted, #e8efff); color: var(--theme-accent-text, #0754d7); font-size: 21rpx; line-height: 1.4; }
-  .notificationTitle { display: block; font-size: 25rpx; color: var(--theme-text-muted, #68758d); line-height: 1.55; word-break: break-all; }
+  .notificationBadge { flex-shrink: 0; padding: 4rpx 12rpx; border-radius: 10rpx; background: var(--theme-accent-muted, #e8efff); color: var(--theme-accent-text, #0754d7); font-size:12.61PX; line-height: 1.4; }
+  .notificationTitle { display: block; font-size:14.91PX; color: var(--theme-text-muted, #68758d); line-height: 1.55; word-break: break-all; }
   .notificationAction { color: var(--theme-accent-text, #0754d7); }
   .notificationTopicLink { color: var(--theme-accent-text, #0754d7); font-weight: 500; &:active { opacity: 0.8; } }
 
@@ -139,17 +154,17 @@
     padding: 18rpx 20rpx;
     background: var(--theme-surface-alt, #f0f5fd);
     border-radius: 18rpx;
-    font-size: 26rpx;
+    font-size: 14.91PX;
     color: var(--theme-text-sub, #34415d);
     overflow: hidden;
 
     .htmlWrap .html {
-      font-size: 26rpx;
+      font-size: 14.91PX;
       line-height: 1.55;
       color: var(--theme-text-sub, #34415d);
       .h5-p { margin: 0 0 8rpx; }
       .h5-p:last-child { margin-bottom: 0; }
-      .h5-a, .html-link { color: var(--theme-accent-text, #0754d7); font-size: 26rpx; }
+      .h5-a, .html-link { color: var(--theme-accent-text, #0754d7); font-size: 14.91PX; }
       .html-link--mention { background: var(--theme-accent-muted, #e8efff); }
     }
   }
@@ -177,8 +192,8 @@
     image { width: 52rpx; height: 52rpx; }
   }
 
-  .emptyTitle { display: block; font-size: 32rpx; line-height: 1.5; font-weight: 600; color: $text-primary; }
-  .emptyDesc { display: block; font-size: 26rpx; line-height: 1.7; color: $text-muted; margin-top: 12rpx; }
+  .emptyTitle { display: block; font-size: 18.35PX; line-height: 1.5; font-weight: 600; color: $text-primary; }
+  .emptyDesc { display: block; font-size: 14.91PX; line-height: 1.7; color: $text-muted; margin-top: 12rpx; }
 }
 
 @keyframes notificationReveal {

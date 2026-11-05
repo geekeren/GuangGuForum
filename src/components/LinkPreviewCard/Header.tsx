@@ -1,6 +1,6 @@
 import { View, Text, Image } from "@tarojs/components";
 import type { LinkSummary } from "guanggu-forum-api";
-import { isSkyline } from "../../utils/renderer";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
 import "./index.scss";
 
 function getHostname(url: string): string {
@@ -17,7 +17,7 @@ interface LinkPreviewHeaderProps {
 }
 
 export const LinkPreviewHeader = ({ summary, url }: LinkPreviewHeaderProps) => {
-  const skyline = isSkyline();
+  const skyline = usePageRenderer() === "skyline";
   const displayUrl = url || summary.url;
 
   return (

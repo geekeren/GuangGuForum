@@ -1,4 +1,4 @@
-import { getScrollViewType } from "../../../utils/renderer";
+import { usePageRenderer } from "../../../hooks/usePageRenderer";
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -8,7 +8,6 @@ import UserAvatar from '../../../components/UserAvatar';
 import { getHotTopicPage, loadDiscoveryTopicMetadata, startHotTopicRotation } from "../../../utils/discoveryTopics";
 import { fetchAndCacheNodeNavigation, getCachedNodeNavigation } from "../../../utils/nodeNavigation";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
-import { isSkyline } from "../../../utils/renderer";
 import LoginPrompt from "../../../components/LoginPrompt";
 import NodePicker from "../../../components/NodePicker";
 import Loading from "../../../components/Loading";
@@ -46,6 +45,7 @@ const openNode = (slug: string, name: string) => Taro.navigateTo({
 });
 
 const Discovery = ({ active = false }: DiscoveryProps) => {
+  const skyline = usePageRenderer() === "skyline";
   const { theme } = useTheme();
   const scene = useMemo(() => discoverySceneSource(Scene, theme), [theme]);
   const { data: discoveryData, loading, request: fetchDiscovery } = useDataWithCache(getDiscoveryData);
@@ -119,8 +119,8 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
   const visibleTopics = getHotTopicPage(hotTopics || [], hotPage);
 
   return (
-    <View className={isSkyline() ? "discoveryPage discoveryPage--skyline" : "discoveryPage"} style={{ height: "100%" }}>
-      <ScrollView type={getScrollViewType()} scrollY enhanced className='discoveryScroll'>
+    <View className={skyline ? "discoveryPage discoveryPage--skyline" : "discoveryPage"} style={{ height: "100%" }}>
+      <ScrollView type={skyline ? 'custom' : undefined} scrollY enhanced className='discoveryScroll'>
         <View className='discoveryHero'>
           <Image src={scene} svg mode='aspectFit' className='discoveryHeroScene' />
           <View className='discoveryHeroBlend' />

@@ -1,0 +1,15 @@
+:host { display: block; width: 100%; }
+.format-button { width: 100%; height: 72rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; box-sizing: border-box; pointer-events: auto; }
+/* Keep the real touch target on the view that owns catchtouchend. Native image
+   internals and decorative upload children must not own a separate hit target. */
+.format-button__glyph, .format-button__icon, .format-button__thumbnail,
+.format-button__overlay, .format-button__spinner, .format-button__caption { pointer-events: none; }
+.format-button--disabled { opacity: 0.35; }
+.format-button__glyph { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; flex: none; border-radius: 16rpx; }
+.format-button__icon { width: 40rpx; height: 40rpx; display: block; }
+.format-button--thumbnail { position: relative; height: 128rpx; border-radius: 16rpx; overflow: hidden; }
+.format-button__thumbnail { width: 100%; height: 100%; display: block; }
+.format-button__overlay { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.42); }
+.format-button__spinner { width: 28rpx; height: 28rpx; border: 3rpx solid rgba(255, 255, 255, 0.35); border-top-color: #fff; border-radius: 50%; animation: format-button-spin 800ms linear infinite; }
+.format-button__caption { color: #fff; font-size: 11.47px; line-height: 1.5; margin-top: 10rpx; text-align: center; }
+@keyframes format-button-spin { to { transform: rotate(360deg); } }

@@ -307,14 +307,14 @@ describe("Skyline HTML parser normalization", () => {
     expect(separated.firstChild!.childNodes.map((n: any) => n.nodeName)).toEqual(["span", "view", "span"]);
     expect(separated.textContent).toBe("前@alice独立段落后@bob");
   });
-  it("uses compact link box height and horizontal margins without changing its label", () => {
+  it("gives link chips vertical breathing room without changing label size or horizontal margins", () => {
     const css = source("components/HtmlRender/index.scss");
     const chip = css.split(".html-linkChip {")[1].split("&:active")[0];
-    expect(chip).toContain("padding: 0 10rpx;");
+    expect(chip).toContain("padding: 4rpx 10rpx;");
     expect(chip).toContain("margin: 0 6rpx;");
-    expect(chip).toContain("line-height: 1;");
+    expect(chip).toContain("line-height: 1.4;");
     expect(chip).toContain("border-radius: 20rpx;");
-    expect(css.split(".html-linkLabel {")[1]).toContain("line-height: 1;");
+    expect(css.split(".html-linkLabel {")[1]).toContain("line-height: 1.4;");
     const mention = css.split("&--mention {")[1].split("&:active")[0];
     expect(mention).toContain("padding: 0 12rpx;");
     expect(mention).toContain("border-radius: 10rpx;");

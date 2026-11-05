@@ -1,0 +1,4 @@
+<!-- Keep dynamic image sources in the imported template: Taro's native asset
+     collector treats a root dynamic source as a relative filename. -->
+<import src="./content.wxml" />
+<template is="topic-control-content" data="{{icon, label, disabled, active, background, thumbnail, caption, loading}}" />

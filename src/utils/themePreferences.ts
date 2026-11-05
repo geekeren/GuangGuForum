@@ -19,9 +19,10 @@ export const THEME_PALETTES = {
     "shadow-md": "0 12rpx 32rpx rgba(15, 22, 38, 0.06)",
     "background-primary": "#f4f5fa", "background-secondary": "#ffffff", "background-tertiary": "#f0f3f8",
     "text-secondary": "#2c3548", "text-tertiary": "#6b7488", "border-subtle": "#e8ebf2",
-    "accent-primary": "#1f69ff", "accent-muted": "#e8efff", "accent-text": "#0754d7",
+    "accent-primary": "#1f69ff", "accent-muted": "#e8efff", "accent-text": "#0754d7", "input-caret": "#0754d7",
     "tab-active-background": "#1f69ff", "tab-inactive-background": "#ffffff",
-    "navigation-surface": "#ffffff", "compose-shadow": "0 8rpx 16rpx rgba(31, 105, 255, 0.25)",
+    "navigation-surface": "#ffffff", "navigation-shadow": "0 -4rpx 16rpx rgba(15, 22, 38, 0.08)",
+    "compose-shadow": "0 8rpx 16rpx rgba(31, 105, 255, 0.25)",
     "profile-bg": "#f4f5fa", "profile-surface": "#ffffff", "profile-surface-alt": "#f0f3f8",
   },
   dark: {
@@ -35,9 +36,10 @@ export const THEME_PALETTES = {
     // Explicit homepage roles reuse the existing neutral semantic palette.
     "background-primary": "#000000", "background-secondary": "#1c1c1e", "background-tertiary": "#252527",
     "text-secondary": "#d1d1d1", "text-tertiary": "#a6a6aa", "border-subtle": "rgba(255, 255, 255, 0.07)",
-    "accent-primary": "#3478ff", "accent-muted": "#202c40", "accent-text": "#8bb5ff",
+    "accent-primary": "#3478ff", "accent-muted": "#202c40", "accent-text": "#8bb5ff", "input-caret": "#8bb5ff",
     "tab-active-background": "#3478ff", "tab-inactive-background": "#1c1c1e",
-    "navigation-surface": "#171719", "compose-shadow": "0 4rpx 10rpx rgba(0, 0, 0, 0.18)",
+    "navigation-surface": "#171719", "navigation-shadow": "0 -4rpx 16rpx rgba(0, 0, 0, 0.28)",
+    "compose-shadow": "0 4rpx 10rpx rgba(0, 0, 0, 0.18)",
     "profile-bg": "#000000", "profile-surface": "#1c1c1e", "profile-surface-alt": "#2c2c2e",
   },
 } as const;

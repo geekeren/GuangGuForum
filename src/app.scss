@@ -4,6 +4,12 @@ image {
   display: block;
 }
 
+// Native inputs and webview-backed editing surfaces share one semantic caret role.
+input, textarea, editor,
+.taro-textarea, .weui-input, .weui-textarea {
+  caret-color: var(--theme-input-caret, #0754d7);
+}
+
 // Keep light-mode gradients; dark page canvases are uniformly black.
 // Cards, artwork and action buttons retain their own surfaces.
 .themePageHost--dark {
@@ -22,18 +28,6 @@ image {
       background: var(--theme-background-tertiary);
       border: 1rpx solid var(--theme-border-subtle);
       color: var(--theme-text-tertiary);
-    }
-
-    .tab-item {
-      background: var(--theme-tab-inactive-background);
-      border: 1rpx solid var(--theme-border-subtle);
-      box-shadow: none;
-      line-height: 52rpx;
-    }
-
-    .tab-item--active {
-      background: var(--theme-tab-active-background);
-      border-color: transparent;
     }
 
     .topicItem {

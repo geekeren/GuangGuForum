@@ -192,7 +192,7 @@ describe("Skyline scoped page layout contracts", () => {
       expect(navbars).toHaveLength(1);
       expect(navbars[0].props.shared).toBe(false);
       find(navbars[0].props.leftAction, "navSettingsIcon").props.onClick();
-      expect(Taro.navigateTo).toHaveBeenCalledWith({ url: "/pages/settings/index" });
+      expect(Taro.navigateTo).toHaveBeenCalledWith({ url: "/pages/secondary/settings/index" });
       const body = find(tree, "meStatusBody");
       const loading = elements(body).find(item => item.type === "Loading");
       if (state.checkingLogin || state.username) expect(loading?.props.fullscreen).toBe(true);

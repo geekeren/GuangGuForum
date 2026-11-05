@@ -1,9 +1,12 @@
 import { request } from "../client";
 import { DataDom, getDataFromHtml } from "../utils/getDataFromHtml";
 import { CacheAPIFunc } from "../types";
+import type { HTMLElement } from "node-html-parser";
+import { getDisplayName } from "../utils/displayName";
 
 export interface FavoriteTopic {
   username: string;
+  displayName?: string;
   userLink: string;
   userAvatarUrl: string;
   title: string;
@@ -14,7 +17,7 @@ export interface FavoriteTopic {
   commentCount: string;
 }
 
-const domStructure: DataDom<FavoriteTopic> = {
+const domStructure: DataDom<Omit<FavoriteTopic, 'displayName'>> = {
   _selector: ".topic-item",
   _type: "array",
   _item: "object",
@@ -66,6 +69,15 @@ const domStructure: DataDom<FavoriteTopic> = {
   },
 };
 
+function parseFavoriteTopics(body: HTMLElement | undefined): FavoriteTopic[] {
+  const topics = getDataFromHtml<Omit<FavoriteTopic, 'displayName'>>(body, domStructure) as unknown as FavoriteTopic[];
+  const items = body?.querySelectorAll('.topic-item') || [];
+  return topics?.map((topic, index) => ({
+    ...topic,
+    displayName: getDisplayName(items[index]?.querySelector('.meta') || items[index], topic.username, topic.userLink),
+  }));
+}
+
 export interface GetUserFavoritesParam {
   username: string;
   page?: number;
@@ -85,9 +97,9 @@ export const getUserFavorites: CacheAPIFunc<GetUserFavoritesParam, FavoriteTopic
       p: String(page),
     },
     onRefresh: options?.onRefresh
-      ? (body) => options.onRefresh!(getDataFromHtml(body, domStructure) as unknown as FavoriteTopic[])
+      ? (body) => options.onRefresh!(parseFavoriteTopics(body))
       : undefined,
   }).then(({ body }) => {
-    return getDataFromHtml(body, domStructure) as unknown as FavoriteTopic[];
+    return parseFavoriteTopics(body);
   });
 };

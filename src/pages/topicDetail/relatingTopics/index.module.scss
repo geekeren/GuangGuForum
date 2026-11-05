@@ -9,25 +9,23 @@
     flex-direction: row;
     width: 100%;
     box-sizing: border-box;
-    background: var(--theme-surface-soft, #f5f7fc);
-    border-radius: 16rpx;
-    margin-bottom: 8rpx;
-    padding: 10rpx 12rpx;
+    border-bottom: 1rpx solid $border-color;
+    padding: 16rpx 12rpx;
     align-items: center;
 
-    &:last-child { margin-bottom: 0; }
+    &:last-child { border-bottom: none; }
 
     .left {
       flex-shrink: 0;
-      width: 44rpx;
+      width: 54rpx;
       margin-right: 12rpx;
 
       .avatar {
         display: block;
-        border-radius: 22rpx;
+        border-radius: 27rpx;
         box-sizing: border-box;
-        width: 44rpx;
-        height: 44rpx;
+        width: 54rpx;
+        height: 54rpx;
       }
     }
 
@@ -35,7 +33,8 @@
       flex: 1;
       min-width: 0;
       word-break: break-all;
-      font-size: 26rpx;
+      // Matches the post body typography (HtmlRender body variant).
+      font-size: 16.05PX;
       line-height: 1.45;
       color: var(--theme-accent-text, #0754d7);
 

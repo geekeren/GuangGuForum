@@ -1,9 +1,8 @@
-import { getScrollViewType } from "../../utils/renderer";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
 import { RootPortal, View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useState } from "react";
 import type { NodeGroup } from "guanggu-forum-api";
-import { isSkyline } from "../../utils/renderer";
 import { useTheme } from "../../hooks/useTheme";
 import { themeVariables } from "../../utils/themePreferences";
 import "./index.scss";
@@ -23,6 +22,7 @@ interface NodePickerProps {
 export default function NodePicker({
   visible, groups, selectedSlug, onSelect, onClose, allLabel, loading, error, onRetry,
 }: NodePickerProps) {
+  const skyline = usePageRenderer() === "skyline";
   const { theme } = useTheme();
   const [present, setPresent] = useState(visible);
   const [closing, setClosing] = useState(false);
@@ -41,7 +41,6 @@ export default function NodePicker({
 
   if (!visible && !present) return null;
 
-  const skyline = isSkyline();
   const windowInfo = skyline ? Taro.getWindowInfo() : undefined;
   const safeBottom = windowInfo?.safeArea ? Math.max(0, windowInfo.screenHeight - windowInfo.safeArea.bottom) : 0;
   const sheetHeight = windowInfo ? Math.floor(windowInfo.windowHeight * 0.7) : 0;
@@ -64,7 +63,7 @@ export default function NodePicker({
             <Text className='nodePickerCloseText'>✕</Text>
           </View>
         </View>
-        <ScrollView type={getScrollViewType()} scrollY className='nodePickerScroll' style={scrollStyle}>
+        <ScrollView type={skyline ? 'custom' : undefined} scrollY className='nodePickerScroll' style={scrollStyle}>
           {loading && <Text className='nodePickerStatus'>正在加载板块筛选…</Text>}
           {error && <View className='nodePickerStatus'>
             <Text>{error}</Text>

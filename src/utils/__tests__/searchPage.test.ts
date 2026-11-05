@@ -97,6 +97,16 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("Search filters and shared board popup", () => {
+  it.each(['  显示名 😀  ', '   ', undefined])('renders optional display name with legacy fallback (%s)', async displayName => {
+    const result = { title: 'Fixture topic', username: 'fixture-account', displayName, category: 'Fixture', publishedAt: '', excerpt: '', link: '/t/13', matchType: 'topic' as const };
+    vi.mocked(searchTopics).mockResolvedValueOnce({ ...response, results: [result] });
+    typeKeyword('fixture'); find(render(), 'searchSubmit').onClick(); await settle();
+    const tree = render();
+    expect(find(tree, 'searchItemUser').children).toBe(displayName?.trim() || 'fixture-account');
+    expect(searchTopics).toHaveBeenCalledTimes(1);
+    expect(searchTopics).toHaveBeenCalledWith(expect.objectContaining({ author: '' }));
+    expect(result.username).toBe('fixture-account');
+  });
   it.each(["skyline", "webview"])("restores valid scope and sort without searching on %s", (renderer) => {
     vi.stubGlobal("getCurrentPages", () => [{ renderer }]);
     vi.mocked(cacheService.get).mockReturnValue({ scope: "reply", sort: "newest", node: "57", author: "ignored", since: "2025-01-01" });

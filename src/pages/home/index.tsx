@@ -23,13 +23,17 @@ import ComposePlusIcon from "../../assets/home-compose-plus.svg";
 import SearchEntry from "../../components/SearchEntry";
 import ThemedIcon from "../../components/ThemedIcon";
 import { getUnreadNotificationCount, subscribeUnreadNotifications } from "../../utils/unreadNotifications";
+import { PageRendererContext, type PageRenderer } from "../../hooks/usePageRenderer";
 
 interface State {
   selectedTabIndex: number;
   unreadNotifications: number;
   pageVisible: boolean;
   initialTopicTab?: string;
+  visitedTabs: Record<number, boolean>;
 }
+
+const CONTENT_TABS = [0, 1, 3, 4];
 
 const TAB_CONFIG = [
   { title: "首页", icon: HomeIcon, activeIcon: HomeActiveIcon },
@@ -44,12 +48,24 @@ function TabIcon({ tab, active }: { tab: typeof TAB_CONFIG[number]; active: bool
 }
 
 export default class Index extends Component<{}, State> {
+  static contextType = PageRendererContext;
+  private readonly fallbackRenderer: PageRenderer;
+  private bottomTabStyle?: React.CSSProperties;
+
   constructor(props, state) {
     super(props, state);
+    this.fallbackRenderer = (this.context as PageRenderer | undefined) ?? (isSkyline() ? "skyline" : "webview");
+    this.refreshBottomTabStyle();
+    const params = Taro.getCurrentInstance().router?.params;
+    const requestedTab = params?.tab ? Number(params.tab) : NaN;
+    const hasRequestedTab = CONTENT_TABS.includes(requestedTab);
+    const selectedTabIndex = hasRequestedTab ? requestedTab : 0;
     this.state = {
-      selectedTabIndex: 0,
+      selectedTabIndex,
       unreadNotifications: getUnreadNotificationCount(),
       pageVisible: true,
+      initialTopicTab: hasRequestedTab ? params?.topicTab : undefined,
+      visitedTabs: { [selectedTabIndex]: true },
     };
   }
 
@@ -57,16 +73,10 @@ export default class Index extends Component<{}, State> {
     this.stopUnreadSubscription = subscribeUnreadNotifications((count) => {
       this.setState({ unreadNotifications: count });
     });
-    const params = Taro.getCurrentInstance().router?.params;
-    if (params?.tab) {
-      const tab = parseInt(params.tab);
-      if ([0, 1, 3, 4].includes(tab)) {
-        this.setState({ selectedTabIndex: tab, initialTopicTab: params.topicTab });
-      }
-    }
   }
 
   componentDidShow() {
+    this.refreshBottomTabStyle();
     this.setState({ unreadNotifications: getUnreadNotificationCount(), pageVisible: true });
   }
 
@@ -88,19 +98,28 @@ export default class Index extends Component<{}, State> {
 
   private stopUnreadSubscription?: () => void;
 
+  private refreshBottomTabStyle() {
+    if (((this.context as PageRenderer | undefined) ?? this.fallbackRenderer) !== "skyline") return;
+    this.bottomTabStyle = {
+      paddingBottom: Math.max(rpxToPx(16), getBottomSafeAreaInset()) + "px",
+    };
+  }
+
   private handleClick(value: number): void {
     if (value === 2) {
       void Taro.navigateTo({ url: "/pages/createTopic/index" });
-    } else {
-      this.setState({ selectedTabIndex: value });
+      return;
     }
+    if (!CONTENT_TABS.includes(value)) return;
+    this.setState(previous => ({
+      selectedTabIndex: value,
+      visitedTabs: previous.visitedTabs[value] ? previous.visitedTabs : { ...previous.visitedTabs, [value]: true },
+    }));
   }
 
   render() {
-    const skyline = isSkyline();
-    const bottomTabStyle = skyline ? {
-      paddingBottom: Math.max(rpxToPx(16), getBottomSafeAreaInset()) + "px",
-    } : undefined;
+    const skyline = ((this.context as PageRenderer | undefined) ?? this.fallbackRenderer) === "skyline";
+    const bottomTabStyle = skyline ? this.bottomTabStyle : undefined;
 
     return (
       <>
@@ -123,16 +142,16 @@ export default class Index extends Component<{}, State> {
           )}
           <View className="tabContent">
             <View style={{ display: this.state.selectedTabIndex === 0 ? 'block' : 'none', height: '100%' }}>
-              <Topics initialTab={this.state.initialTopicTab} />
+              {this.state.visitedTabs[0] && <Topics initialTab={this.state.initialTopicTab} active={this.state.selectedTabIndex === 0 && this.state.pageVisible} />}
             </View>
             <View style={{ display: this.state.selectedTabIndex === 1 ? 'block' : 'none', height: '100%' }}>
-              <Discovery active={this.state.selectedTabIndex === 1 && this.state.pageVisible} />
+              {this.state.visitedTabs[1] && <Discovery active={this.state.selectedTabIndex === 1 && this.state.pageVisible} />}
             </View>
             <View style={{ display: this.state.selectedTabIndex === 3 ? 'block' : 'none', height: '100%' }}>
-              <Notifications active={this.state.selectedTabIndex === 3} />
+              {this.state.visitedTabs[3] && <Notifications active={this.state.selectedTabIndex === 3 && this.state.pageVisible} />}
             </View>
             <View style={{ display: this.state.selectedTabIndex === 4 ? 'block' : 'none', height: '100%' }}>
-              <Me active={this.state.selectedTabIndex === 4} />
+              {this.state.visitedTabs[4] && <Me active={this.state.selectedTabIndex === 4 && this.state.pageVisible} />}
             </View>
           </View>
           {!HIDE_TAB && (

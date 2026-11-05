@@ -13,12 +13,14 @@ import Taro, {
   useShareTimeline,
   useReady,
   useDidShow,
+  useDidHide,
 } from "@tarojs/taro";
 import { useEffect, useRef, useState } from "react";
 import queryString from "query-string";
 import {
   commentUpvote,
   CommentSubmissionError,
+  LoginRequiredError,
   createNewComment,
   getTopicDetail,
   urlPathVaiable,
@@ -29,14 +31,14 @@ import Loading from "../../components/Loading";
 import Navbar from "../../components/Navbar";
 import ThemedIcon from "../../components/ThemedIcon";
 import UserAvatar from '../../components/UserAvatar';
-import { cacheService, CacheCategory } from "../../utils/CacheService";
+import { readCommentSortAscending, subscribeCommentSort, writeCommentSortAscending } from "../../utils/commentSortPreferences";
 import { rpxToPx } from "../../utils/dimension";
 import { useTheme } from "../../hooks/useTheme";
 import { getThemeSnapshot, subscribeTheme } from "../../utils/themePreferences";
 import { isSkyline } from "../../utils/renderer";
 import { trimStrings } from "../../utils/trimStrings";
 import { formatReplySummary } from "../../utils/replySummary";
-import { findLatestComment, findTargetComment, getCommentElementId } from "../../utils/topicReplyRoute";
+import { findLatestComment, findTargetComment, getCommentElementId, getCommentReplyId } from "../../utils/topicReplyRoute";
 import { startCommentScroll } from "../../utils/commentScroll";
 import HtmlRender from "../../components/HtmlRender";
 import CommentComposer from "./CommentComposer";
@@ -53,8 +55,9 @@ import AdBanner from "../../components/AdBanner";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
 import { useCurrentUsername } from "../../hooks/useCurrentUsername";
 import { recordRecentlyViewedTopic } from '../../utils/recentlyViewedTopics';
-import { getCachedUsername } from '../../utils/currentUser';
+import { getCachedUsername, subscribeCurrentAccount } from '../../utils/currentUser';
 import { getCommentBody } from "../../utils/mentions";
+import { editCommentMentionBindings, validCommentMentionBindings, verifiedMentionId, verifiedMentionTargets, type CommentMentionBinding } from '../../utils/commentMentionBindings';
 import { MAX_COMMENT_ATTACHMENTS } from "../../utils/stickers";
 import { buildAttachmentComment, photoAttachment, stickerAttachment, type CommentAttachment } from "../../utils/commentAttachments";
 import { useCommentPhotoUploads } from '../../hooks/useCommentPhotoUploads';
@@ -68,7 +71,15 @@ const Index = () => {
   const [commentAttachments, setCommentAttachments] = useState<CommentAttachment[]>([]);
   const commentStickers = commentAttachments.flatMap(item => item.kind === 'sticker' ? [item.sticker] : []);
   const commentPhotos = commentAttachments.flatMap(item => item.kind === 'photo' ? [item.path] : []);
-  const [commentAsc, setCommentAsc] = useState(() => cacheService.get<boolean>("commentSortAsc") || false);
+  const [commentAsc, setCommentAsc] = useState(readCommentSortAscending);
+  useEffect(() => {
+    const unsubscribe = subscribeCommentSort(setCommentAsc);
+    setCommentAsc(readCommentSortAscending());
+    return unsubscribe;
+  }, []);
+  useDidShow(() => {
+    setCommentAsc(readCommentSortAscending());
+  });
   const [navScrollProgress, setNavScrollProgress] = useState(0);
   const [highlightFloor, setHighlightFloor] = useState<string | null>(null);
   const [scrollTop, setScrollTop] = useState<number | undefined>(undefined);
@@ -87,8 +98,37 @@ const Index = () => {
   const skyline = isSkyline();
 
   const tid = router.params.tid;
+  const submissionScope = JSON.stringify([tid, router.params.p, router.params.replyId]);
+  const mentionDraft = useRef({ text: commentContent, bindings: [] as CommentMentionBinding[], account: getCachedUsername(), scope: submissionScope, metadataCurrent: false });
+  if (mentionDraft.current.account !== getCachedUsername() || mentionDraft.current.scope !== submissionScope) {
+    mentionDraft.current = { text: commentContent, bindings: [], account: getCachedUsername(), scope: submissionScope, metadataCurrent: false };
+  }
+  const submissionPage = useRef({ visible: true, mounted: true, generation: 0, lifecycle: 0, changedAccount: 0, scope: submissionScope });
+  if (submissionPage.current.scope !== submissionScope) {
+    submissionPage.current.scope = submissionScope;
+    submissionPage.current.generation += 1;
+  }
+  const loadedForm = useRef<{ account: string; scope: string }>();
+  if (loadedForm.current && (loadedForm.current.account !== getCachedUsername() || loadedForm.current.scope !== submissionScope)) loadedForm.current = undefined;
+  const submissionLock = useRef(false);
+  const composerAccount = useRef<{ account: string; scope: string; confirmed: boolean }>();
+  const invalidateSubmission = () => { submissionPage.current.generation += 1; };
+  useDidShow(() => { submissionPage.current.visible = true; });
+  useDidHide(() => { submissionPage.current.visible = false; submissionPage.current.lifecycle += 1; invalidateSubmission(); mentionDraft.current.metadataCurrent = false; });
+  useEffect(() => {
+    submissionPage.current.mounted = true;
+    const unsubscribe = subscribeCurrentAccount(reason => {
+      if (reason === 'changed') submissionPage.current.changedAccount += 1;
+      invalidateSubmission();
+      loadedForm.current = undefined;
+      mentionDraft.current.bindings = [];
+      mentionDraft.current.metadataCurrent = false;
+      if (composerAccount.current) composerAccount.current.confirmed = false;
+    });
+    return () => { unsubscribe(); loadedForm.current = undefined; mentionDraft.current.bindings = []; mentionDraft.current.metadataCurrent = false; submissionPage.current.mounted = false; invalidateSubmission(); };
+  }, []);
 
-  const { data: topicDetail, request: fetchTopicDetail, requestFresh: fetchFreshTopicDetail, setData: setTopicDetail } = useDataWithCache(getTopicDetail);
+  const { data: topicDetail, request: fetchTopicDetail, setData: setTopicDetail } = useDataWithCache(getTopicDetail);
   const { username, loading: checkingLogin, error: loginError, retry: retryLogin } = useCurrentUsername();
   useCommentPhotoUploads(commentAttachments, setCommentAttachments, username);
   const recordedVisit = useRef('');
@@ -146,9 +186,21 @@ const Index = () => {
       return;
     }
     const params = showLatestComments.current ? { tid, latest: true } : { tid, page: p, replyId };
-    fetchTopicDetail(params).catch(() => {
-      Taro.showToast({ title: "帖子加载失败，请重试", icon: "none" });
+    const account = getCachedUsername();
+    const generation = submissionPage.current.generation;
+    let active = true;
+    loadedForm.current = undefined;
+    const current = () => active && submissionPage.current.mounted && submissionPage.current.visible
+      && submissionPage.current.generation === generation && submissionPage.current.scope === submissionScope
+      && getCachedUsername() === account;
+    fetchTopicDetail(params).then(detail => {
+      if (!current() || detail.tid !== tid) return;
+      loadedForm.current = { account, scope: submissionScope };
+      mentionDraft.current.metadataCurrent = true;
+    }).catch(() => {
+      if (current()) Taro.showToast({ title: "帖子加载失败，请重试", icon: "none" });
     });
+    return () => { active = false; };
   }, [tid, p, replyId, refreshTime, fetchTopicDetail]);
 
   useEffect(() => {
@@ -190,10 +242,8 @@ const Index = () => {
   }, [highlightFloor]);
 
   useDidShow(() => {
-    if (isSkyline() && tid) {
-      fetchTopicDetail(showLatestComments.current ? { tid, latest: true }
-        : { tid, page: router.params.p, replyId: router.params.replyId });
-    }
+    // The entry effect already loads once; keep Skyline's existing return-to-page refresh.
+    if (isSkyline() && tid && submissionPage.current.lifecycle > 0) setRefreshTime(Date.now());
   });
 
   const pageQuery = queryString.stringify(router.params);
@@ -225,13 +275,35 @@ const Index = () => {
   }
 
   const hasComments = topicDetail.commentTotalCount.trim() !== "";
-  // The reply form token is a posting capability, not the restored account identity.
-  const hasLogin = !!username || !!topicDetail.createCommentXSRF;
+  // Cached reply capabilities must never stand in for the current account identity.
+  const hasLogin = !!username && username === getCachedUsername();
   const commentPlaceholder = hasLogin ? "说点什么..."
     : checkingLogin ? "正在确认登录状态..."
     : loginError ? "登录状态确认失败，点击重试" : "请登录后再评论";
 
-  const showCommentDialog = (config?: { content: string }) => {
+  const mentionMetadata = mentionDraft.current.metadataCurrent && loadedForm.current?.account === getCachedUsername()
+    && loadedForm.current.scope === submissionScope && topicDetail.tid === tid ? topicDetail : undefined;
+  const mentionTargets = mentionMetadata ? verifiedMentionTargets([mentionMetadata, ...(mentionMetadata.comments ?? [])]) : [];
+  const mentionGeneration = submissionPage.current.generation;
+  const changeCommentContent = (next: string) => {
+    if (submissionLock.current || !submissionPage.current.visible || !submissionPage.current.mounted
+      || submissionPage.current.generation !== mentionGeneration) return;
+    mentionDraft.current.bindings = editCommentMentionBindings(mentionDraft.current.text, next, mentionDraft.current.bindings);
+    mentionDraft.current.text = next;
+    setCommentContent(next);
+  };
+  const insertCommentMention = (binding: CommentMentionBinding) => {
+    const owner = composerAccount.current;
+    if (submissionLock.current || !submissionPage.current.visible || !submissionPage.current.mounted
+      || submissionPage.current.generation !== mentionGeneration || !mentionDraft.current.metadataCurrent
+      || !owner?.confirmed || owner.account !== getCachedUsername() || owner.scope !== submissionScope
+      || mentionDraft.current.account !== getCachedUsername() || mentionDraft.current.scope !== submissionScope
+      || !mentionTargets.some(target => target.uid === binding.uid && `@${target.label}` === binding.label)) return;
+    mentionDraft.current.bindings = validCommentMentionBindings(mentionDraft.current.text, [...mentionDraft.current.bindings, binding]);
+  };
+  const showCommentDialog = (config?: { content: string; mention?: CommentMentionBinding }) => {
+    if (submissionLock.current || !submissionPage.current.visible || !submissionPage.current.mounted
+      || submissionPage.current.generation !== mentionGeneration) return;
     if (!hasLogin) {
       if (checkingLogin) return;
       if (loginError) {
@@ -241,9 +313,12 @@ const Index = () => {
       openLoginModal(pageUrl);
       return;
     }
+    composerAccount.current = { account: getCachedUsername(), scope: submissionScope, confirmed: true };
     setIsCommenting(true);
     if (config?.content) {
-      setCommentContent(config.content);
+      changeCommentContent(config.content);
+      // The reply action carries its exact server identity, even for duplicate display names.
+      mentionDraft.current.bindings = config.mention ? validCommentMentionBindings(config.content, [config.mention]) : [];
     }
   };
 
@@ -303,7 +378,9 @@ const Index = () => {
                     className='authorInfo'
                     onClick={() => {
                       Taro.navigateTo({
-                        url: `/pages/user/index?username=${topicDetail.author}`,
+                        // Display-name authors are not URL slugs; the display anchor
+                        // links by account id, with the legacy username as fallback.
+                        url: `/pages/user/index?username=${encodeURIComponent(topicDetail.authorUserId ?? topicDetail.authorUsername ?? topicDetail.author)}`,
                       });
                     }}
                   >
@@ -338,7 +415,7 @@ const Index = () => {
                 </View>
               </View>
               <View className='content'>
-                <HtmlRender html={topicDetail.content} />
+                <HtmlRender html={topicDetail.content} variant='body' />
               </View>
               <View className='extra'>
                 <View className='right'>
@@ -356,8 +433,9 @@ const Index = () => {
                     className={`sortBtn ${commentAsc ? "sortBtn--active" : ""}`}
                     onClick={() => {
                       const next = !commentAsc;
-                      setCommentAsc(next);
-                      cacheService.set("commentSortAsc", next, { category: CacheCategory.Other });
+                      if (!writeCommentSortAscending(next)) {
+                        Taro.showToast({ title: "排序偏好保存失败，请重试", icon: "none" });
+                      }
                     }}
                   >
                     <ThemedIcon src={commentAsc ? SortDescIcon : SortAscIcon} tone='secondary' lightColor='#000' className='sortIcon' />
@@ -389,7 +467,7 @@ const Index = () => {
                         onClick={(e) => {
                           e.stopPropagation();
                           Taro.navigateTo({
-                            url: `/pages/user/index?username=${comment.author}`,
+                            url: `/pages/user/index?username=${encodeURIComponent(comment.authorUserId ?? comment.authorUsername ?? comment.author)}`,
                           });
                         }}
                       >
@@ -411,7 +489,12 @@ const Index = () => {
                               itemList: ["回复", "复制"],
                               success: (res) => {
                                 if (res.tapIndex === 0) {
-                                  showCommentDialog({ content: `@${comment.author} ` });
+                                  const label = `@${comment.author}`;
+                                  const verifiedAuthor = mentionDraft.current.metadataCurrent && submissionPage.current.generation === mentionGeneration
+                                    && mentionMetadata?.comments?.some(item => item.id === comment.id && item.author === comment.author && item.authorUserId === comment.authorUserId);
+                                  const uid = verifiedAuthor ? verifiedMentionId(comment.authorUserId) : undefined;
+                                  const replyId = verifiedMentionId(getCommentReplyId(comment)) ?? 0;
+                                  showCommentDialog({ content: `${label} `, mention: uid === undefined ? undefined : { uid, reply_id: replyId, start: 0, end: label.length, label } });
                                 } else if (res.tapIndex === 1) {
                                   Taro.setClipboardData({
                                     data: comment.content.trim(),
@@ -520,40 +603,66 @@ const Index = () => {
         onAttachmentsChange={(next) => setCommentAttachments(next.slice(0, MAX_COMMENT_ATTACHMENTS))}
         topicAuthor={topicDetail.author}
         mentionUsers={[topicDetail.author, ...topicDetail.comments.map((comment) => comment.author)]}
+        mentionTargets={mentionTargets}
+        onMentionInsert={insertCommentMention}
         mentionAvatars={Object.fromEntries([
           [topicDetail.author, topicDetail.authorAvatarUrl],
           ...topicDetail.comments.map((comment) => [comment.author, comment.authorAvatarUrl]),
         ])}
         sending={sending}
-        onChange={setCommentContent}
+        onChange={changeCommentContent}
         onClose={() => setIsCommenting(false)}
         onSend={async () => {
           if (commentAttachments.some(item => item.kind === 'photo' && item.status !== 'complete')) {
             Taro.showToast({ title: '请等待图片上传完成，失败图片可点击重试', icon: 'none' });
             return;
           }
-          if (sending || !tid) return;
+          if (submissionLock.current || sending || !tid || !submissionPage.current.visible || !submissionPage.current.mounted) return;
+          const account = getCachedUsername();
+          const owner = composerAccount.current;
+          if (!owner?.confirmed || owner.account !== account || owner.scope !== submissionScope || username !== account) {
+            Taro.showToast({ title: '账号已切换，请重新打开评论框确认', icon: 'none' });
+            return;
+          }
+          if (!account) {
+            Taro.showToast({ title: '请登录后再评论', icon: 'none' });
+            return;
+          }
           if (getCommentBody(commentContent).trim().length < 3 && commentAttachments.length === 0) {
             Taro.showToast({ title: '评论内容至少3个字', icon: 'none' });
             return;
           }
+          submissionLock.current = true;
+          const generation = submissionPage.current.generation;
+          const lifecycle = submissionPage.current.lifecycle;
+          const changedAccount = submissionPage.current.changedAccount;
+          const current = () => submissionPage.current.mounted && submissionPage.current.visible &&
+            submissionPage.current.generation === generation && submissionPage.current.scope === submissionScope &&
+            getCachedUsername() === account && composerAccount.current === owner && owner.confirmed;
+          const content = buildAttachmentComment(commentContent, commentAttachments);
+          const mentions = mentionDraft.current.text === commentContent
+            ? validCommentMentionBindings(content, mentionDraft.current.bindings) : [];
           setSending(true);
           Taro.showLoading({ title: "发送中...", mask: true });
           try {
-            let xsrf = topicDetail.createCommentXSRF;
-            if (!xsrf) {
-              // A restored session or cached topic can lack the current reply form.
-              const freshDetail = await fetchFreshTopicDetail(showLatestComments.current
-                ? { tid, latest: true } : { tid, page: p, replyId });
-              xsrf = freshDetail.createCommentXSRF;
-            }
-            if (!xsrf) {
-              Taro.showToast({ title: "暂时无法评论，请刷新后重试", icon: "none" });
+            // Reuse this account's completed page load, never cached or previous-account capability.
+            const formOwner = loadedForm.current;
+            const formDetail = formOwner?.account === account && formOwner.scope === submissionScope ? topicDetail : undefined;
+            const xsrf = formDetail?.createCommentXSRF;
+            const status = formDetail?.createCommentStatus;
+            if (!formDetail || formDetail.tid !== tid || !xsrf || (status !== undefined && status !== 'ready')) {
+              const title = status === 'login-required' ? '登录状态已失效，请重新登录后重试'
+                : status === 'invalid-form' ? '评论表单校验失败，请刷新后重试'
+                : status === 'form-unavailable' ? '未读取到评论表单，请刷新帖子后重试' : '暂时无法评论，请刷新后重试';
+              Taro.showToast({ title, icon: 'none' });
               return;
             }
-            const result = await createNewComment({ tid, _xsrf: xsrf, content: buildAttachmentComment(commentContent, commentAttachments) });
+            const result = await createNewComment({ tid, _xsrf: xsrf, content, ...(mentions.length ? { mentions } : {}) });
+            if (!current()) return;
             setIsCommenting(false);
             setCommentContent("");
+            mentionDraft.current.text = '';
+            mentionDraft.current.bindings = [];
             setCommentAttachments([]);
             showLatestComments.current = true;
             cancelScrollRef.current?.();
@@ -561,20 +670,32 @@ const Index = () => {
             setScrollRequest(null);
             setLocatingComment(false);
             try {
-              const freshDetail = await fetchFreshTopicDetail({ tid, latest: true });
+              const freshDetail = await getTopicDetail({ tid, latest: true }, { cache: false });
+              if (!current()) return;
+              if (freshDetail.tid === tid) {
+                loadedForm.current = { account, scope: submissionScope };
+                mentionDraft.current.metadataCurrent = true;
+              }
+              setTopicDetail(freshDetail);
               const latestComment = findLatestComment(freshDetail.comments);
               if (freshDetail.commentTotalCount.trim() && !result?.moderated && latestComment) {
                 setHighlightFloor(latestComment.floor);
                 setScrollRequest({ id: getCommentElementId(latestComment) });
               }
             } catch {
-              Taro.showToast({ title: '回复已发送，最新回复加载失败，请下拉刷新', icon: 'none' });
+              if (current()) Taro.showToast({ title: '回复已发送，最新回复加载失败，请下拉刷新', icon: 'none' });
             }
           } catch (error) {
-            Taro.showToast({ title: error instanceof CommentSubmissionError ? error.message : "评论发送失败，请重试", icon: "none" });
+            // LoginRequiredError may synchronously sign the account out; still explain that failure on this visible page.
+            const loginExpired = error instanceof LoginRequiredError && submissionPage.current.mounted && submissionPage.current.visible &&
+              submissionPage.current.lifecycle === lifecycle && submissionPage.current.changedAccount === changedAccount &&
+              submissionPage.current.scope === submissionScope && (getCachedUsername() === account || !getCachedUsername());
+            if (current() || loginExpired) Taro.showToast({ title: error instanceof LoginRequiredError ? '登录状态已失效，请重新登录后重试'
+              : error instanceof CommentSubmissionError ? error.message : "评论发送失败，请重试", icon: "none" });
           } finally {
-            setSending(false);
-            Taro.hideLoading();
+            submissionLock.current = false;
+            if (submissionPage.current.mounted) setSending(false);
+            if (submissionPage.current.visible && submissionPage.current.mounted) Taro.hideLoading();
           }
         }}
       />}

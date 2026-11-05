@@ -1,6 +1,5 @@
 import { View } from "@tarojs/components";
-import { ClearableTextarea } from "../../../components/ClearableInput";
-import { BRAND_COLOR } from "../../../utils/theme";
+import TopicTitle from '../TopicTitle';
 import type { TopicTypeDefinition, RenderFormContext } from "./registry";
 
 const normalDef: TopicTypeDefinition = {
@@ -25,21 +24,8 @@ const normalDef: TopicTypeDefinition = {
 
     return (
       <View className="editorSection">
-        <ClearableTextarea
-          ref={titleRef}
-          className="titleInput"
-          placeholder="标题"
-          placeholderClass="titlePlaceholder"
-          cursorColor={BRAND_COLOR}
-          maxlength={120}
-          value={title}
-          onInput={handleTitleInput}
-          autoHeight
-          confirmType="next"
-          onConfirm={() => focusRef(contentRef)}
-          onDeleteWhenEmpty={() => focusRef(contentRef)}
-        />
-        {renderContentInput('正文内容...', titleRef)}
+        <TopicTitle inputRef={titleRef} editorRef={contentRef} value={title} onInput={handleTitleInput} onNext={() => focusRef(contentRef)} />
+        {renderContentInput('说说你的看法、经验或问题...', titleRef)}
       </View>
     );
   },

@@ -5,4 +5,7 @@ export default definePageConfig({
   renderer: "webview",
   disableScroll: true,
   componentFramework: "glass-easel",
+  usingComponents: {
+    'topic-format-button': '../../native-components/topic-format-button/index',
+  },
 });
