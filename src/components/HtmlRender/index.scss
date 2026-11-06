@@ -10,6 +10,38 @@
   width: 100%;
 }
 
+.htmlMediaHost,
+.htmlMediaBlockHost,
+.htmlMediaLinkHost {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+.htmlMediaHost {
+  margin: 16rpx 0;
+  padding: 12rpx 0;
+  border-radius: $radius-md;
+  background: $surface;
+}
+
+.htmlMediaStatus,
+.htmlMediaLink {
+  display: block;
+  padding: 8rpx 16rpx;
+  font-size: 13.76PX;
+  line-height: 1.5;
+  color: $text-sub;
+}
+
+.htmlMediaLink {
+  color: var(--theme-accent-text, #0754d7);
+}
+
+.htmlMediaHost--ready .htmlMediaStatus {
+  display: none;
+}
+
 .metaCard {
   display: flex;
   flex-direction: row;

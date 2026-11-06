@@ -49,6 +49,41 @@ describe('ScrollView template compatibility', () => {
     expect(template.miniComponents.view['keyboard-dismiss-mode']).toBeUndefined();
   });
 
+  it('keeps dynamic video templates without changing aliases or the caller include set', () => {
+    const { template, originalComponents, originalAliases } = setupTemplate();
+    // Match Vite: page emission can initialize aliases before base templates.
+    template.buildPageTemplate('./base');
+    const componentConfig = {
+      includes: new Set(['view', 'text']),
+      exclude: new Set(), thirdPartyComponents: new Map(), includeAll: false,
+    };
+    const output = template.buildTemplate(componentConfig);
+    const videoTemplate = output.match(/<video\b[^>]*>/)?.[0] || '';
+    expect(videoTemplate).not.toBe('');
+    expect(videoTemplate).toContain('binderror="eh"');
+    expect(videoTemplate).toContain('bindloadedmetadata="eh"');
+    for (const attribute of ['src', 'controls', 'poster']) {
+      const expression = videoTemplate.match(new RegExp(`${attribute}="\\{\\{([^\"]+)\\}\\}"`))?.[1];
+      expect(expression).toBeDefined();
+      expect(expression).toMatch(new RegExp(`\\bi\\.${originalAliases.video[attribute]}\\b`));
+    }
+    // Boolean attributes retain the platform's default-value wrapper.
+    expect(videoTemplate).toContain(`controls="{{xs.b(i.${originalAliases.video.controls},!0)}}"`);
+    expect(componentConfig.includes).toEqual(new Set(['view', 'text']));
+    expect(template.internalComponents).toEqual(originalComponents);
+    expect(getComponentsAlias(template.internalComponents)).toEqual(originalAliases);
+  });
+
+  it('preserves empty includes as all components rather than video only', () => {
+    const { template } = setupTemplate();
+    const output = template.buildTemplate({
+      includes: new Set(), exclude: new Set(), thirdPartyComponents: new Map(), includeAll: false,
+    });
+    expect(output).toContain('<video ');
+    expect(output).toContain('<image ');
+    expect(output).toContain('<scroll-view ');
+  });
+
   it('preserves an existing platform property hook and its receiver', () => {
     const platform = new Weapp({ helper: require('@tarojs/helper') }, {}, {});
     platform.modifyTemplate({});

@@ -6,6 +6,20 @@ module.exports = (ctx) => {
     viteConfig.build = viteConfig.build || {};
     viteConfig.build.cssMinify = false;
     const template = viteCompilerContext.taroConfig.template;
+    // Parsed HTML creates Video nodes dynamically. Rollup cannot discover them
+    // from rendered component exports; keep their template without mounting an
+    // empty player or changing the runtime component/attribute alias table.
+    const buildTemplate = template.buildTemplate.bind(template);
+    template.buildTemplate = (componentConfig) => {
+      if (!componentConfig.includeAll && componentConfig.includes.size) {
+        return buildTemplate({
+          ...componentConfig,
+          includes: new Set([...componentConfig.includes, "video"]),
+        });
+      }
+      // An empty include set already means all components, not video only.
+      return buildTemplate(componentConfig);
+    };
     // Add unsupported attributes after alias generation. Changing the component
     // table only here shifts pN bindings away from the runtime's scroll aliases.
     const modifyCompProps = template.modifyCompProps?.bind(template);

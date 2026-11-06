@@ -9,6 +9,7 @@ import { isSkyline } from "../../utils/renderer";
 import { usePageRenderer } from "../../hooks/usePageRenderer";
 import { LinkChipUrl as LinkChipIcon } from "gzk-ui/icon-urls";
 import { isCustomStickerUrl } from "../../utils/stickers";
+import { containsHtmlMedia, transformHtmlMedia } from './media';
 
 interface TopicMeta {
   type: "repost" | "event" | "dating";
@@ -397,13 +398,23 @@ Taro.options.html.transformElement = (
   taroEle: TaroElement,
   htmlEle,
 ) => {
-  if (htmlEle.tagName === "a") {
+  const tagName = htmlEle.tagName.toLowerCase();
+  if (transformHtmlMedia(taroEle, tagName)) return taroEle;
+  if (tagName === "a") {
     const href = taroEle.props.href || "";
     const isMention = isUserMentionLink(href);
     const skyline = isSkyline();
     const hasImage = (element: TaroElement): boolean =>
       element.nodeName === "image" || element.children.some(hasImage);
     const hasImg = hasImage(taroEle);
+    if (containsHtmlMedia(taroEle)) {
+      // Linked videos must keep their player and fallback, not become a URL chip.
+      setNodeName(taroEle, 'view');
+      taroEle.className += ' htmlMediaLinkHost';
+      taroEle.removeAttribute('href');
+      if (skyline) normalizeSkylineElement(taroEle, tagName);
+      return taroEle;
+    }
 
     if (isMention) {
       if (skyline) {
@@ -459,7 +470,7 @@ Taro.options.html.transformElement = (
       },
       {},
     );
-  } else if (htmlEle.tagName === "img") {
+  } else if (tagName === "img") {
     const src = taroEle.props.src || taroEle.props["data-src"] || "";
     if (src) {
       // Server HTML may use root-relative/protocol-relative image URLs. Resolve
@@ -519,7 +530,7 @@ Taro.options.html.transformElement = (
       },
       {},
     );
-  } else if (htmlEle.tagName === "span" && !isSkyline()) {
+  } else if (tagName === "span" && !isSkyline()) {
     if (taroEle.children.length !== 0) {
       taroEle.tagName = "VIEW";
       taroEle.nodeName = "view";
@@ -530,8 +541,13 @@ Taro.options.html.transformElement = (
     stageParsedBodyImages(taroEle);
     taroEle.removeAttribute(PRESENTATION_ATTRIBUTE);
   }
+  // Even nested server spans/emphasis cannot put block native video under Text.
+  if (['text', 'span'].includes(taroEle.nodeName) && containsHtmlMedia(taroEle)) {
+    setNodeName(taroEle, 'view');
+    taroEle.className += ' htmlMediaBlockHost';
+  }
   if (isSkyline()) {
-    normalizeSkylineElement(taroEle, htmlEle.tagName);
+    normalizeSkylineElement(taroEle, tagName);
   } else if (taroEle.nodeName === "text") {
     // WebView Text cannot render a View link chip. The parser runs bottom-up,
     // so convert only its inline Text ancestors, keeping authored emphasis.
