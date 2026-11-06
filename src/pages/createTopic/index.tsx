@@ -15,14 +15,14 @@ import Navbar from "../../components/Navbar";
 import HtmlRender from "../../components/HtmlRender";
 import NodePicker from "../../components/NodePicker";
 import ThemedIcon from '../../components/ThemedIcon';
-import NormalTypeIcon from '../../assets/topic-type-normal.svg?raw';
-import RepostTypeIcon from '../../assets/topic-type-repost.svg?raw';
-import EventTypeIcon from '../../assets/topic-type-event.svg?raw';
-import DatingTypeIcon from '../../assets/topic-type-dating.svg?raw';
-import PublishNodeIcon from '../../assets/topic-publish-node.svg?raw';
-import PreviewIcon from '../../assets/topic-preview.svg?raw';
-import ArrowIcon from '../../assets/arrow-right.svg?raw';
-import SendIcon from '../../assets/composer-send.svg?raw';
+import { TopicTypeNormal as NormalTypeIcon } from "gzk-ui/icons";
+import { TopicTypeRepost as RepostTypeIcon } from "gzk-ui/icons";
+import { TopicTypeEvent as EventTypeIcon } from "gzk-ui/icons";
+import { Heart as DatingTypeIcon } from "gzk-ui/icons";
+import { TopicPublishNode as PublishNodeIcon } from "gzk-ui/icons";
+import { TopicPreview as PreviewIcon } from "gzk-ui/icons";
+import { ChevronRight as ArrowIcon } from "gzk-ui/icons";
+import { Send as SendIcon } from "gzk-ui/icons";
 import { TOPIC_TYPE_REGISTRY, ALL_TYPES, ALL_HIDDEN_NODES } from "./topicTypes/registry";
 import type { TopicType } from "./topicTypes/registry";
 import TopicEditor, { restoreTopicAttachments, type TopicAttachment } from './TopicEditor';
@@ -44,7 +44,7 @@ function hasContent(title: string, content: string, typeFields: Record<string, a
   return Object.values(typeFields).some((v) => typeof v === "string" && v.trim());
 }
 
-const FROM_MINI = '<p><em>本帖发自<a href="https://www.guozaoke.com/t/91893">小程序</a></em></p>';
+const FROM_MINI = '<hr><p><em>本帖发自<a href="https://www.guozaoke.com/t/91893">小程序</a></em></p>';
 
 export default function CreateTopic() {
   const skyline = usePageRenderer() === "skyline";

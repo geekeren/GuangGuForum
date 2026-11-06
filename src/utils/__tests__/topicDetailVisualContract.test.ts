@@ -70,18 +70,38 @@ afterEach(() => { harness.cleanups.forEach(cleanup => cleanup?.()); harness.clea
 describe("compact topic detail reference contracts", () => {
   it("uses local rounded cards and smaller author rows without altering shared HTML semantics", () => {
     const css = styles();
-    expect(css).toContain("background: linear-gradient(180deg, var(--theme-surface-soft, #eff3fc) 0%, var(--theme-bg, #f5f7fc) 100%);");
+    expect(css).toContain("background: var(--theme-bg, #f4f5fa);");
+    expect(css).not.toContain("background: linear-gradient(180deg, var(--theme-surface-soft");
+    expect(readFileSync("src/pages/topicDetail/index.tsx", "utf8")).not.toContain("27, 34, 48");
     expect(css).toContain("margin: 12rpx 16rpx 0;");
     expect(css).toContain("padding: 20rpx 24rpx 16rpx;");
     expect(css).toContain("margin: 14rpx 16rpx 0;");
     expect(css).toContain("border-radius: 26rpx;");
     expect(css).toContain("width: 56rpx;");
     expect(css).toContain("padding: 16rpx 0 4rpx;");
-    expect(css).toContain("line-height: 1.6;");
-    expect(css).toContain("margin: 0 0 12rpx;");
+    const sharedBody = readFileSync("src/components/HtmlRender/index.scss", "utf8").split(".htmlWrap--body {")[1];
+    expect(sharedBody).toContain("line-height: 1.6;");
+    expect(sharedBody).toContain("margin: 0 0 12rpx;");
     expect(css).toContain("margin: 0 0 8rpx;");
     expect(css).not.toContain("text-transform: capitalize;");
     expect(css).not.toMatch(/\.h5-(?:pre|code)\s*\{/);
+  });
+
+  it.each(["skyline", "webview"])("registers the unique photo viewport on the post card, not the outer scroll area on %s", renderer => {
+    harness.skyline = renderer === 'skyline';
+    vi.stubGlobal("getCurrentPages", () => [{ renderer }]);
+    const tree = render();
+    const viewports = elements(tree).filter(node => node.props?.className?.split(' ').includes('topicBodyImageViewport'));
+    expect(viewports).toHaveLength(1);
+    expect(viewports[0]).toBe(find(tree, 'main'));
+    expect(viewports[0].type).toBe('View');
+    const scroll = find(tree, 'scrollContent');
+    expect(scroll.type).toBe('ScrollView');
+    expect(scroll.props.className).toBe('scrollContent');
+    const photos = elements(viewports[0]).filter(node => node.type === 'HtmlRender');
+    expect(photos).toHaveLength(1);
+    expect(photos[0].props).toMatchObject({ variant: 'body', fullBleedImages: true });
+    expect(elements(find(tree, 'comments')).filter(node => node.type === 'HtmlRender').every(node => !node.props.fullBleedImages)).toBe(true);
   });
 
   it.each(["skyline", "webview"])("keeps author, category and real footer values in compact rows on %s", (renderer) => {
@@ -149,9 +169,11 @@ describe("compact topic detail reference contracts", () => {
     expect(css).toContain("height: calc(88rpx + env(safe-area-inset-bottom));");
     expect(css).toContain("padding: 12rpx 22rpx max(12rpx, env(safe-area-inset-bottom));");
     const related = readFileSync("src/pages/topicDetail/relatingTopics/index.module.scss", "utf8");
-    expect(related).toContain("padding: 10rpx 12rpx;");
-    expect(related).toContain("width: 44rpx;");
-    expect(related).toContain("font-size: 26rpx;");
+    expect(related).toContain("padding: 16rpx 12rpx;");
+    expect(related).toContain("width: 54rpx;");
+    expect(related).toContain("font-size: 16.05PX;");
+    expect(related).toContain("border-bottom: 1rpx solid $border-color;");
+    expect(related).toContain("&:last-child { border-bottom: none; }");
     const tree = render();
     expect(elements(tree).some(e => e.type === CommentComposer)).toBe(false);
     expect(find(tree, "comments").props.id).toBe("comments-section");

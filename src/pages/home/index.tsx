@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { View, Text, Image, ShareElement } from "@tarojs/components";
+import { View, Text, ShareElement } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import "./index.scss";
 import Topics from "./topics";
@@ -11,15 +11,15 @@ import AddToDesktopGuide from "../../components/AddToDesktopGuide";
 import { ENABLE_CUSTOM_NAVBAR, HIDE_TAB } from "../config";
 import { getBottomSafeAreaInset, getNavInfo, rpxToPx } from "../../utils/dimension";
 import { isSkyline } from "../../utils/renderer";
-import HomeIcon from "../../assets/home.svg?raw";
-import HomeActiveIcon from "../../assets/home-active.svg?raw";
-import DiscoverIcon from "../../assets/discover.svg?raw";
-import DiscoverActiveIcon from "../../assets/discover-active.svg?raw";
-import UserIcon from "../../assets/user.svg?raw";
-import UserActiveIcon from "../../assets/user-active.svg?raw";
-import NotificationIcon from "../../assets/notification.svg?raw";
-import NotificationActiveIcon from "../../assets/notification-active.svg?raw";
-import ComposePlusIcon from "../../assets/home-compose-plus.svg";
+import { Home as HomeIcon } from "gzk-ui/icons";
+import { HomeActive as HomeActiveIcon } from "gzk-ui/icons";
+import { Discover as DiscoverIcon } from "gzk-ui/icons";
+import { DiscoverActive as DiscoverActiveIcon } from "gzk-ui/icons";
+import { User as UserIcon } from "gzk-ui/icons";
+import { UserActive as UserActiveIcon } from "gzk-ui/icons";
+import { Bell as NotificationIcon } from "gzk-ui/icons";
+import { BellActive as NotificationActiveIcon } from "gzk-ui/icons";
+import { Plus as ComposePlusIcon } from "gzk-ui/icons";
 import SearchEntry from "../../components/SearchEntry";
 import ThemedIcon from "../../components/ThemedIcon";
 import { getUnreadNotificationCount, subscribeUnreadNotifications } from "../../utils/unreadNotifications";
@@ -163,7 +163,7 @@ export default class Index extends Component<{}, State> {
                     <View key={index} className="tabItem tabItem--add" onClick={() => this.handleClick(index)}>
                       <ShareElement mapkey="create_topic_btn" className="composeShareElement">
                         <View className="addIcon">
-                          <Image src={ComposePlusIcon} svg mode="aspectFit" className="composePlusIcon" />
+                          <ThemedIcon src={ComposePlusIcon} color='#fff' mode="aspectFit" className="composePlusIcon" />
                         </View>
                       </ShareElement>
                     </View>

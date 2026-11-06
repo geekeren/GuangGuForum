@@ -42,11 +42,11 @@
 .privateThreadPeer .userAvatar, .privateThreadPeer .userAvatarImage { border-radius: 50%; }
 .privateThreadPeer .userAvatarTag { display: none; }
 .privateThreadPeer .privateMessageAction { font-size: 13PX; padding: 12rpx; }
-.privateThreadNavPeer { display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 12rpx; min-width: 0; max-width: 100%; }
-.privateThreadNavAvatar { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 4rpx; max-width: 160rpx; }
-.privateThreadNavPeerBody { display: flex; flex-direction: column; min-width: 0; }
-.privateThreadNavName { display: block; font-size: 14.91PX; line-height: 1.2; color: var(--theme-text-primary, #10182d); }
-.privateThreadNavState { display: block; font-size: 10.32PX; line-height: 1.2; color: var(--theme-text-muted, #68758d); }
+.privateThreadNavPeer { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 12rpx; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 0 8rpx 8rpx; }
+.privateThreadNavAvatar { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 8rpx; max-width: 160rpx; }
+.privateThreadNavPeerBody { display: flex; flex-direction: column; flex: 0 1 auto; min-width: 0; }
+.privateThreadNavName { display: block; font-size: 14.91PX; line-height: 1.5; word-break: break-all; color: var(--theme-text-primary, #10182d); }
+.privateThreadNavState { display: block; font-size: 10.32PX; line-height: 1.5; text-align: left; word-break: break-all; color: var(--theme-text-muted, #68758d); }
 .privateThreadNavPeer .userAvatarImage, .privateMessageSenderAvatar .userAvatarImage { border-radius: 50%; }
 .privateThreadNavPeer .userAvatarTag, .privateMessageSenderAvatar .userAvatarTag { display: none; }
 .privateMessageSenderAvatar { flex-shrink: 0; }
@@ -58,6 +58,8 @@
 .privateAcceptRequest { display: flex; flex-direction: column; align-items: center; gap: 14rpx; padding: 20rpx; flex-shrink: 0; }
 .privateMessageDock { flex-shrink: 0; padding: 12rpx 24rpx 0; background: var(--theme-bg, #f5f8ff); }
 .privateMessageComposer { display: flex; flex-direction: row; align-items: flex-end; gap: 18rpx; padding: 12rpx 14rpx 12rpx 24rpx; background: var(--theme-surface, #fff); border: 1rpx solid var(--theme-border, #e8edf5); border-radius: 32rpx; }
+.privateMessageInputBody { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 8rpx; }
+.privateMessageInputState { display: block; color: var(--theme-text-muted, #68758d); font-size: 12PX; line-height: 1.5; word-break: break-all; }
 .privateMessageInput { display: block; box-sizing: border-box; flex: 1; min-width: 0; width: 100%; min-height: 52rpx; max-height: 220rpx; padding: 8rpx 0; font-size: 15PX; line-height: 1.55; color: var(--theme-text-primary, #10182d); background: transparent; }
 .privateMessageInput, .privateMessageInput textarea, .privateMessageInput .taro-textarea, .privateMessageInput .weui-textarea { caret-color: var(--theme-input-caret, #0754d7); }
 .privateMessageSend { display: flex; flex-direction: row; align-items: center; justify-content: center; flex-shrink: 0; width: 64rpx; height: 64rpx; border-radius: 50%; background: var(--theme-accent-muted, #e8efff); }

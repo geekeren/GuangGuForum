@@ -1,7 +1,7 @@
 import { Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import ThemedIcon from '../../components/ThemedIcon';
-import MessageIcon from '../../assets/notification.svg?raw';
+import { Envelope as MessageIcon } from "gzk-ui/icons";
 import { APP_ROUTES } from '../../utils/appRoutes';
 
 /** Standalone fallback entry; does not duplicate the hub's summary request. */

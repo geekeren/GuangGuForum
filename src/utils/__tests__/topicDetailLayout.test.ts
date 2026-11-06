@@ -10,7 +10,7 @@ import { cacheService } from '../CacheService';
 import { photoAttachment, stickerAttachment } from "../commentAttachments";
 
 const harness = vi.hoisted(() => ({
-  state: [] as any[], refs: [] as any[], refCursor: 0, cursor: 0, effects: [] as any[], accountListeners: [] as any[], hide: null as any,
+  theme: 'light' as 'light' | 'dark', themeListeners: [] as (() => void)[], state: [] as any[], refs: [] as any[], refCursor: 0, cursor: 0, effects: [] as any[], accountListeners: [] as any[], hide: null as any,
   request: vi.fn(), requestFresh: vi.fn(), params: { tid: '1' } as Record<string, string>, loadedDisplay: undefined as any, status: undefined as string | undefined, detailTid: '1', detailWrites: vi.fn(), authorUserId: undefined as string | undefined, replyUserId: undefined as string | undefined, replyAuthor: 'recipient', replyId: 'r1', replyVoteUrl: '/replyVote?reply_id=1', skyline: true, xsrf: "fixture", username: "tester", account: 'tester', checkingLogin: false, loginError: false, retryLogin: vi.fn(),
 }));
 vi.mock("react", () => ({
@@ -30,7 +30,8 @@ vi.mock("@tarojs/taro", () => ({
   useReady: vi.fn(), useDidShow: vi.fn(), useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(),
 }));
 vi.mock("guanggu-forum-api", () => ({ CommentSubmissionError: class extends Error {}, LoginRequiredError: class extends Error {}, getTopicDetail: vi.fn(), commentUpvote: vi.fn(), createNewComment: vi.fn(), URLS: {}, urlPathVaiable: vi.fn() }));
-vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
+vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: harness.theme, preference: 'system' }) }));
+vi.mock('../themePreferences', async original => ({ ...await original<any>(), getThemeSnapshot: () => ({ theme: harness.theme, preference: 'system' }), subscribeTheme: (listener: () => void) => { harness.themeListeners.push(listener); return () => {}; } }));
 vi.mock("../renderer", () => ({ isSkyline: () => harness.skyline, getScrollViewType: () => 'custom' }));
 vi.mock("../../hooks/useDataWithCache", () => ({
   useDataWithCache: () => ({
@@ -81,7 +82,7 @@ function all(tree: any): any[] {
 function render() { harness.cursor = harness.refCursor = 0; return TopicDetail(); }
 function find(tree: any, className: string) { return all(tree).find(e => e.props?.className === className)!.props; }
 beforeEach(() => {
-  harness.state = []; harness.refs = []; harness.effects = []; harness.accountListeners = []; harness.hide = null;
+  harness.theme = 'light'; harness.themeListeners = []; harness.state = []; harness.refs = []; harness.effects = []; harness.accountListeners = []; harness.hide = null;
   harness.params = { tid: '1' }; harness.loadedDisplay = undefined; harness.status = undefined; harness.detailTid = '1'; harness.detailWrites.mockClear();
   harness.authorUserId = undefined; harness.replyUserId = undefined; harness.replyAuthor = 'recipient'; harness.replyId = 'r1'; harness.replyVoteUrl = '/replyVote?reply_id=1';
   harness.skyline = true; harness.xsrf = "fixture"; harness.username = "tester"; harness.account = 'tester'; harness.checkingLogin = false; harness.loginError = false;
@@ -524,6 +525,25 @@ describe('entered-page comment capability and async submission guards', () => {
 });
 
 describe("topic detail native text and explicit composer actions", () => {
+  it.each(['light', 'dark'] as const)('uses the current %s canvas for both worklet scroll states and JS navbar fallback', theme => {
+    harness.theme = theme;
+    const page: any = { renderer: 'skyline', applyAnimatedStyle: vi.fn() };
+    vi.mocked(Taro.getCurrentInstance).mockReturnValue({ page } as any);
+    const nodes = all(render());
+    const navbar = nodes.find(node => node.type === 'Navbar')!;
+    const rgb = theme === 'dark' ? '0, 0, 0' : '244, 245, 250';
+    expect(navbar.props.backgroundRGB).toBe(rgb);
+    vi.mocked(useReady).mock.calls[0][0]();
+    const animated = page.applyAnimatedStyle.mock.calls[0][1];
+    for (const progress of [0, 0.2, 1]) {
+      page._scrollProgress.value = progress;
+      expect(animated().backgroundColor).toBe(`rgba(${rgb}, ${progress * 0.85})`);
+      expect(animated().backdropFilter).toBe(`blur(${progress * 20}px)`);
+    }
+    const themeEffect = harness.effects.find(effect => effect.toString().includes('updateNavbarTheme'))!;
+    themeEffect(); harness.theme = theme === 'dark' ? 'light' : 'dark'; harness.themeListeners[0]();
+    expect(animated().backgroundColor).toBe(`rgba(${theme === 'dark' ? '244, 245, 250' : '0, 0, 0'}, 0.85)`);
+  });
   it("does not register Skyline animated styles on a WebView page even if worklet APIs exist", () => {
     harness.skyline = false;
     vi.stubGlobal("getCurrentPages", () => [{ renderer: "webview" }]);

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { Picker, ScrollView, Text, View } from '@tarojs/components';
+import { ScrollView, Text, View } from '@tarojs/components';
+import { GzkFormField } from 'gzk-ui/form-field';
+import { GzkSelect } from 'gzk-ui/select';
 import Taro, { useDidHide, useDidShow } from '@tarojs/taro';
 import type { OwnProfileFields } from 'guanggu-forum-api';
 import ThemePage from '../../components/ThemePage';
@@ -72,31 +74,30 @@ function ProfileEditor() {
         <ScrollView type={scrollType} scrollY enhanced className='profileEditorScroll'>
           {data.loading && !data.fields ? <View className='profileEditorStatus'><Loading /></View> : null}
           {data.error && <Text className='profileEditorError' onClick={reload}>{data.error}{data.requiresRefresh ? '，点击刷新检查' : '，点击重试'}</Text>}
-          {data.notice && <Text className='profileEditorNotice'>{data.notice}</Text>}
           {data.draft && data.fields && <View className='profileEditorFields'>
-            <View className='profileEditorField'><Text className='profileEditorLabel'>用户名</Text><Text className='profileEditorReadonly'>{data.draft.username}</Text></View>
-            <View className='profileEditorField'><Text className='profileEditorLabel'>Email</Text><Text className='profileEditorReadonly'>{data.draft.email || '未设置'}</Text></View>
+            <GzkFormField className='profileEditorField' label='用户名'><Text className='profileEditorReadonly'>{data.draft.username}</Text></GzkFormField>
+            <GzkFormField className='profileEditorField' label='Email'><Text className='profileEditorReadonly'>{data.draft.email || '未设置'}</Text></GzkFormField>
             <Text className='profileEditorMuted'>用户名与 Email 仅供查看，此页不修改头像或账号信息。</Text>
-            {TEXT_FIELDS.map(field => <View key={field.name} className='profileEditorField'><Text className='profileEditorLabel'>{field.label}</Text>
+            {TEXT_FIELDS.map(field => <GzkFormField key={field.name} className='profileEditorField' label={field.label}>
               <View className={disabled ? 'profileEditorControl profileEditorControl--disabled' : 'profileEditorControl'}>
                 <ClearableInput className='profileEditorInput' value={data.fields![field.name]} maxlength={-1} cursorColor={caretColor} style={{ caretColor }} disabled={disabled} onInput={text => store.change(field.name, text)} />
               </View>
-            </View>)}
-            {(['gender', 'generation'] as const).map(name => {
-              const options = data.draft!.options[name]; const index = options.findIndex(option => option.value === data.fields![name]);
-              return <View key={name} className='profileEditorField'><Text className='profileEditorLabel'>{name === 'gender' ? '性别' : '年代'}</Text>
-                <Picker mode='selector' disabled={disabled} range={options.map(option => option.label)} value={Math.max(0, index)} onChange={event => {
-                  const option = options[Number(event.detail.value)]; if (option) store.change(name, option.value);
-                }}><View className='profileEditorPicker'><Text>{options[index]?.label || '请选择'}</Text><Text className='profileEditorAction'>选择</Text></View></Picker>
-              </View>;
-            })}
-            <View className='profileEditorField'><Text className='profileEditorLabel'>个人简介</Text><View className={disabled ? 'profileEditorControl profileEditorControl--disabled' : 'profileEditorControl'}>
+            </GzkFormField>)}
+            {(['gender', 'generation'] as const).map(name => <GzkFormField key={name} className='profileEditorField' label={name === 'gender' ? '性别' : '年代'}>
+              <GzkSelect options={data.draft!.options[name]} value={data.fields![name]} disabled={disabled} theme={theme} onChange={value => store.change(name, value)} />
+            </GzkFormField>)}
+            <GzkFormField className='profileEditorField' label='个人简介' multiline><View className={disabled ? 'profileEditorControl profileEditorControl--disabled' : 'profileEditorControl'}>
               <ClearableTextarea className='profileEditorTextarea' value={data.fields.self_intro} maxlength={-1} autoHeight style={{ caretColor }} disabled={disabled} onInput={text => store.change('self_intro', text)} />
-            </View></View>
+            </View></GzkFormField>
           </View>}
         </ScrollView>
-        <View className='profileEditorDock'><Text className='profileEditorAction' onClick={reload}>刷新资料</Text><View ariaRole='button' ariaLabel='保存个人资料'
-          className={`profileEditorSave ${canSave ? '' : 'profileEditorSave--disabled'}`} onClick={() => { if (canSave) void store.save(() => { Taro.eventCenter.trigger('ownProfileSettingsUpdated', data.account); }); }}><Text>{data.saving ? '保存中…' : '保存'}</Text></View></View>
+        <View className='profileEditorDock'><Text className='profileEditorRefresh' onClick={reload}>刷新资料</Text><View ariaRole='button' ariaLabel='保存个人资料'
+          className={`profileEditorSave ${canSave ? '' : 'profileEditorSave--disabled'}`} onClick={() => {
+            if (canSave) void store.save(() => {
+              Taro.eventCenter.trigger('ownProfileSettingsUpdated', data.account);
+              Taro.showToast({ title: '已保存', icon: 'success' });
+            });
+          }}><Text>{data.saving ? '保存中…' : '保存'}</Text></View></View>
       </>}
   </View>;
 }

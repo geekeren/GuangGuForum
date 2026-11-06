@@ -2,7 +2,7 @@ import { Image, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { type TopicSummary, URLS } from "guanggu-forum-api";
 import { urlPathVaiable } from "../../utils/urls";
-import AnnouncementArtworkIcon from "../../assets/home-announcement-icon.svg";
+import { AnnouncementArtworkUrl as AnnouncementArtworkIcon } from "gzk-ui/icon-urls";
 import AnnouncementScene from "../../assets/home-announcement-scene.svg";
 import "./index.scss";
 

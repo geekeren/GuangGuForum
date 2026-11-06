@@ -1,28 +1,67 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RichTopicBody from '../../pages/createTopic/RichTopicBody';
+import TopicEditor from '../../pages/createTopic/TopicEditor';
+import { createRequire } from 'node:module';
+import { document as runtimeDocument, hydrate, TaroEvent } from '@tarojs/runtime';
 import { sanitizeTopicDelta } from '../topicDocumentSanitizer';
 import { serializeTopicDocumentHtml } from '../topicDocument';
 
-const h = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], effects: [] as any[], cursor: 0, refCursor: 0, context: null as any, theme: 'light' as 'light' | 'dark' }));
+const h = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], effects: [] as any[], cursor: 0, refCursor: 0, context: null as any, theme: 'light' as 'light' | 'dark', account: 'tester' }));
 vi.mock('react', () => ({
-  useState(initial: any) { const i = h.cursor++; if (!(i in h.state)) h.state[i] = initial; return [h.state[i], (v: any) => { h.state[i] = typeof v === 'function' ? v(h.state[i]) : v; }]; },
+  useState(initial: any) { const i = h.cursor++; const state = h.state; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial; return [state[i], (v: any) => { state[i] = typeof v === 'function' ? v(state[i]) : v; }]; },
   useRef(initial: any) { return h.refs[h.refCursor++] ??= { current: initial }; },
   useEffect(effect: any) { h.effects.push(effect); },
   useImperativeHandle(ref: any, create: any) { ref.current = create(); },
 }));
-vi.mock('@tarojs/components', () => ({ Editor: 'Editor', Text: 'Text', View: 'View' }));
-vi.mock('@tarojs/taro', () => ({ default: { createSelectorQuery: () => { const query = { select: () => query, context: (cb: any) => { cb({ context: h.context }); return query; }, exec: () => {} }; return query; } } }));
+vi.mock('@tarojs/components', () => ({ Editor: 'Editor', Text: 'Text', View: 'View', Image: 'Image', ScrollView: 'ScrollView', RootPortal: 'RootPortal' }));
+vi.mock('@tarojs/taro', () => ({ default: {
+  getWindowInfo: () => ({ windowWidth: 430, windowHeight: 900, screenHeight: 932, safeArea: { bottom: 898 } }),
+  hideKeyboard: vi.fn().mockResolvedValue({ errMsg: 'hideKeyboard:ok' }), onKeyboardHeightChange: vi.fn(), offKeyboardHeightChange: vi.fn(), onWindowResize: vi.fn(), offWindowResize: vi.fn(), nextTick: (cb: () => void) => cb(),
+  createSelectorQuery: () => { const query = { select: () => query, context: (cb: any) => { cb({ context: h.context }); return query; }, boundingClientRect: () => query, exec: () => {} }; return query; },
+}, useDidHide: vi.fn(), useDidShow: vi.fn(), useReady: vi.fn() }));
+vi.mock('guanggu-forum-api', () => ({ createImageUploadController: vi.fn(), ImageUploadError: class extends Error {}, uploadImage: vi.fn() }));
+vi.mock('../../hooks/usePageRenderer', () => ({ usePageScrollViewType: () => undefined }));
+vi.mock('../emojiUsage', () => ({ getCommonEmojiUsage: () => ({ emojis: [], stickers: [] }), recordCommentEmojiUsage: vi.fn() }));
+vi.mock('../imageUploadGuard', () => ({ ensureImageHostBound: vi.fn(), openImageHostSettings: vi.fn() }));
+vi.mock('../keyboardAccessory', () => ({ tryHideKeyboardAccessoryView: vi.fn() }));
 vi.mock('../../components/MentionTextarea', () => ({ default: 'MentionTextarea' }));
-vi.mock('../currentUser', () => ({ getCachedUsername: () => 'tester' }));
+vi.mock('../currentUser', () => ({ getCachedUsername: () => h.account }));
 vi.mock('../../hooks/useTheme', () => ({ useTheme: () => ({ theme: h.theme }) }));
 function elements(tree: any): any[] { return Array.isArray(tree) ? tree.flatMap(elements) : tree && typeof tree === 'object' ? [tree, ...elements(tree.props?.children)] : []; }
 let props: Parameters<typeof RichTopicBody>[0];
 function render() { h.cursor = 0; h.refCursor = 0; return elements(RichTopicBody(props)); }
 function editor() { return render().find(e => e.type === 'Editor')!.props; }
+function nativeBodyTarget() { return render().find(e => e.props?.className === 'topicNativeBodyTarget')!.props; }
 async function flush() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 function input(text: string) { return editor().onInput({ detail: { delta: { ops: [{ insert: text + '\n' }] } } }); }
+const projectRequire = createRequire(`${process.cwd()}/package.json`);
+function nativeTemplates() {
+  const { Weapp } = projectRequire('@tarojs/plugin-platform-weapp');
+  const helper = projectRequire('@tarojs/helper');
+  const platform = new Weapp({ helper, paths: {}, modifyComponentConfig() {} }, { compiler: 'vite' }, {});
+  platform.modifyTemplate({});
+  const template = platform.template;
+  const generated = template.buildTemplate({ includes: new Set(['editor', 'view', 'catch-view']), exclude: new Set(), thirdPartyComponents: new Map(), includeAll: false });
+  const tag = (name: string) => generated.match(new RegExp(`<${name}\\s[^>]*>`))![0];
+  // Use the ordinary View by its generated alias, not the earlier catch-view.
+  const ordinaryView = generated.match(new RegExp(`<template name="tmpl_0_${template.componentsAlias.view._num}">([\\s\\S]*?)<\\/template>`))![1].match(/<view\s[^>]*>/)![0];
+  return { editor: tag('editor'), view: ordinaryView, aliases: template.componentsAlias };
+}
+function boundBodyView() {
+  const target = nativeBodyTarget();
+  const node = runtimeDocument.createElement('view');
+  const native = runtimeDocument.createElement('editor'); node.appendChild(native);
+  for (const [event, callback] of Object.entries({ touchstart: target.onTouchStart, touchmove: target.onTouchMove, touchcancel: target.onTouchCancel, tap: target.onClick })) node.addEventListener(event, callback, {});
+  return { node, native, dispatch(event: string) {
+    // Editor has no native touch bindings. Its bubbling gesture reaches the
+    // View's actual bind handler; dispatch there, never call Editor.start.
+    const result = new TaroEvent(event, { bubbles: true, cancelable: true });
+    node.dispatchEvent(result);
+    expect(result._stop).toBe(false); expect(result.defaultPrevented).toBe(false);
+  } };
+}
 beforeEach(() => {
-  h.state = []; h.refs = []; h.effects = []; h.theme = 'light'; vi.clearAllMocks();
+  h.state = []; h.refs = []; h.effects = []; h.theme = 'light'; h.account = 'tester'; vi.clearAllMocks();
   h.context = { setContents: vi.fn((cb: any) => cb.success({})), getContents: vi.fn((cb: any) => cb.success({ delta: { ops: [{ insert: '正文\n' }] } })),
     insertText: vi.fn((cb: any) => cb.success({})), insertImage: vi.fn((cb: any) => cb.success({})), format: vi.fn() };
   props = { value: '正文', attachments: [], disabled: false, focus: false, placeholder: 'body', handleRef: { current: null }, onChange: vi.fn(), onFocus: vi.fn(), onBlur: vi.fn() };
@@ -77,6 +116,57 @@ describe('rich topic body native rich-paste normalization', () => {
 });
 
 describe('rich topic body native lifecycle', () => {
+  it('uses actual ordinary View touch bindings rather than absent Editor bindings or catch-view', async () => {
+    const templates = nativeTemplates();
+    expect(templates.editor).toContain('bindtap="eh"');
+    for (const event of ['touchstart', 'touchmove', 'touchcancel']) {
+      expect(templates.editor).not.toContain(`bind${event}=`);
+      expect(templates.view).toContain(`bind${event}="eh"`);
+    }
+    expect(templates.view).not.toContain('catchtouchmove');
+    editor().onReady(); await flush();
+    const bridge = boundBodyView();
+    expect(hydrate(bridge.node).nn).toBe(templates.aliases.view._num);
+    expect(bridge.node.props.catchMove).toBeUndefined();
+    expect(nativeBodyTarget().style).toBeUndefined();
+    expect(editor().onTouchStart).toBeUndefined(); expect(editor().onTouchMove).toBeUndefined(); expect(editor().onTouchCancel).toBeUndefined(); expect(editor().onClick).toBeUndefined();
+    expect(nativeBodyTarget().children.type).toBe('Editor');
+  });
+  it.each(['collapse', 'image blur'] as const)('restores the real parent toolbar for three generated View gestures after %s without a second focus', async dismissedBy => {
+    const parent = { state: [] as any[], refs: [] as any[] };
+    const bodyHooks = { state: h.state, refs: h.refs };
+    const parentProps: Parameters<typeof TopicEditor>[0] = { value: '正文', disabled: false, attachments: [], inputRef: { current: null }, previousRef: { current: null }, placeholder: '正文', onChange: vi.fn(), onAttachmentsChange: vi.fn() };
+    const renderParent = () => {
+      h.state = parent.state; h.refs = parent.refs; h.cursor = 0; h.refCursor = 0;
+      const nodes = elements(TopicEditor(parentProps));
+      props = nodes.find(node => node.type === RichTopicBody)!.props;
+      h.state = bodyHooks.state; h.refs = bodyHooks.refs;
+      return nodes;
+    };
+    renderParent(); editor().onReady(); await flush(); editor().onFocus();
+    const templates = nativeTemplates();
+    for (let round = 0; round < 3; round++) {
+      let nodes = renderParent();
+      expect(nodes.some(node => node.props?.className === 'topicEditorDock')).toBe(true);
+      if (dismissedBy === 'collapse') nodes.find(node => node.props?.ariaLabel === '收起工具栏')!.props.onClick();
+      else editor().onBlur({ detail: {} });
+      nodes = renderParent(); expect(nodes.some(node => node.props?.className === 'topicEditorDock')).toBe(false);
+      const bridge = boundBodyView();
+      expect(hydrate(bridge.node).nn).toBe(templates.aliases.view._num);
+      bridge.dispatch('touchstart');
+      expect(renderParent().some(node => node.props?.className === 'topicEditorDock')).toBe(false);
+      bridge.dispatch('tap');
+      expect(renderParent().some(node => node.props?.className === 'topicEditorDock')).toBe(true);
+      expect(props.focus).toBe(false);
+    }
+    expect(h.context.setContents).toHaveBeenCalledOnce(); expect(h.context.insertText).not.toHaveBeenCalled(); expect(h.context.insertImage).not.toHaveBeenCalled(); expect(h.context.format).not.toHaveBeenCalled(); expect(parentProps.onChange).not.toHaveBeenCalled();
+  });
+  it.each(['move', 'cancel'] as const)('lets generated View %s continue without restoring dismissed toolbar', async reason => {
+    props.onBodyTap = vi.fn(); props.onTouchMove = vi.fn(); props.onTouchCancel = vi.fn(); editor().onReady(); await flush();
+    const bridge = boundBodyView(); bridge.dispatch('touchstart'); bridge.dispatch(reason === 'move' ? 'touchmove' : 'touchcancel'); bridge.dispatch('tap');
+    expect(props.onBodyTap).not.toHaveBeenCalled();
+    expect(reason === 'move' ? props.onTouchMove : props.onTouchCancel).toHaveBeenCalledOnce();
+  });
   it('binds native Editor theme color without rehydrating or formatting the draft', async () => {
     expect(editor().style.color).toBe('#0f1626');
     editor().onReady(); await flush(); render();
@@ -86,12 +176,14 @@ describe('rich topic body native lifecycle', () => {
     expect(h.context.format).not.toHaveBeenCalled();
     expect(props.onChange).not.toHaveBeenCalled();
   });
-  it('does not advertise native programmatic focus or textarea-only props', () => {
+  it('does not advertise native programmatic focus or textarea-only props', async () => {
     props.focus = true; props.onTouchStart = vi.fn();
     const native = editor();
     expect(props.handleRef.current!.canFocus()).toBe(false);
     expect(native.focus).toBeUndefined(); expect(native.holdKeyboard).toBeUndefined();
-    native.onTouchStart(); expect(props.onTouchStart).toHaveBeenCalledOnce();
+    expect(native.onTouchStart).toBeUndefined(); expect(native.onClick).toBeUndefined();
+    nativeBodyTarget().onTouchStart(); expect(props.onTouchStart).not.toHaveBeenCalled();
+    native.onReady(); await flush(); nativeBodyTarget().onTouchStart(); expect(props.onTouchStart).toHaveBeenCalledOnce();
   });
   it('allows focus only for the enabled source textarea and forwards body touch', () => {
     props.value = '```js\nconst x = 1;\n```'; props.focus = true; props.onTouchStart = vi.fn();
@@ -102,6 +194,27 @@ describe('rich topic body native lifecycle', () => {
     props.focus = false; source = render().find(e => e.type === 'MentionTextarea')!.props;
     expect(source.holdKeyboard).toBe(false);
     props.disabled = true; render(); expect(props.handleRef.current!.canFocus()).toBe(false);
+  });
+  it('forwards repeated completed native body taps without extra focus or native document/selection mutations', async () => {
+    props.onTouchStart = vi.fn(); props.onBodyTap = vi.fn(); editor().onReady(); await flush(); editor().onFocus();
+    for (let round = 0; round < 3; round++) { nativeBodyTarget().onTouchStart(); nativeBodyTarget().onClick(); nativeBodyTarget().onClick(); }
+    expect(props.onTouchStart).toHaveBeenCalledTimes(3); expect(props.onBodyTap).toHaveBeenCalledTimes(3); expect(props.onFocus).toHaveBeenCalledOnce();
+    expect(props.handleRef.current!.canFocus()).toBe(false); expect(h.context.setContents).toHaveBeenCalledOnce();
+    expect(h.context.insertText).not.toHaveBeenCalled(); expect(h.context.format).not.toHaveBeenCalled(); expect(props.onChange).not.toHaveBeenCalled();
+  });
+  it.each(['unready', 'move', 'cancel', 'blur', 'disabled', 'account', 'reset', 'unmount'] as const)('refuses completed native taps after %s', async reason => {
+    props.onBodyTap = vi.fn(); props.onTouchMove = vi.fn(); props.onTouchCancel = vi.fn();
+    render(); const cleanup = h.effects[1];
+    if (reason !== 'unready') { editor().onReady(); await flush(); }
+    const target = nativeBodyTarget(); target.onTouchStart();
+    if (reason === 'move') { target.onTouchMove(); expect(props.onTouchMove).toHaveBeenCalledOnce(); }
+    if (reason === 'cancel') { target.onTouchCancel(); expect(props.onTouchCancel).toHaveBeenCalledOnce(); }
+    if (reason === 'blur') editor().onBlur({ detail: {} });
+    if (reason === 'disabled') { props.disabled = true; render(); }
+    if (reason === 'account') h.account = 'other';
+    if (reason === 'reset') { props.value = '外部草稿'; render(); h.effects.at(-1)(); await flush(); }
+    if (reason === 'unmount') cleanup()();
+    target.onClick(); expect(props.onBodyTap).not.toHaveBeenCalled();
   });
   it('formats the native selection without rehydrating the whole document', async () => {
     editor().onReady(); await flush(); render();

@@ -1,9 +1,10 @@
 import { getScrollViewType } from "../../utils/renderer";
-import { View, Text, Button, Switch, ScrollView } from "@tarojs/components";
+import { View, Text, ScrollView } from "@tarojs/components";
+import { GzkButton as Button, GzkSwitch as Switch } from "gzk-ui/native-form";
 import Taro from "@tarojs/taro";
 import { useState, useEffect, useRef } from "react";
 import { logout } from "guanggu-forum-api";
-import ArrowRightIcon from "../../assets/arrow-right.svg?raw";
+import { ChevronRight as ArrowRightIcon } from "gzk-ui/icons";
 import ThemedIcon from "../../components/ThemedIcon";
 import { linkHandler } from "../../utils/linkHandler";
 import { getCachedUsername } from "../../utils/currentUser";

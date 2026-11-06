@@ -68,6 +68,11 @@
     &--left {
       justify-content: flex-start;
     }
+
+    &--autoHeight {
+      overflow: visible;
+      flex-shrink: 0;
+    }
   }
 
   .navTitle {

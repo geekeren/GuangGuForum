@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { ScrollView, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { getMessageConversations, type MessageConversationPage, type MessageSummary } from 'guanggu-forum-api';
@@ -8,7 +8,7 @@ import UserAvatar from '../../components/UserAvatar';
 import LoginPrompt from '../../components/LoginPrompt';
 import Loading from '../../components/Loading';
 import ThemedIcon from '../../components/ThemedIcon';
-import MessageIcon from '../../assets/notification.svg?raw';
+import { Envelope as MessageIcon } from "gzk-ui/icons";
 import { usePageScrollViewType } from '../../hooks/usePageRenderer';
 import { getCachedUsername } from '../../utils/currentUser';
 import { APP_ROUTES } from '../../utils/appRoutes';
@@ -17,6 +17,7 @@ import { usePrivatePage } from './usePrivatePage';
 import { privateMessageMemory } from './privateMemory';
 import { mergeById, messageErrorText } from './privateState';
 import { emptyPrivateBuckets, PRIVATE_BUCKETS, PRIVATE_GROUP_EVENT, privateGroupNavigation, type PrivateBucketState } from './privateGroupState';
+import { usePrivateRefresher } from './usePrivateRefresher';
 import './index.scss';
 
 interface ListState {
@@ -33,19 +34,40 @@ interface MessageListProps {
 export function MessageConversationList({ active = true, embedded = false, header }: MessageListProps = {}) {
   const scrollType = usePageScrollViewType();
   const { store, snapshot, data, summary, ready, username, loading: checkingLogin, error: loginError, identityError, refresh } = usePrivatePage(emptyList, active);
-  const load = useCallback((bucket: 0 | 1, more = false) => {
-    const previous = store.snapshot().data.buckets[bucket];
-    if (!store.isVisible() || !store.snapshot().verified || previous.loading || previous.loadingMore || (more && !previous.cursor)) return;
+  const flights = useRef(new Map<0 | 1, { generation: number; account: string; uid: number; more: boolean; promise: Promise<void> }>());
+  const load = useCallback((bucket: 0 | 1, more = false): Promise<void> | undefined => {
+    if (!store.isVisible() || !store.snapshot().verified) return;
+    const scope = store.snapshot();
+    const sameScope = () => store.isVisible() && store.snapshot().verified && store.snapshot().generation === scope.generation
+      && store.snapshot().account === scope.account && store.snapshot().uid === scope.uid;
+    const pending = flights.current.get(bucket);
+    if (pending && pending.generation === scope.generation && pending.account === scope.account && pending.uid === scope.uid) {
+      // A pull joins a real first-page GET; a pending continuation must finish
+      // before a fresh first page can replace it, without superseding its lane.
+      if (!more && pending.more) return pending.promise.then(() => sameScope() ? load(bucket) : undefined);
+      return pending.promise;
+    }
+    const previous = scope.data.buckets[bucket];
+    if (more && !previous.cursor) return;
     const cursor = more ? previous.cursor : null;
-    store.update(value => ({ ...value, buckets: { ...value.buckets, [bucket]: { ...value.buckets[bucket], loading: !more, loadingMore: more, error: '' } } }));
+    let settle!: () => void;
+    const flight = { generation: scope.generation, account: scope.account, uid: scope.uid, more,
+      promise: new Promise<void>(resolve => { settle = resolve; }) };
+    // Publish the flight before synchronous store subscribers can reenter load.
+    flights.current.set(bucket, flight);
+    store.update(value => ({ ...value, buckets: { ...value.buckets, [bucket]: { ...value.buckets[bucket], loading: !more && !previous.completed, loadingMore: more, error: '' } } }));
     void store.read(`list:${bucket}`, () => getMessageConversations({ bucket, ...(cursor ? { cursor } : {}) }), page => {
-      if (!more) privateMessageMemory.put(store.snapshot().uid, `list:${bucket}`, page);
+      if (!sameScope()) return;
+      if (!more) privateMessageMemory.put(scope.uid, `list:${bucket}`, page);
       store.update(value => ({ ...value, buckets: { ...value.buckets, [bucket]: { ...value.buckets[bucket],
         items: more ? mergeById(value.buckets[bucket].items, page.items) : page.items,
         cursor: page.next_cursor && page.next_cursor !== cursor ? page.next_cursor : null,
         loading: false, loadingMore: false, error: '', retryMore: false, completed: true } } }));
-    }, error => store.update(value => ({ ...value, buckets: { ...value.buckets, [bucket]: { ...value.buckets[bucket],
-      loading: false, loadingMore: false, retryMore: more, error: messageErrorText(error) } } })));
+    }, error => { if (sameScope()) store.update(value => ({ ...value, buckets: { ...value.buckets, [bucket]: { ...value.buckets[bucket],
+      loading: false, loadingMore: false, retryMore: more, error: messageErrorText(error) } } })); })
+      .catch(() => { /* Never expose arbitrary callback errors or leave a native pull pending. */ })
+      .finally(() => { if (flights.current.get(bucket) === flight) flights.current.delete(bucket); settle(); });
+    return flight.promise;
   }, [store]);
 
   useEffect(() => {
@@ -54,7 +76,7 @@ export function MessageConversationList({ active = true, embedded = false, heade
     const releases = PRIVATE_BUCKETS.map(bucket => {
       const release = privateMessageMemory.protect(uid, `list:${bucket}`, snapshot.verified);
       const cached = privateMessageMemory.get<MessageConversationPage>(uid, `list:${bucket}`, undefined, snapshot.verified);
-      if (cached) store.update(value => ({ ...value, buckets: { ...value.buckets, [bucket]: { ...value.buckets[bucket], items: cached.items, cursor: cached.next_cursor } } }));
+      if (cached) store.update(value => ({ ...value, buckets: { ...value.buckets, [bucket]: { ...value.buckets[bucket], items: cached.items, cursor: cached.next_cursor, completed: true } } }));
       if (snapshot.verified) load(bucket);
       return release;
     });
@@ -64,6 +86,8 @@ export function MessageConversationList({ active = true, embedded = false, heade
   const groups = groupMessageConversations(data.buckets[0].items, data.buckets[1].items);
   const lanes = PRIVATE_BUCKETS.map(bucket => data.buckets[bucket]);
   const busy = lanes.some(lane => lane.loading || lane.loadingMore);
+  const refresher = usePrivateRefresher(store, () => true,
+    () => Promise.all(PRIVATE_BUCKETS.map(bucket => load(bucket))));
   const openThread = (group: PrivateMessageGroup) => {
     if (!store.isVisible()) return;
     const current = store.snapshot();
@@ -80,11 +104,11 @@ export function MessageConversationList({ active = true, embedded = false, heade
     {!username ? <View className='privateMessageStatus'>
       {checkingLogin ? <Loading /> : <LoginPrompt icon='私信' title='登录后查看私信' desc='私信内容仅在登录后可见' />}
       {loginError && <Text className='privateMessageAction' onClick={refresh}>账号加载失败，点击重试</Text>}
-    </View> : identityError ? <View className='privateMessageStatus'><Text className='privateMessageError' onClick={refresh}>私信账号校验失败，点击重试</Text></View> : !ready ? <View className='privateMessageStatus'><Loading /></View> : <>
+    </View> : identityError ? <View className='privateMessageStatus'><Text className='privateMessageError' onClick={refresh}>私信账号校验失败，点击重试</Text></View> : !ready ? <View className='privateMessageStatus' /> : <>
       {summary?.restriction_reason && <Text className='privateMessageNotice'>{summary.restriction_reason}</Text>}
-      <ScrollView className='privateMessageList' type={scrollType} scrollY enhanced onScrollToLower={() => PRIVATE_BUCKETS.forEach(bucket => load(bucket, true))}>
+      <ScrollView className='privateMessageList' type={scrollType} scrollY enhanced refresherEnabled={snapshot.verified} refresherBackground='transparent' {...refresher} onScrollToLower={() => PRIVATE_BUCKETS.forEach(bucket => load(bucket, true))}>
         {PRIVATE_BUCKETS.map(bucket => data.buckets[bucket].error && <Text key={`error:${bucket}`} className='privateMessageError' onClick={() => load(bucket, data.buckets[bucket].retryMore)}>{bucket === 0 ? '会话记录' : '请求记录'}：{data.buckets[bucket].error}，点击重试</Text>)}
-        {groups.length === 0 && busy ? <View className='privateMessageStatus'><Loading /></View>
+        {groups.length === 0 && lanes.some(lane => !lane.completed) ? null
           : groups.length === 0 && lanes.every(lane => lane.completed && !lane.error) ? <View className='privateMessageEmpty'>
             <ThemedIcon src={MessageIcon} tone='accent-text' className='privateMessageEmptyIcon' />
             <Text className='privateMessageEmptyTitle'>暂无私信</Text><Text className='privateMessageMuted'>会话与消息请求会按联系人显示在这里</Text>
@@ -103,7 +127,8 @@ export function MessageConversationList({ active = true, embedded = false, heade
               {group.unread > 0 && <Text className='privateMessageCount'>{group.unread > 99 ? '99+' : group.unread}</Text>}
             </View>
           </View>)}
-        {busy ? <Text className='privateMessageFooter'>加载中…</Text> : lanes.some(lane => lane.cursor) && <Text className='privateMessageFooter privateMessageAction' onClick={() => PRIVATE_BUCKETS.forEach(bucket => load(bucket, true))}>加载更多</Text>}
+        {groups.length > 0 && lanes.some(lane => lane.loadingMore) && !refresher.refresherTriggered && <Text className='privateMessageFooter'>加载中…</Text>}
+        {!busy && lanes.some(lane => lane.cursor) && <Text className='privateMessageFooter privateMessageAction' onClick={() => PRIVATE_BUCKETS.forEach(bucket => load(bucket, true))}>加载更多</Text>}
       </ScrollView>
     </>}
   </View>;

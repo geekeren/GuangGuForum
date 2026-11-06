@@ -1,4 +1,8 @@
 <!-- Keep dynamic image sources in the imported template: Taro's native asset
      collector treats a root dynamic source as a relative filename. -->
 <import src="./content.wxml" />
-<template is="topic-control-content" data="{{icon, label, disabled, active, background, thumbnail, caption, loading}}" />
+<!-- Slot projection belongs to the component root, not an imported template. -->
+<view wx:if="{{captureOnly}}" class="format-button format-button--capture-only {{disabled ? 'format-button--disabled' : ''}}" aria-role="button" aria-label="{{label}}" aria-disabled="{{disabled}}" bindtouchstart="formatStart" catchtouchend="formatEnd" bindtouchmove="formatMove" catchtouchcancel="formatCancel" catchtap="formatTap">
+  <view class="format-button__slot"><slot /></view>
+</view>
+<template wx:else is="topic-control-content" data="{{icon, label, disabled, active, background, thumbnail, caption, loading}}" />

@@ -1,4 +1,5 @@
-import { ScrollView, Switch, Text, View } from '@tarojs/components';
+import { ScrollView, Text, View } from '@tarojs/components';
+import { GzkSwitch as Switch } from 'gzk-ui/native-form';
 import Taro from '@tarojs/taro';
 import { useState } from 'react';
 import Navbar from '../../components/Navbar';

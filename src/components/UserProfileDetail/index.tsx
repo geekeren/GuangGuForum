@@ -4,7 +4,7 @@ import Taro from "@tarojs/taro";
 import { UserProfile, URLS, urlPathVaiable, getUserFavorites, FavoriteTopic } from "guanggu-forum-api";
 import UserAvatar from '../UserAvatar';
 import TopicTag from "../TopicTag";
-import CommentIcon from "../../assets/comment.svg?raw";
+import { Comment as CommentIcon } from "gzk-ui/icons";
 import ThemedIcon from "../ThemedIcon";
 import Loading from "../Loading";
 import RecentlyViewedTopics from '../RecentlyViewedTopics';

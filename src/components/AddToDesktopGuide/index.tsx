@@ -1,7 +1,7 @@
 import { View, Text, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useState, useRef } from "react";
-import MoreDotsIcon from "../../assets/more-dots.svg";
+import { MoreDotsUrl as MoreDotsIcon } from "gzk-ui/icon-urls";
 import { getNavInfo } from "../../utils/dimension";
 import { cacheService, CacheCategory } from "../../utils/CacheService";
 import "./index.scss";

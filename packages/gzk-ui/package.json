@@ -1,0 +1,68 @@
+{
+  "name": "gzk-ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "GzkUi — shared, theme-aware Taro UI foundations",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./theme": "./src/theme.ts",
+    "./svgIcon": "./src/svgIcon.ts",
+    "./loading": "./src/components/Loading/index.tsx",
+    "./tag": "./src/components/Tag/index.tsx",
+    "./icon": "./src/components/Icon/index.tsx",
+    "./input": "./src/components/Input/index.tsx",
+    "./textarea": "./src/components/Textarea/index.tsx",
+    "./native-form": "./src/components/NativeForm/index.tsx",
+    "./form-field": "./src/components/FormField/index.tsx",
+    "./select": "./src/components/Select/index.tsx",
+    "./icons": "./src/icons/index.ts",
+    "./icon-urls": "./src/icons/urls.ts",
+    "./styles/tokens.scss": "./src/styles/tokens.scss"
+  },
+  "typesVersions": {
+    "*": {
+      "theme": [
+        "src/theme.ts"
+      ],
+      "svgIcon": [
+        "src/svgIcon.ts"
+      ],
+      "loading": [
+        "src/components/Loading/index.tsx"
+      ],
+      "tag": [
+        "src/components/Tag/index.tsx"
+      ],
+      "icon": [
+        "src/components/Icon/index.tsx"
+      ],
+      "input": [
+        "src/components/Input/index.tsx"
+      ],
+      "textarea": [
+        "src/components/Textarea/index.tsx"
+      ],
+      "native-form": [
+        "src/components/NativeForm/index.tsx"
+      ],
+      "form-field": [
+        "src/components/FormField/index.tsx"
+      ],
+      "select": [
+        "src/components/Select/index.tsx"
+      ],
+      "icons": [
+        "src/icons/index.ts"
+      ],
+      "icon-urls": [
+        "src/icons/urls.ts"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@tarojs/components": "4.1.10",
+    "react": "^18.0.0"
+  }
+}

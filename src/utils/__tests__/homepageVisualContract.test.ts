@@ -31,9 +31,12 @@ describe("homepage reference geometry", () => {
     expect(header).toContain("padding-top: 10rpx;");
     expect(header).toContain("padding-bottom: 12rpx;");
     expect(scroll).toContain("height: 54rpx;");
-    expect(css).toContain("line-height: 54rpx;");
+    const controls = source("pages/home/topics/index.tsx");
+    expect(controls).toContain('lineHeight: theme === "dark" ? "52rpx" : "54rpx",');
     expect(css).toContain("border-radius: 30rpx;");
-    expect(css).toContain("background: linear-gradient(150deg, #4b8cff, #0754ee);");
+    expect(css).toContain("&--active {\n    font-weight: 700;");
+    expect(controls).toContain('const color = selected ? "#fff" : palette["text-primary"];');
+    expect(controls).toContain('"linear-gradient(150deg, #4b8cff, #0754ee)"');
     expect(css).not.toContain("&::after");
     expect(source("pages/home/topics/index.tsx")).toContain("Math.max(0, res.height - rpxToPx(76))");
   });
@@ -41,7 +44,7 @@ describe("homepage reference geometry", () => {
   it("splits the former gap into fixed header spacing and smaller scroll spacing in both renderers", () => {
     const list = source("pages/home/topics/topicList/index.tsx");
     const scroll = list.split("<ScrollView")[1].split("</ScrollView>")[0];
-    expect(scroll).toContain("className={isSkyline() ? 'topicList topicList--skyline' : 'topicList'}");
+    expect(scroll).toContain("className={skyline ? 'topicList topicList--skyline' : 'topicList'}");
     // The spacer is the first scroll child, not part of the header/refresh wrapper.
     expect(scroll).toMatch(/>\s*<View className='topicListTopSpacer' \/>/);
     expect(scroll.indexOf("topicListTopSpacer")).toBeLessThan(scroll.indexOf("<PinnedTopicCard"));
@@ -69,7 +72,7 @@ describe("homepage reference geometry", () => {
     expect(css).toContain("padding: 22rpx 26rpx 20rpx;");
     expect(css).toContain("min-height: 132rpx;");
     expect(css).toContain("border-radius: 24rpx;");
-    expect(css).toContain("font-size: 30rpx;");
+    expect(css).toContain("font-size: 17.2PX;");
     expect(css).toContain("line-height: 1.4;");
     expect(css).toContain("flex-wrap: nowrap;");
     const tag = source("components/TopicTag/index.scss");
@@ -89,8 +92,8 @@ describe("homepage reference geometry", () => {
   it("uses the same muted comment vector and 24rpx dimensions in topic lists and profile favorites", () => {
     const list = source("pages/home/topics/topicList/index.tsx");
     const profile = source("components/UserProfileDetail/index.tsx");
-    expect(list).toContain('import CommentIcon from "../../../../assets/comment.svg?raw";');
-    expect(profile).toContain('import CommentIcon from "../../assets/comment.svg?raw";');
+    expect(list).toContain('import { Comment as CommentIcon } from "gzk-ui/icons";');
+    expect(profile).toContain('import { Comment as CommentIcon } from "gzk-ui/icons";');
     for (const component of [list, profile]) {
       expect(component).toContain("<ThemedIcon src={CommentIcon} tone='muted' lightColor='#000000'");
       expect(component).not.toContain("home-comment.svg");
@@ -101,7 +104,7 @@ describe("homepage reference geometry", () => {
       expect(listIcon).toContain(`${dimension}: 24rpx;`);
       expect(profileIcon).toContain(`${dimension}: 24rpx;`);
     }
-    const svg = source("assets/comment.svg");
+    const svg = readFileSync("packages/gzk-ui/src/icons/assets/comment.svg", "utf8");
     expect(svg).toContain('stroke="currentColor"');
     expect(svg).not.toMatch(/<image\b|base64|data:image/i);
   });
@@ -125,9 +128,9 @@ describe("homepage reference geometry", () => {
     expect(scroll).toContain("{announcement && <PinnedTopicCard topic={announcement} />}");
     expect(scroll.indexOf("<PinnedTopicCard")).toBeLessThan(scroll.indexOf("regularTopics.map"));
     for (const asset of ["home-announcement-icon.svg", "home-announcement-scene.svg"]) {
-      expect(announcement).toContain(`assets/${asset}`);
+      expect(announcement).toContain(asset === 'home-announcement-scene.svg' ? `assets/${asset}` : 'AnnouncementArtworkUrl as AnnouncementArtworkIcon');
       expect(announcement).not.toContain(`assets/${asset.replace(".svg", ".png")}`);
-      const svg = source(`assets/${asset}`);
+      const svg = asset === 'home-announcement-scene.svg' ? source(`assets/${asset}`) : readFileSync(`packages/gzk-ui/src/icons/assets/${asset}`, 'utf8');
       expect(svg).toMatch(/<svg\b[^>]*\bviewBox=/);
       expect(svg).toMatch(/<(?:path|rect|circle|ellipse|polygon|polyline)\b/);
       expect(svg).not.toMatch(/<image\b|<foreignObject\b|base64|data:image|\.(?:png|jpe?g|webp|gif)\b/i);
@@ -201,7 +204,7 @@ describe("homepage reference geometry", () => {
     const home = source("pages/home/index.tsx");
     const css = source("pages/home/index.scss");
     expect(home).toContain('mapkey="create_topic_btn" className="composeShareElement"');
-    expect(home).toContain('<Image src={ComposePlusIcon} svg mode="aspectFit" className="composePlusIcon" />');
+    expect(home).toContain('<ThemedIcon src={ComposePlusIcon} color=\'#fff\' mode="aspectFit" className="composePlusIcon" />');
     expect(home).not.toContain("<Text>+</Text>");
     const add = css.split("&--add {")[1];
     expect(add).toContain("align-self: stretch;");
@@ -211,7 +214,7 @@ describe("homepage reference geometry", () => {
     expect(wrapper).toContain("height: 72rpx;");
     expect(wrapper).toContain("justify-content: center;");
     expect(wrapper).toContain("align-items: center;");
-    const icon = source("assets/home-compose-plus.svg");
+    const icon = readFileSync("packages/gzk-ui/src/icons/assets/home-compose-plus.svg", "utf8");
     expect(icon).toContain('viewBox="0 0 24 24"');
     expect(icon).toContain('d="M12 4v16M4 12h16"');
     expect(icon).not.toContain("<text");
@@ -224,14 +227,14 @@ describe("homepage reference geometry", () => {
     expect(topics).toContain("getRecentTopics({ type: tab.type, page }, options)");
     expect(topics).toContain("nodes.map((node)");
     expect(list).toContain("{title}</Text>");
-    expect(list).toContain("{username}</Text>");
+    expect(list).toContain("{topic.displayName?.trim() || username}</Text>");
     expect(list).toContain('{commentCount === "" ? 0 : commentCount}');
     expect(list).toContain('<TopicTag label={category} announcement={category === "公告"} />');
     const tag = source("components/TopicTag/index.tsx");
     expect(tag).toContain("src={announcement ? AnnouncementIcon : HashIcon}");
     expect(tag).toContain('THEME_PALETTES[theme]["accent-text"]');
-    expect(source("assets/topic-hash.svg")).toContain('stroke="currentColor"');
-    expect(source("assets/home-active.svg")).toContain('fill="currentColor"');
+    expect(readFileSync("packages/gzk-ui/src/icons/assets/topic-hash.svg", "utf8")).toContain('stroke="currentColor"');
+    expect(readFileSync("packages/gzk-ui/src/icons/assets/home-active.svg", "utf8")).toContain('fill="currentColor"');
     expect(source("pages/home/index.tsx")).toContain("tone={active ? 'accent' : 'secondary'}");
     expect(source("pages/home/index.tsx")).toContain("subscribeUnreadNotifications((count)");
   });

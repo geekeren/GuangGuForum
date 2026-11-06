@@ -1,0 +1,6 @@
+@import "../../styles/tokens.scss";
+
+.gzkSelect { display: block; width: 100%; min-width: 0; }
+.gzkSelectControl { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 20rpx; width: 100%; min-width: 0; box-sizing: border-box; padding: 20rpx 16rpx; border-radius: 16rpx; background: $surfaceAlt; color: $text-primary; font-size: 16.05PX; line-height: 1.6; }
+.gzkSelectValue { display: block; flex: 1; min-width: 0; word-break: break-all; }
+.gzkSelectArrow { width: 24rpx; height: 24rpx; flex-shrink: 0; }

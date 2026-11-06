@@ -116,9 +116,11 @@
   .editorSection {
     background: $surface;
     border-radius: $radius-lg;
-    padding: 32rpx 36rpx;
+    padding: 32rpx 36rpx 0;
     margin: 0 20rpx 24rpx;
-    min-height: 620rpx;
+    // The measured body viewport owns card height. Keep its scrollable last-line
+    // gap inside that viewport instead of another bottom inset/minimum box.
+    min-height: 0;
   }
 
   .repostTip {

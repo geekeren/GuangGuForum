@@ -15,12 +15,12 @@ vi.mock('react', () => ({
   useState: (value: any) => { const i = harness.stateCursor++; if (!(i in harness.state)) harness.state[i] = value; return [harness.state[i], (next: any) => { harness.state[i] = typeof next === 'function' ? next(harness.state[i]) : next; }]; },
 }));
 vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', Textarea: 'Textarea', Input: 'Input', ScrollView: 'ScrollView' }));
-vi.mock('@tarojs/taro', () => ({ default: { useRouter: () => ({ params: harness.params }), navigateTo: vi.fn(), getRandomValues: vi.fn(async () => ({ randomValues: new Uint8Array(16).fill(3).buffer })) } }));
+vi.mock('@tarojs/taro', () => ({ default: { useRouter: () => ({ params: harness.params }), navigateTo: vi.fn(), getRandomValues: vi.fn(async () => ({ randomValues: new Uint8Array(16).fill(3).buffer })) }, useDidHide: () => {} }));
 vi.mock('guanggu-forum-api', () => ({ getMessageConversations: vi.fn(), getMessageSummary: vi.fn(), getMessageThread: vi.fn(), getMessageCompose: vi.fn(), sendPrivateMessage: vi.fn().mockResolvedValue({ conversation_id: 11 }), acceptPrivateMessageRequest: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../usePrivatePage', () => ({ usePrivatePage: () => harness.page }));
 vi.mock('../../../utils/currentUser', () => ({ subscribeCurrentAccount: () => () => {} }));
-vi.mock('../PrivateMessageComposer', () => ({ default: ({ value, limit, disabled, posting, onSend }: any) => [
-  { type: 'Textarea', props: { value, maxlength: limit, disabled: disabled || posting } },
+vi.mock('../PrivateMessageComposer', () => ({ default: ({ value, limit, disabled, posting, unavailableReason, onSend }: any) => [
+  { type: 'Textarea', props: { value, maxlength: limit, disabled: disabled || posting, placeholder: posting ? '提交中…' : disabled ? unavailableReason : '说点什么…' } },
   { type: 'View', props: { className: 'privateMessageSend', onClick: onSend } },
 ] }));
 vi.mock('../../../hooks/usePageRenderer', () => ({ usePageScrollViewType: () => 'custom' }));
@@ -80,10 +80,78 @@ describe('private UI components', () => {
     expect(nodes.map(text).join('')).not.toContain('状态待确认');
     expect(nodes.filter(node => node.props.className === 'privateThreadNavState')).toHaveLength(1);
     const avatarColumn = nodes.find(node => node.props.className === 'privateThreadNavAvatar')!;
-    expect(all(avatarColumn).some(node => node.props.className === 'privateThreadNavState')).toBe(true);
+    expect(all(avatarColumn).some(node => node.props.className === 'privateThreadNavState')).toBe(false);
+    const peerBody = nodes.find(node => node.props.className === 'privateThreadNavPeerBody')!;
+    expect(peerBody.props.children.map((node: any) => node.props.className)).toEqual(['privateThreadNavName', 'privateThreadNavState']);
     expect(nodes.map(text).join('')).not.toContain('会话记录和状态');
     expect(nodes.some(node => node.props.className === 'privateThreadSystemCard')).toBe(false);
     expect(sendPrivateMessage).not.toHaveBeenCalled();
+  });
+  it('keeps complete peer avatar, status and long nickname inside the auto-height navbar, outside the message scroller', () => {
+    const store = setup();
+    const nickname = '很长的私信昵称 不应在标题胶囊内被裁切';
+    store.update(value => ({ ...value, threadsByCid: { ...value.threadsByCid, 11: { ...value.threadsByCid[11], thread: {
+      ...value.threadsByCid[11].thread!, state: 'pending', peer: { ...value.threadsByCid[11].thread!.peer, display_name: nickname },
+    } } } }));
+    harness.page.data = store.snapshot().data;
+    const nodes = render(MessageThreadPage);
+    const navbar = nodes.find(node => node.type === 'Navbar')!;
+    expect(navbar.props.title).toBeUndefined(); expect(navbar.props.autoHeight).toBe(true);
+    expect(nodes.some(node => node.props.className === 'privateThreadHeader')).toBe(false);
+    const header = navbar.props.children;
+    expect(all(header).filter(node => node.type === 'UserAvatar')).toHaveLength(1);
+    expect(all(header).find(node => node.type === 'UserAvatar')!.props.size).toBe(52);
+    const state = all(header).find(node => node.props.className === 'privateThreadNavState')!;
+    const name = all(header).find(node => node.props.className === 'privateThreadNavName')!;
+    expect(state.props.children).toBe('等待接受请求'); expect(name.props.children).toBe(nickname);
+    for (const label of [state, name]) { expect(label.props.maxLines).toBeUndefined(); expect(label.props.overflow).toBeUndefined(); }
+    const scroller = nodes.find(node => node.props.className === 'privateThreadMessages')!;
+    expect(all(scroller).some(node => node.props.className === 'privateThreadNavPeer')).toBe(false);
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/messages/index.scss'), 'utf8');
+    const headerRule = css.match(/\.privateThreadNavPeer\s*\{([^}]*)\}/)![1];
+    expect(headerRule).toContain('min-width: 0'); expect(headerRule).toContain('max-width: 100%');
+    expect(headerRule).toContain('justify-content: center'); expect(headerRule).not.toMatch(/(?:^|;)\s*width:/);
+    expect(navbar.props.centeredContent).toBe(true);
+    expect(headerRule).not.toMatch(/height:|overflow/);
+    for (const selector of ['privateThreadNavState', 'privateThreadNavName']) {
+      const rule = css.match(new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`))![1];
+      expect(rule).toContain('word-break: break-all'); expect(rule).not.toMatch(/nowrap|ellipsis|overflow/);
+    }
+    expect(sendPrivateMessage).not.toHaveBeenCalled();
+  });
+  it.each([[false, false, '等待对方接受，暂不能继续发送'], [true, false, '接受请求后才能继续交流'], [false, true, '会话不可用，不能发送私信']])('moves only selected pending/blocked restrictions into the composer (%s)', (incoming_request, blocked, reason) => {
+    const store = setup();
+    store.update(value => ({ ...value, threadsByCid: { ...value.threadsByCid, 11: { ...value.threadsByCid[11], thread: { ...value.threadsByCid[11].thread!, state: 'pending', incoming_request, blocked } } } }));
+    harness.page.data = store.snapshot().data;
+    const nodes = render(MessageThreadPage);
+    const input = nodes.find(node => node.type === 'Textarea')!;
+    expect(input.props.placeholder).toBe(reason); expect(input.props.value).toBe('fixture draft'); expect(input.props.disabled).toBe(true);
+    expect(nodes.filter(node => node.props.className === 'privateMessageNotice').some(node => text(node) === reason)).toBe(false);
+    expect(nodes.some(node => node.props.className === 'privateAcceptRequest')).toBe(incoming_request && !blocked);
+    nodes.find(node => node.props.className === 'privateMessageSend')!.props.onClick();
+    expect(sendPrivateMessage).not.toHaveBeenCalled();
+  });
+  it('hides cached and refreshing explanations without authorizing input or clearing its draft', () => {
+    const store = setup();
+    store.update(value => ({ ...value, threadsByCid: { ...value.threadsByCid, 11: { ...value.threadsByCid[11], loading: true, permissionsFresh: false } } }));
+    harness.page.data = store.snapshot().data; harness.page.snapshot = { ...store.snapshot(), verified: false };
+    const nodes = render(MessageThreadPage);
+    expect(nodes.map(text).join('')).not.toMatch(/缓存内容|正在刷新|正在查找会话/);
+    expect(nodes.some(node => node.props.className === 'privateThreadSystemCard')).toBe(false);
+    const input = nodes.find(node => node.type === 'Textarea')!;
+    expect(input.props.disabled).toBe(true); expect(input.props.value).toBe('fixture draft'); expect(input.props.placeholder).toBe('当前会话暂不能发送');
+    nodes.find(node => node.props.className === 'privateMessageSend')!.props.onClick(); expect(sendPrivateMessage).not.toHaveBeenCalled();
+  });
+  it('ignores a different thread pending status and clears restrictions when selected thread becomes sendable', () => {
+    const store = setup();
+    store.update(value => ({ ...value, targetChosen: true, threadsByCid: { ...value.threadsByCid, 12: { ...value.threadsByCid[11], thread: { ...value.threadsByCid[11].thread!, id: 12, state: 'pending' } } } }));
+    harness.page.data = store.snapshot().data;
+    expect(render(MessageThreadPage).find(node => node.type === 'Textarea')!.props.placeholder).toBe('说点什么…');
+    store.update(value => ({ ...value, selectedCid: 12 })); harness.page.data = store.snapshot().data;
+    expect(render(MessageThreadPage).find(node => node.type === 'Textarea')!.props.placeholder).toBe('等待对方接受，暂不能继续发送');
+    store.update(value => ({ ...value, threadsByCid: { ...value.threadsByCid, 12: { ...value.threadsByCid[12], thread: { ...value.threadsByCid[12].thread!, state: 'active' } } } })); harness.page.data = store.snapshot().data;
+    const input = render(MessageThreadPage).find(node => node.type === 'Textarea')!;
+    expect(input.props.placeholder).toBe('说点什么…'); expect(input.props.disabled).toBe(false); expect(input.props.value).toBe('fixture draft');
   });
   it('preserves explicit local posting and failed/uncertain send notices without attaching them to history', () => {
     for (const [posting, postError] of [[true, ''], [false, '私信请求失败，请检查网络后重试']] as const) {

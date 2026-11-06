@@ -1,4 +1,5 @@
-import { View, Text, Picker, Radio, RadioGroup } from "@tarojs/components";
+import { View, Text } from "@tarojs/components";
+import { GzkPicker as Picker, GzkRadio as Radio, GzkRadioGroup as RadioGroup } from "gzk-ui/native-form";
 import { ClearableTextarea } from "../../../components/ClearableInput";
 import TopicTitle from '../TopicTitle';
 import { BRAND_COLOR } from "../../../utils/theme";

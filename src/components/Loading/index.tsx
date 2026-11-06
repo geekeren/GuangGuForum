@@ -1,27 +1,7 @@
-import { View, Text } from "@tarojs/components";
-import "./index.scss";
+import { GzkLoading, type GzkLoadingProps } from "gzk-ui/loading";
 
-interface LoadingInterface {
-  size?: number;
-  fullscreen?: boolean;
+export default function Loading({ className = "", labelClassName = "", ...props }: GzkLoadingProps) {
+  // Preserve the existing .loading .tip page selectors without adding legacy styles to the library.
+  const legacyClassName = `loading${props.fullscreen ? " loading--fullscreen" : ""}${className ? ` ${className}` : ""}`;
+  return <GzkLoading {...props} className={legacyClassName} labelClassName={`tip${labelClassName ? ` ${labelClassName}` : ""}`} />;
 }
-const Loading = (props: LoadingInterface) => {
-  const { size = 32, fullscreen = false } = props;
-  const spinnerSize = size + "px";
-  return (
-    <View className={`loading ${fullscreen ? "loading--fullscreen" : ""}`}>
-      <View className="spinner" style={{ width: spinnerSize, height: spinnerSize }}>
-        <View className="spinnerBlade" />
-        <View className="spinnerBlade" />
-        <View className="spinnerBlade" />
-        <View className="spinnerBlade" />
-        <View className="spinnerBlade" />
-        <View className="spinnerBlade" />
-        <View className="spinnerBlade" />
-        <View className="spinnerBlade" />
-      </View>
-      <Text className="tip">加载中...</Text>
-    </View>
-  );
-};
-export default Loading;

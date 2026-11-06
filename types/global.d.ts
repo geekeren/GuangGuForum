@@ -1,17 +1,12 @@
 /// <reference types="@tarojs/taro" />
+/// <reference path="../packages/gzk-ui/src/types/assets.d.ts" />
 
 declare module "*.png";
 declare module "*.gif";
 declare module "*.jpg";
 declare module "*.jpeg";
-declare module "*.svg";
-declare module "*.svg?raw" {
-  const source: string;
-  export default source;
-}
 declare module "*.css";
 declare module "*.less";
-declare module "*.scss";
 declare module "*.sass";
 declare module "*.styl";
 
@@ -29,6 +24,9 @@ declare namespace JSX {
       active: boolean;
       background: string;
       thumbnail?: boolean;
+      captureOnly?: boolean;
+      style?: string | import('react').CSSProperties;
+      children?: import('react').ReactNode;
       caption?: string;
       loading?: boolean;
       onFormatend: (event: NativeFormatEvent) => void;

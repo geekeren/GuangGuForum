@@ -11,7 +11,7 @@ import { useCurrentUsername } from '../../hooks/useCurrentUsername';
 import { getCachedUsername } from '../../utils/currentUser';
 import { profileMessageRoute } from '../messages/privateState';
 import ThemedIcon from '../../components/ThemedIcon';
-import MessageIcon from '../../assets/private-message-envelope.svg?raw';
+import { Envelope as MessageIcon } from "gzk-ui/icons";
 import "./index.scss";
 
 const UserProfilePage = () => {

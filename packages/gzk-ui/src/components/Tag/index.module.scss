@@ -1,8 +1,8 @@
-@import "../../vars.scss";
+@import "../../styles/tokens.scss";
 
-.tag {
+.gzkTag {
   background: $color-brand-soft;
-  color: $color-brand-dark;
+  color: var(--theme-accent-text, #1954cc);
   display: inline-flex;
   flex-direction: row;
   border: 1rpx solid rgba(31, 105, 255, 0.08);

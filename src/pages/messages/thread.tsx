@@ -15,6 +15,7 @@ import { privateMessageMemory } from './privateMemory';
 import PrivateMessageComposer from './PrivateMessageComposer';
 import { mergeById, messageErrorText, messageSourceRoute, messageStateLabel, messageTextError, positiveRouteId } from './privateState';
 import { emptyPrivateBuckets, PRIVATE_BUCKETS, PRIVATE_GROUP_EVENT, validatedPrivateGroupNavigation, type PrivateBucketState, type PrivateGroupNavigation } from './privateGroupState';
+import { usePrivateRefresher } from './usePrivateRefresher';
 import './index.scss';
 
 interface ConversationState {
@@ -75,7 +76,7 @@ function MessageThreadView() {
     if (more) setScrollIntoView(undefined);
     store.update(value => ({ ...value, threadsByCid: { ...value.threadsByCid, [conversationId]: { ...previous,
       loading: !more, loadingMore: more, error: '', ...(!more ? { permissionsFresh: false } : {}) } } }));
-    void store.read(`thread:${conversationId}`, async () => {
+    return store.read(`thread:${conversationId}`, async () => {
       const thread = await getMessageThread({ conversationId, ...(before ? { before } : {}) });
       const expectedPeerUid = peerUid || recipientId;
       if (thread.id !== conversationId || (expectedPeerUid && thread.peer.uid !== expectedPeerUid)) throw { code: 'INVALID_RESPONSE' };
@@ -132,14 +133,16 @@ function MessageThreadView() {
       loading: false, loadingMore: false, retryMore: more, error: messageErrorText(error) } } })));
   }, [store, peerUid, discover]);
 
-  const loadCompose = useCallback(() => {
+  const loadCompose = useCallback(async () => {
     const current = store.snapshot();
     if (!recipientId || invalidRoute || !store.isVisible() || !current.verified || current.data.posting || current.data.composeLoading) return;
     store.update(value => ({ ...value, composeLoading: true, composeError: '', composeFresh: false }));
-    void store.read('compose', () => getMessageCompose({ recipientId, ...(sourceId ? { sourceId } : {}) }), compose => {
+    let threadRead: Promise<void> | undefined;
+    await store.read('compose', () => getMessageCompose({ recipientId, ...(sourceId ? { sourceId } : {}) }), compose => {
       store.update(value => ({ ...value, compose, composeLoading: false, composeFresh: true, composeError: '', selectedCid: compose.conversation_id }));
-      if (compose.conversation_id) loadThread(compose.conversation_id);
+      if (compose.conversation_id) threadRead = loadThread(compose.conversation_id);
     }, error => store.update(value => ({ ...value, composeLoading: false, composeError: messageErrorText(error) })));
+    await threadRead;
   }, [store, recipientId, sourceId, invalidRoute, loadThread]);
 
   // The opener event is just metadata. Only this page's fresh summary can authorize use of its UID.
@@ -216,7 +219,21 @@ function MessageThreadView() {
   const peer = orderedIds.map(id => data.threadsByCid[id].thread?.peer).find(Boolean) || data.compose?.peer;
   const canSend = snapshot.verified && (selected ? isPrivateThreadSendable(selected.thread, selected.permissionsFresh) && !selected.loading && !selected.loadingMore
     : data.composeFresh && !data.composeLoading && data.compose?.conversation_id === 0 && data.compose.can_initiate);
+  const unavailableReason = canSend ? '' : selected?.thread?.blocked ? '会话不可用，不能发送私信'
+    : selected?.thread?.state === 'pending' ? (selected.thread.incoming_request ? '接受请求后才能继续交流' : '等待对方接受，暂不能继续发送')
+    : '当前会话暂不能发送';
   const maxLength = selected ? 500 : 120;
+  const refresher = usePrivateRefresher(store, () => {
+    const current = store.snapshot().data;
+    return !invalidRoute && !current.posting && !current.composeLoading
+      && Object.values(current.threadsByCid).every(entry => !entry.loading && !entry.loadingMore)
+      && PRIVATE_BUCKETS.every(bucket => !current.buckets[bucket].loading && !current.buckets[bucket].loadingMore);
+  }, async () => {
+    const current = store.snapshot();
+    const entry = current.data.threadsByCid[selectedCid];
+    if (entry) await loadThread(selectedCid);
+    else if (recipientId) await loadCompose();
+  });
 
   const send = () => {
     const current = store.snapshot();
@@ -272,12 +289,12 @@ function MessageThreadView() {
   };
 
   return <View className='privateMessagesPage privateMessagesPage--thread'>
-    <Navbar back title={!peer ? '私信' : undefined} titleStyle={{ opacity: 1, transform: 'none' }} shared={false}>
-      {peer && <View className='privateThreadNavPeer'><View className='privateThreadNavAvatar'>
+    <Navbar back centeredContent={!!peer} autoHeight={!!peer} title={peer ? undefined : '私信'} titleStyle={{ opacity: 1, transform: 'none' }} shared={false}>
+    {peer && <View className='privateThreadNavPeer'><View className='privateThreadNavAvatar'>
         <UserAvatar username={peer.username} src={peer.avatar} size={52} onClick={() => openPeerProfile(peer.username)} />
-        <Text className='privateThreadNavState' maxLines={1} overflow='ellipsis'>{selected?.thread ? (selected.thread.blocked ? '会话不可用' : messageStateLabel(selected.thread.state)) : data.compose ? '发起消息请求' : '加载会话'}</Text>
       </View><View className='privateThreadNavPeerBody'>
-        <Text className='privateThreadNavName' maxLines={1} overflow='ellipsis'>{peer.display_name.trim() || peer.username}</Text>
+        <Text className='privateThreadNavName'>{peer.display_name.trim() || peer.username}</Text>
+        <Text className='privateThreadNavState'>{selected?.thread ? (selected.thread.blocked ? '会话不可用' : messageStateLabel(selected.thread.state)) : data.compose ? '发起消息请求' : '加载会话'}</Text>
       </View></View>}
     </Navbar>
     {invalidRoute ? <View className='privateMessageStatus'><Text className='privateMessageEmptyTitle'>私信链接无效</Text></View>
@@ -286,7 +303,7 @@ function MessageThreadView() {
       : identityError ? <View className='privateMessageStatus'><Text className='privateMessageError' onClick={refresh}>私信账号校验失败，点击重试</Text></View>
       : !ready ? <View className='privateMessageStatus'><Loading /></View>
       : <>
-        <ScrollView type={scrollType} className='privateThreadMessages' scrollY enhanced scrollIntoView={scrollIntoView} onScroll={() => setScrollIntoView(undefined)}>
+        <ScrollView type={scrollType} className='privateThreadMessages' scrollY enhanced refresherEnabled={snapshot.verified && !invalidRoute} refresherBackground='transparent' {...refresher} scrollIntoView={scrollIntoView} onScroll={() => setScrollIntoView(undefined)}>
           {data.composeLoading && <Text className='privateMessageFooter'>正在校验发起私信资格…</Text>}
           {data.composeError && <Text className='privateMessageError' onClick={loadCompose}>{data.composeError}，点击重试</Text>}
           {data.compose && !data.compose.conversation_id && <View className='privateThreadSystemCard'>
@@ -298,18 +315,16 @@ function MessageThreadView() {
             const entry = data.threadsByCid[id]; const thread = entry.thread;
             const pending = thread?.state === 'pending';
             return <View key={id} className='privateThreadSegment'>
-              {(entry.loading || entry.error || thread?.source || thread?.blocked || pending || (thread?.can_reopen && thread.state !== 'active') || (thread && !entry.permissionsFresh)) && <View className='privateThreadSystemCard'>
+              {((entry.loading && !thread) || entry.error || thread?.source || (thread?.incoming_request && pending && !thread.blocked) || (thread?.can_reopen && thread.state !== 'active')) && <View className='privateThreadSystemCard'>
                 {thread && <>
                   {thread.source && <SourceNotice source={thread.source} visible={store.isVisible} />}
-                  {thread.blocked ? <Text className='privateMessageNotice'>会话不可用，不能发送私信</Text> : pending && <Text className='privateMessageNotice'>{thread.incoming_request ? '接受请求后才能继续交流' : '等待对方接受，暂不能继续发送'}</Text>}
                   {thread.can_reopen && thread.state !== 'active' && <Text className='privateMessageNotice'>此会话可重新开启；暂不提供重新开启操作</Text>}
-                  {!entry.permissionsFresh && <Text className='privateMessageMuted'>缓存内容仅供查看，刷新会话成功后才能操作</Text>}
                   {thread.incoming_request && pending && !thread.blocked && <View className='privateAcceptRequest'>
                     <Text className='privateMessageMuted'>只有点击接受此会话请求，才会提交接受操作</Text>
                     <View className={`privateMessageButton ${data.posting || !snapshot.verified || !entry.permissionsFresh || entry.loading || entry.loadingMore ? 'privateMessageButton--disabled' : ''}`} onClick={() => accept(id)}><Text>{data.posting ? '提交中…' : '接受请求'}</Text></View>
                   </View>}
                 </>}
-                {entry.loading && <Text className='privateMessageMuted'>正在刷新此会话…</Text>}
+                {entry.loading && !thread && <Loading />}
                 {entry.error && <Text className='privateMessageError' onClick={() => loadThread(id, entry.retryMore)}>{entry.error}，点击重试</Text>}
               </View>}
               {thread?.has_more && <Text className='privateMessageFooter privateMessageAction' onClick={() => loadThread(id, true)}>{entry.loadingMore ? '加载中…' : '加载更早消息'}</Text>}
@@ -324,8 +339,7 @@ function MessageThreadView() {
           })}
           {peerUid && <View className='privateThreadDiscovery'>
             {PRIVATE_BUCKETS.map(bucket => data.buckets[bucket].error && <Text key={bucket} className='privateMessageError' onClick={() => loadBucket(bucket, data.buckets[bucket].retryMore)}>{bucket === 0 ? '会话记录' : '请求记录'}发现失败，点击重试</Text>)}
-            {PRIVATE_BUCKETS.some(bucket => data.buckets[bucket].loading || data.buckets[bucket].loadingMore) ? <Text className='privateMessageFooter'>正在查找会话记录…</Text>
-              : PRIVATE_BUCKETS.some(bucket => data.buckets[bucket].cursor) && <Text className='privateMessageFooter privateMessageAction' onClick={() => PRIVATE_BUCKETS.forEach(bucket => loadBucket(bucket, true))}>加载更多会话记录</Text>}
+            {!PRIVATE_BUCKETS.some(bucket => data.buckets[bucket].loading || data.buckets[bucket].loadingMore) && PRIVATE_BUCKETS.some(bucket => data.buckets[bucket].cursor) && <Text className='privateMessageFooter privateMessageAction' onClick={() => PRIVATE_BUCKETS.forEach(bucket => loadBucket(bucket, true))}>加载更多会话记录</Text>}
           </View>}
           {data.notice && <Text className='privateMessageNotice'>{data.notice}</Text>}
           {data.postError && <Text className='privateMessageError'>{data.postError}。未提交成功时可手动重试</Text>}
@@ -335,7 +349,7 @@ function MessageThreadView() {
             if (!store.isVisible() || store.snapshot().data.posting) return;
             store.clearSendKey(); store.update(value => ({ ...value, selectedCid: id, targetChosen: true, postError: '' }));
           }}>#{id}{data.threadsByCid[id].thread?.source ? ` · ${data.threadsByCid[id].thread!.source!.title}` : ''}</Text>)}</View>}
-        {peer && <PrivateMessageComposer value={data.draft} limit={maxLength} disabled={!canSend} posting={data.posting}
+        {peer && <PrivateMessageComposer value={data.draft} limit={maxLength} disabled={!canSend} posting={data.posting} unavailableReason={unavailableReason}
           onChange={value => { store.draftChanged(value); store.update(current => ({ ...current, draft: value, postError: '' })); }} onSend={send} />}
       </>}
   </View>;

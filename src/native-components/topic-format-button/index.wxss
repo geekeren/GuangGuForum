@@ -5,6 +5,8 @@
 .format-button__glyph, .format-button__icon, .format-button__thumbnail,
 .format-button__overlay, .format-button__spinner, .format-button__caption { pointer-events: none; }
 .format-button--disabled { opacity: 0.35; }
+.format-button--capture-only { height: 100%; }
+.format-button__slot { display: flex; flex-direction: row; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; }
 .format-button__glyph { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; flex: none; border-radius: 16rpx; }
 .format-button__icon { width: 40rpx; height: 40rpx; display: block; }
 .format-button--thumbnail { position: relative; height: 128rpx; border-radius: 16rpx; overflow: hidden; }

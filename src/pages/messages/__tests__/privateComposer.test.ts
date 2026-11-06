@@ -40,13 +40,15 @@ describe('compact text-only private composer', () => {
       expect(css).toContain('caret-color: var(--theme-input-caret, #0754d7)');
     }
   });
-  it('two-line thread identity fits a 32px navbar capsule without changing font sizes', () => {
+  it('thread name and state retain readable fonts and wrap in opt-in auto-height content', () => {
     const css = compileString(readFileSync(resolve(process.cwd(), 'src/pages/messages/index.scss'), 'utf8'), { loadPaths: [resolve(process.cwd(), 'src/pages/messages')] }).css;
     const name = css.match(/\.privateThreadNavName\s*\{([^}]*)\}/)![1];
     const state = css.match(/\.privateThreadNavState\s*\{([^}]*)\}/)![1];
     expect(name).toContain('font-size: 14.91PX'); expect(state).toContain('font-size: 10.32PX');
-    expect(name).toContain('line-height: 1.2'); expect(state).toContain('line-height: 1.2');
-    expect((14.91 + 10.32) * 1.2).toBeLessThanOrEqual(32);
+    expect(name).toContain('line-height: 1.5'); expect(state).toContain('line-height: 1.5');
+    expect(state).toContain('text-align: left');
+    for (const rule of [name, state]) { expect(rule).toContain('word-break: break-all'); expect(rule).not.toMatch(/ellipsis|nowrap|overflow/); }
+    expect(readFileSync(resolve(process.cwd(), 'src/pages/messages/thread.tsx'), 'utf8')).toContain('autoHeight={!!peer}');
   });
   it('keyboard show lifts full inset when viewport unchanged, resize compensates and keyboard hide restores safe area', () => {
     let nodes = render(); const input = nodes.find(node => node.type === 'Textarea'); input.props.onKeyboardHeightChange({ detail: { height: 300 } });
@@ -66,6 +68,27 @@ describe('compact text-only private composer', () => {
     input.props.onInput({ detail: { value: 'fixture new request' } }); expect(onChange).toHaveBeenCalledWith('fixture new request');
     nodes = render({ value: 'fixture new request', limit: 120, onChange, onSend });
     nodes.find(node => node.props.className?.startsWith('privateMessageSend ')).props.onClick(); expect(onSend).toHaveBeenCalledTimes(1);
+  });
+  it('shows the restriction inside an empty control or beneath its intact draft, then removes it when sendable', () => {
+    const onChange = vi.fn(); const onSend = vi.fn();
+    const unavailableReason = '等待对方接受，暂不能继续发送';
+    for (const value of ['', '未发送草稿']) {
+      const nodes = render({ value, disabled: true, unavailableReason, onChange, onSend });
+      const input = nodes.find(node => node.type === 'Textarea')!;
+      expect(input.props.value).toBe(value); expect(input.props.placeholder).toBe(unavailableReason);
+      expect(input.props.disabled).toBe(true);
+      const body = nodes.find(node => node.props.className === 'privateMessageInputBody')!;
+      const state = all(body).find(node => node.props.className === 'privateMessageInputState');
+      if (value) expect(state.props.children).toBe(unavailableReason); else expect(state).toBeUndefined();
+      input.props.onInput({ detail: { value: 'must not change' } });
+      nodes.find(node => node.props.className?.startsWith('privateMessageSend ')).props.onClick();
+    }
+    expect(onChange).not.toHaveBeenCalled(); expect(onSend).not.toHaveBeenCalled();
+    const enabled = render({ value: '未发送草稿', disabled: false, unavailableReason, onChange, onSend });
+    expect(enabled.find(node => node.type === 'Textarea').props.placeholder).toBe('说点什么…');
+    expect(enabled.some(node => node.props.className === 'privateMessageInputState')).toBe(false);
+    const posting = render({ value: '未发送草稿', disabled: true, posting: true, unavailableReason });
+    expect(posting.find(node => node.props.className === 'privateMessageInputState').props.children).toBe('提交中…');
   });
   it('disables send and input for blocked/qualification/posting states and enforces text capacity', () => {
     for (const extra of [{ disabled: true }, { posting: true }, { value: 'x'.repeat(121), limit: 120 }]) {

@@ -17,6 +17,11 @@ vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: harness.theme
 
 const vector = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"><path stroke="currentColor" fill="currentColor" d="M4 12h16"/><circle fill="#fff" cx="12" cy="12" r="1"/></svg>';
 const decode = (src: string) => decodeURIComponent(src.slice("data:image/svg+xml,".length));
+// The app owns theme selection; expand its thin GzkUi adapter to inspect native Image props.
+const renderThemedIcon = (props: Parameters<typeof ThemedIcon>[0]) => {
+  const adapter = ThemedIcon(props);
+  return adapter.type(adapter.props);
+};
 beforeEach(() => { harness.theme = "light"; });
 
 describe("native SVG color boundary", () => {
@@ -35,7 +40,7 @@ describe("native SVG color boundary", () => {
   it.each(["light", "dark"] as const)("uses the %s accent token and preserves Image sizing and interactions", (theme) => {
     harness.theme = theme;
     const onClick = vi.fn();
-    const icon = ThemedIcon({ src: vector, tone: "accent", className: "fixture", mode: "aspectFit", onClick, style: { width: "24rpx", filter: "brightness(2)" } });
+    const icon = renderThemedIcon({ src: vector, tone: "accent", className: "fixture", mode: "aspectFit", onClick, style: { width: "24rpx", filter: "brightness(2)" } });
     const color = THEME_PALETTES[theme]["accent-primary"];
     expect(icon.props.svg).toBe(true);
     expect(icon.props.className).toBe("fixture");
@@ -49,7 +54,7 @@ describe("native SVG color boundary", () => {
   it("preserves string Image styles and appends the resolved color and disabled filter last", () => {
     harness.theme = "dark";
     const style = "width:24rpx;height:24rpx;color:#000;filter:brightness(2)";
-    const icon = ThemedIcon({ src: vector, tone: "muted", style });
+    const icon = renderThemedIcon({ src: vector, tone: "muted", style });
     const color = THEME_PALETTES.dark["text-tertiary"];
     expect(icon.props.style).toBe(`${style};color:${color};filter:none`);
     expect(decode(icon.props.src)).toContain(`stroke="${color}"`);
@@ -57,10 +62,10 @@ describe("native SVG color boundary", () => {
 
   it("keeps lightColor only in light mode and lets an explicit container color override a tone", () => {
     const props = { src: vector, tone: "secondary" as const, lightColor: "#000000" };
-    expect(decode(ThemedIcon(props).props.src)).toContain('stroke="#000000"');
+    expect(decode(renderThemedIcon(props).props.src)).toContain('stroke="#000000"');
     harness.theme = "dark";
-    expect(decode(ThemedIcon(props).props.src)).toContain(`stroke="${THEME_PALETTES.dark["text-secondary"]}"`);
-    expect(decode(ThemedIcon({ ...props, color: "#abcdef" }).props.src)).toContain('stroke="#abcdef"');
+    expect(decode(renderThemedIcon(props).props.src)).toContain(`stroke="${THEME_PALETTES.dark["text-secondary"]}"`);
+    expect(decode(renderThemedIcon({ ...props, color: "#abcdef" }).props.src)).toContain('stroke="#abcdef"');
   });
 });
 
@@ -76,21 +81,21 @@ describe("shared TopicTag", () => {
     expect(tag.props.onClick).toBe(onClick);
     expect(icon.type).toBe(ThemedIcon);
     expect(icon.props.color).toBe(color);
-    expect(icon.props.src).toBe(readFileSync("src/assets/topic-hash.svg", "utf8"));
+    expect(icon.props.src).toBe(readFileSync("packages/gzk-ui/src/icons/assets/topic-hash.svg", "utf8"));
     expect(text.props.children).toBe("真实分类");
     expect(text.props).toMatchObject({ overflow: "ellipsis", maxLines: 1 });
     const announcement = TopicTag({ label: "公告", announcement: true }).props.children[0];
-    expect(announcement.props.src).toBe(readFileSync("src/assets/home-announcement.svg", "utf8"));
+    expect(announcement.props.src).toBe(readFileSync("packages/gzk-ui/src/icons/assets/home-announcement.svg", "utf8"));
     expect(announcement.props.color).toBe(color);
   });
 
   it("keeps the shared compact geometry and both tag icon sources vector-only", () => {
     const css = readFileSync("src/components/TopicTag/index.scss", "utf8");
-    for (const contract of ["max-width: 158rpx;", "padding: 4rpx 10rpx;", "font-size: 22rpx;", "width: 20rpx;", "height: 20rpx;"]) {
+    for (const contract of ["max-width: 158rpx;", "padding: 4rpx 10rpx;", "font-size: 12.61PX;", "width: 20rpx;", "height: 20rpx;"]) {
       expect(css).toContain(contract);
     }
     for (const name of ["topic-hash", "home-announcement"]) {
-      const svg = readFileSync(`src/assets/${name}.svg`, "utf8");
+      const svg = readFileSync(`packages/gzk-ui/src/icons/assets/${name}.svg`, "utf8");
       expect(svg).toMatch(/(?:stroke|fill)="currentColor"/);
       expect(svg).not.toMatch(/<image\b|<foreignObject\b|base64|data:image|\.(?:png|jpe?g|webp|gif)\b/i);
     }

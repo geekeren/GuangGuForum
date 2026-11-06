@@ -39,6 +39,12 @@ describe('native topic editor adapter', () => {
     expect(await editor.snapshot()).toEqual(plain('retry'));
     editor.dispose(); await expect(editor.snapshot()).rejects.toThrow('disposed');
   });
+  it.each(['h2', 'h3'] as const)('forwards native %s without replacing contents or changing the selection', async header => {
+    const ctx = context(); const editor = createNativeEditorAdapter(ctx, () => true);
+    await editor.format('header', header);
+    expect(ctx.format).toHaveBeenCalledOnce(); expect(ctx.format).toHaveBeenCalledWith('header', header);
+    expect(ctx.setContents).not.toHaveBeenCalled(); expect(ctx.setSelection).not.toHaveBeenCalled(); expect(ctx.deleteText).not.toHaveBeenCalled(); expect(ctx.insertText).not.toHaveBeenCalled();
+  });
   it('stops a multi-delete shortcut when the live revision changes', async () => {
     let current = true;
     const ctx = context({ deleteText: vi.fn((cb: any) => { current = false; cb.success({}); }) });

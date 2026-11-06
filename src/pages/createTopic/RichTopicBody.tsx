@@ -30,6 +30,7 @@ interface Props {
   value: string; document?: TopicDocument; attachments: TopicAttachment[]; disabled: boolean; focus: boolean;
   placeholder: string; handleRef: RefObject<RichBodyHandle | null>; onChange: (value: string, document?: TopicDocument) => void;
   onFocus: () => void; onBlur: () => void; onTouchStart?: () => void;
+  onBodyTap?: () => void; onTouchMove?: () => void; onTouchCancel?: () => void;
   onFormatStatusChange?: (status: TopicFormatStatus) => void;
 }
 let nextEditorId = 0;
@@ -52,6 +53,8 @@ export default function RichTopicBody(props: Props) {
   const readyRef = useRef(ready); readyRef.current = ready;
   const sourceModeRef = useRef(sourceMode); sourceModeRef.current = sourceMode;
   const active = useRef(true);
+  const initialAccount = useRef(getCachedUsername());
+  const bodyTapStarted = useRef(false);
   const adapter = useRef<NativeEditorAdapter | null>(null);
   const delta = useRef<TopicDelta>(normalizeTopicDelta(props.document?.delta || initial.current.delta));
   const latest = useRef(props); latest.current = props;
@@ -66,7 +69,22 @@ export default function RichTopicBody(props: Props) {
   const imageAttempts = useRef(new Map<string, { src: string; countBefore: number; boundary: number }>());
   const expectedShortcutTexts = useRef<Set<string> | null>(null);
   const sourceHandle = useRef<any>(null);
+  const canInteract = () => active.current && !latest.current.disabled && initialAccount.current === getCachedUsername()
+    && (sourceModeRef.current || readyRef.current);
   const handleFocus = () => { tryHideKeyboardAccessoryView(); props.onFocus(); };
+  const handleBodyTouchStart = () => {
+    bodyTapStarted.current = canInteract();
+    if (bodyTapStarted.current) latest.current.onTouchStart?.();
+  };
+  const cancelBodyTap = (cancelled = false) => {
+    bodyTapStarted.current = false;
+    if (cancelled) latest.current.onTouchCancel?.(); else latest.current.onTouchMove?.();
+  };
+  const handleBodyTap = () => {
+    const started = bodyTapStarted.current; bodyTapStarted.current = false;
+    if (started && canInteract()) latest.current.onBodyTap?.();
+  };
+  const handleBlur = () => { bodyTapStarted.current = false; latest.current.onBlur(); };
   const formatDiagnostic = useRef('');
   const removedFormats = useRef<string[]>([]);
   const formatStatus = useRef(EMPTY_FORMAT_STATUS);
@@ -135,7 +153,7 @@ export default function RichTopicBody(props: Props) {
   useEffect(() => {
     if (props.value === lastValue.current && props.document === lastDocument.current) return;
     publishFormatStatus(EMPTY_FORMAT_STATUS);
-    readyRef.current = false;
+    readyRef.current = false; bodyTapStarted.current = false;
     lastValue.current = props.value; lastDocument.current = props.document; boundary.current++; revision.current++;
     removedFormats.current = [];
     insertedImages.current.clear(); imageAttempts.current.clear();
@@ -325,18 +343,23 @@ export default function RichTopicBody(props: Props) {
     </View>}
     {sourceMode ? <MentionTextarea className='contentInput topicEditorInput' value={props.value} editorRef={sourceHandle}
       mentionUsers={getCachedUsername() ? [getCachedUsername()] : []} placeholder={props.placeholder} disabled={props.disabled}
-      autoHeight focus={props.focus} holdKeyboard={props.focus} showConfirmBar={false} maxlength={50000} onFocus={handleFocus} onBlur={props.onBlur}
-      onTouchStart={props.onTouchStart}
+      autoHeight focus={props.focus} holdKeyboard={props.focus} showConfirmBar={false} maxlength={50000} onFocus={handleFocus} onBlur={handleBlur}
+      onTouchStart={handleBodyTouchStart} onTouchMove={() => cancelBodyTap()} onTouchCancel={() => cancelBodyTap(true)} onClick={handleBodyTap}
       onInput={event => { lastValue.current = event.detail.value; lastDocument.current = undefined; setNotice(importTopicMarkdown(event.detail.value).lossless ? '' : SOURCE_NOTICE); props.onChange(event.detail.value, undefined); }}
     />
-      : <Editor id={id.current} className='topicNativeEditor' style={{ color: THEME_PALETTES[theme]['text-primary'] }} placeholder={props.placeholder} readOnly={props.disabled || !ready}
-          showImgToolbar showImgResize onReady={onReady} onFocus={handleFocus} onTouchStart={props.onTouchStart}
+      : <View className='topicNativeBodyTarget' onTouchStart={handleBodyTouchStart}
+          onTouchMove={() => cancelBodyTap()} onTouchCancel={() => cancelBodyTap(true)} onClick={handleBodyTap}>
+        {/* WeChat's Editor template binds tap, but no touch start/move/cancel.
+            Observe the bubbling gesture on View; never capture it from Editor. */}
+        <Editor id={id.current} className='topicNativeEditor' style={{ color: THEME_PALETTES[theme]['text-primary'] }} placeholder={props.placeholder} readOnly={props.disabled || !ready}
+          showImgToolbar showImgResize onReady={onReady} onFocus={handleFocus}
           onStatusChange={event => {
             if (active.current && readyRef.current && !sourceModeRef.current && !latest.current.disabled) publishFormatStatus(parseNativeEditorStatus(event.detail));
           }}
-          onBlur={event => { if (event.detail?.delta && active.current) publish(event.detail.delta); props.onBlur(); }}
+          onBlur={event => { if (event.detail?.delta && active.current) publish(event.detail.delta); handleBlur(); }}
           onInput={event => { void onInput(event.detail.delta); }}
-      />}
+        />
+      </View>}
     {mentions && <View className='topicRichMentions' onTouchEnd={event => event.stopPropagation()}>
       {[...new Set([getCachedUsername(), AI_MENTION_USERNAME].filter(Boolean))].map(user => <Text className='topicMentionChip' key={user}
         onClick={() => { void write(ctx => ctx.insertText(`@${user} `)); setMentions(false); }}

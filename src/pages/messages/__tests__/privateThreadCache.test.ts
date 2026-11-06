@@ -17,7 +17,7 @@ vi.mock('react', () => ({
   useEffect: (fn: any, deps: any[]) => { const i = runtime.effectCursor++; const old = runtime.effects[i]; if (!old || deps.some((value, index) => value !== old.deps[index])) runtime.work.push(() => { old?.cleanup?.(); runtime.effects[i] = { deps, cleanup: fn() }; }); },
 }));
 vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', ScrollView: 'ScrollView' }));
-vi.mock('@tarojs/taro', () => ({ default: { useRouter: () => ({ params: runtime.params }), getCurrentInstance: () => ({ page: { getOpenerEventChannel: () => ({ on: (_: any, listener: any) => { runtime.listener = listener; }, off: () => { runtime.listener = null; } }) } }), navigateTo: vi.fn(), getRandomValues: vi.fn(async () => ({ randomValues: new Uint8Array(16).buffer })) } }));
+vi.mock('@tarojs/taro', () => ({ default: { useRouter: () => ({ params: runtime.params }), getCurrentInstance: () => ({ page: { getOpenerEventChannel: () => ({ on: (_: any, listener: any) => { runtime.listener = listener; }, off: () => { runtime.listener = null; } }) } }), navigateTo: vi.fn(), getRandomValues: vi.fn(async () => ({ randomValues: new Uint8Array(16).buffer })) }, useDidHide: () => {} }));
 vi.mock('guanggu-forum-api', () => ({ getMessageThread: vi.fn(), getMessageCompose: vi.fn(), getMessageConversations: vi.fn(), getUserProfile: vi.fn(), sendPrivateMessage: vi.fn(), acceptPrivateMessageRequest: vi.fn() }));
 vi.mock('../usePrivatePage', () => ({ usePrivatePage: () => runtime.page }));
 vi.mock('../../../utils/privateMessageFileCache', () => ({ privateMessageFileCache: { get: vi.fn(), put: vi.fn(), protect: vi.fn(() => () => {}) } }));
@@ -53,6 +53,58 @@ beforeEach(() => {
 });
 
 describe('actual private thread completed-file hydration and fresh permissions', () => {
+  it('native pull refresh reloads selected conversation once, keeps draft/selection, settles on success and failure without POST', async () => {
+    vi.mocked(getMessageThread).mockResolvedValueOnce(thread()); render(); await flush();
+    const store = runtime.page.store; store.update(value => ({ ...value, draft: 'pull draft', targetChosen: true }));
+    const request = deferred<any>(); vi.mocked(getMessageThread).mockReturnValueOnce(request.promise);
+    const scroll = render().find(node => node.props.className === 'privateThreadMessages')!;
+    expect(scroll.props.refresherEnabled).toBe(true); expect(scroll.props.refresherTriggered).toBe(false);
+    const pending = scroll.props.onRefresherRefresh(); scroll.props.onRefresherRefresh();
+    expect(render().find(node => node.props.className === 'privateThreadMessages').props.refresherTriggered).toBe(true);
+    expect(getMessageThread).toHaveBeenCalledTimes(2);
+    request.resolve({ ...thread(), messages: [{ ...thread().messages[0], id: 2, text: 'fresh synthetic' }] }); await pending; await flush();
+    expect(render().find(node => node.props.className === 'privateThreadMessages').props.refresherTriggered).toBe(false);
+    expect(store.snapshot().data.draft).toBe('pull draft'); expect(store.snapshot().data.selectedCid).toBe(11); expect(store.snapshot().data.targetChosen).toBe(true);
+    vi.mocked(getMessageThread).mockRejectedValueOnce({ code: 'NETWORK' });
+    await render().find(node => node.props.className === 'privateThreadMessages').props.onRefresherRefresh();
+    const failed = render(); expect(failed.find(node => node.props.className === 'privateThreadMessages').props.refresherTriggered).toBe(false);
+    expect(failed.some(node => node.props.className === 'privateMessageError')).toBe(true);
+    expect(store.snapshot().data.draft).toBe('pull draft'); expect(sendPrivateMessage).not.toHaveBeenCalled(); expect(acceptPrivateMessageRequest).not.toHaveBeenCalled();
+  });
+  it('compose pull refresh includes a newly discovered conversation read before ending, without clearing request draft', async () => {
+    runtime.params = { to: '8' };
+    vi.mocked(getMessageCompose).mockResolvedValueOnce({ peer: thread().peer, conversation_id: 0, source: null, can_initiate: true, qualification_message: '' });
+    render(); await flush(); runtime.page.store.update(value => ({ ...value, draft: 'request draft' }));
+    const compose = deferred<any>(); const read = deferred<any>();
+    vi.mocked(getMessageCompose).mockReturnValueOnce(compose.promise); vi.mocked(getMessageThread).mockReturnValueOnce(read.promise);
+    const pending = render().find(node => node.props.className === 'privateThreadMessages').props.onRefresherRefresh();
+    compose.resolve({ peer: thread().peer, conversation_id: 11, source: null, can_initiate: false, qualification_message: '' }); await flush();
+    expect(getMessageThread).toHaveBeenCalledWith({ conversationId: 11 });
+    expect(render().find(node => node.props.className === 'privateThreadMessages').props.refresherTriggered).toBe(true);
+    read.resolve(thread()); await pending; await flush();
+    expect(render().find(node => node.props.className === 'privateThreadMessages').props.refresherTriggered).toBe(false);
+    expect(runtime.page.store.snapshot().data.draft).toBe('request draft'); expect(sendPrivateMessage).not.toHaveBeenCalled();
+  });
+  it('pull refresh refuses posting and ignores nonselected threads when choosing the read target', async () => {
+    vi.mocked(getMessageThread).mockResolvedValueOnce(thread()); render(); await flush(); const store = runtime.page.store;
+    store.update(value => ({ ...value, posting: true }));
+    await render().find(node => node.props.className === 'privateThreadMessages').props.onRefresherRefresh(); expect(getMessageThread).toHaveBeenCalledTimes(1);
+    store.update(value => ({ ...value, posting: false, targetChosen: true, selectedCid: 12, draft: 'selected draft', threadsByCid: { ...value.threadsByCid, 12: { ...value.threadsByCid[11], thread: { ...thread(), id: 12 } } } }));
+    vi.mocked(getMessageThread).mockResolvedValueOnce({ ...thread(), id: 12 });
+    await render().find(node => node.props.className === 'privateThreadMessages').props.onRefresherRefresh();
+    expect(getMessageThread).toHaveBeenLastCalledWith({ conversationId: 12 }); expect(store.snapshot().data.selectedCid).toBe(12); expect(store.snapshot().data.draft).toBe('selected draft');
+    expect(sendPrivateMessage).not.toHaveBeenCalled(); expect(acceptPrivateMessageRequest).not.toHaveBeenCalled();
+  });
+  it('pull refresh stops on hide/account invalidation and ignores stale read results', async () => {
+    vi.mocked(getMessageThread).mockResolvedValueOnce(thread()); render(); await flush();
+    const request = deferred<any>(); vi.mocked(getMessageThread).mockReturnValueOnce(request.promise);
+    const pending = render().find(node => node.props.className === 'privateThreadMessages').props.onRefresherRefresh();
+    expect(runtime.state.includes(true)).toBe(true);
+    runtime.account = 'next-account'; runtime.page.store.isVisible();
+    expect(runtime.state.includes(true)).toBe(false);
+    vi.mocked(privateMessageFileCache.put).mockClear(); request.resolve(thread()); await pending; await flush();
+    expect(privateMessageFileCache.put).not.toHaveBeenCalled(); expect(sendPrivateMessage).not.toHaveBeenCalled();
+  });
   it('cached active thread remains readonly when fresh GET fails; manual successful GET restores send', async () => {
     vi.mocked(privateMessageFileCache.get).mockReturnValue(thread()); const first = deferred<any>(); const retry = deferred<any>();
     vi.mocked(getMessageThread).mockReturnValueOnce(first.promise).mockReturnValueOnce(retry.promise).mockReturnValue(new Promise(() => {}));
@@ -127,7 +179,8 @@ describe('actual private thread completed-file hydration and fresh permissions',
     expect(getMessageConversations).toHaveBeenCalledWith({ bucket: 0, cursor: 'zero' }); expect(getMessageConversations).toHaveBeenCalledWith({ bucket: 1, cursor: 'one' });
     expect(runtime.page.store.snapshot().data.buckets[0].cursor).toBeNull(); expect(runtime.page.store.snapshot().data.known.map((value: any) => value.id)).toEqual([13, 11]);
     expect(vi.mocked(privateMessageFileCache.put).mock.calls.filter(call => String(call[1]).startsWith('list:'))).toHaveLength(2);
-    nodes = render(); expect(nodes.some(node => node.props.children === '会话记录尚未全部加载，已发现的记录仍可查看')).toBe(true);
+    nodes = render(); expect(nodes.some(node => node.props.children === '会话记录尚未全部加载，已发现的记录仍可查看')).toBe(false);
+    expect(nodes.some(node => node.props.className === 'privateMessageError' && node.props.onClick)).toBe(true);
     expect(nodes.some(node => node.props.children === '刷新' && node.props.onClick)).toBe(false);
     // The remaining failed-bucket retry still refreshes its own lane without dropping discovered CIDs.
     nodes.find(node => node.props.className === 'privateMessageError').props.onClick(); await flush();

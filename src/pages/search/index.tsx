@@ -1,5 +1,6 @@
 import { getScrollViewType } from "../../utils/renderer";
-import { View, Text, Image, Input, Button, Picker, ScrollView } from "@tarojs/components";
+import { View, Text, Image, ScrollView } from "@tarojs/components";
+import { GzkNativeInput as Input, GzkButton as Button, GzkPicker as Picker } from "gzk-ui/native-form";
 import Taro, { useRouter } from "@tarojs/taro";
 import { useState, useRef, useEffect } from "react";
 import {
@@ -19,13 +20,13 @@ import BottomSheet from "../../components/BottomSheet";
 import { getCachedNodeNavigation, fetchAndCacheNodeNavigation } from "../../utils/nodeNavigation";
 import SearchHotTopics from "../../components/SearchHotTopics";
 import TopicTag from "../../components/TopicTag";
-import NodesIcon from "../../assets/search-nodes.svg";
-import HistoryIcon from "../../assets/search-history.svg?raw";
-import TrashIcon from "../../assets/search-trash.svg?raw";
-import FilterIcon from "../../assets/search-filter.svg?raw";
+import { SearchNodesUrl as NodesIcon } from "gzk-ui/icon-urls";
+import { SearchHistory as HistoryIcon } from "gzk-ui/icons";
+import { Trash as TrashIcon } from "gzk-ui/icons";
+import { SearchFilter as FilterIcon } from "gzk-ui/icons";
 import { clearSearchHistory, getSearchHistory, rememberSearch, splitSearchHighlight } from "../../utils/searchPresentation";
-import SortIcon from "../../assets/search-sort.svg?raw";
-import SearchIcon from "../../assets/search.svg?raw";
+import { SearchSort as SortIcon } from "gzk-ui/icons";
+import { Search as SearchIcon } from "gzk-ui/icons";
 import { useSearchPlaceholder } from "../../hooks/useSearchPlaceholder";
 import { decodeSearchRouteValue, getPlaceholderTopicRoute } from "../../utils/searchRoute";
 import { isSkyline } from "../../utils/renderer";

@@ -1,0 +1,7 @@
+@import "../../styles/tokens.scss";
+
+.gzkFormField { display: flex; flex-direction: row; align-items: center; gap: 16rpx; width: 100%; min-width: 0; box-sizing: border-box; }
+.gzkFormFieldLabel { display: block; width: 128rpx; flex-shrink: 0; font-size: 14.91PX; line-height: 1.5; font-weight: 600; color: $text-primary; }
+.gzkFormFieldControl { flex: 1; width: 0; min-width: 0; }
+.gzkFormField--multiline { align-items: flex-start; }
+.gzkFormField--multiline .gzkFormFieldLabel { padding-top: 20rpx; }

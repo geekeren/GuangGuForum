@@ -19,7 +19,7 @@ describe('topic title local first-line layout contract', () => {
   });
   it('keeps title and count first-line heights equal without vertically centering a multiline textarea', () => {
     expect(css).toMatch(/\.createTopic \.topicTitleCount\s*\{[^}]*line-height:\s*54rpx;/);
-    expect(css).toMatch(/\.createTopic \.titleInput\s*\{[^}]*font-size:\s*36rpx;[^}]*line-height:\s*1\.5;[^}]*min-height:\s*54rpx;/);
+    expect(css).toMatch(/\.createTopic \.titleInput\s*\{[^}]*font-size:\s*20\.64PX;[^}]*line-height:\s*1\.5;[^}]*min-height:\s*54rpx;/);
     expect(css).toMatch(/\.createTopic \.topicTitleSection\s*\{[^}]*align-items:\s*flex-start;/);
     expect(title).toContain('autoHeight');
   });

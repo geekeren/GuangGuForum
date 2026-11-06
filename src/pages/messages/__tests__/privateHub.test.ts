@@ -44,8 +44,7 @@ vi.mock('../../../components/UserAvatar', () => ({ default: 'UserAvatar' }));
 vi.mock('../../../components/ThemedIcon', () => ({ default: 'ThemedIcon' }));
 vi.mock('../../../components/UserProfileDetail', () => ({ default: 'UserProfileDetail' }));
 vi.mock('../../../components/Navbar', () => ({ default: 'Navbar' }));
-vi.mock('../../../assets/notification-replies.svg?raw', () => ({ default: 'fixture-replies.svg' }));
-vi.mock('../../../assets/notification-announcements.svg?raw', () => ({ default: 'fixture-announcements.svg' }));
+// Exercise the real semantic icon entry; synthetic fixtures must not hide asset migration.
 function all(tree: any): any[] { if (Array.isArray(tree)) return tree.flatMap(all); if (!tree || typeof tree !== 'object') return []; return [tree, ...all(tree.props?.children)]; }
 function text(tree: any): string { if (Array.isArray(tree)) return tree.map(text).join(''); if (typeof tree === 'string' || typeof tree === 'number') return String(tree); return tree?.props ? text(tree.props.children) : ''; }
 function render(component: any) {
@@ -119,10 +118,22 @@ describe('comment homepage and independent private-message navigation', () => {
     expect(css).toContain('.messageHubCategory--active .messageHubCategoryLabel { font-weight: 400;');
     expect(css).not.toContain('background: #eff9f1'); expect(css).not.toContain('background: #edf4ff');
     for (const asset of ['notification-replies.svg', 'notification-announcements.svg']) {
-      const svg = readFileSync(resolve(process.cwd(), 'src/assets', asset), 'utf8');
+      const svg = readFileSync(resolve(process.cwd(), 'packages/gzk-ui/src/icons/assets', asset), 'utf8');
       expect(svg).toContain('stroke="currentColor"'); expect(svg).toContain('stroke-width="2"'); expect(svg).toContain('fill="none"'); expect(svg).not.toMatch(/#[0-9a-f]{6}/i);
     }
     expectPrivateEntry(nodes);
+  });
+  it('comment-reply and private-entry labels share the primary text token in both themes without recoloring icons or links', () => {
+    const nodes = render(() => Notifications({ active: false }));
+    const replies = category(nodes, '评论回复'); const privateEntry = category(nodes, '私信');
+    expect(all(replies).find(node => node.type === 'Text').props.className).toBe('messageHubCategoryLabel');
+    expect(all(privateEntry).find(node => node.type === 'Text').props.className).toBe('messageHubCategoryLabel');
+    const css = compileString(readFileSync(resolve(process.cwd(), 'src/pages/home/notifications/index.scss'), 'utf8'), { loadPaths: [resolve(process.cwd(), 'src/pages/home/notifications')] }).css;
+    const shared = css.match(/\.notificationsPage \.messageHubCategoryLabel\s*\{([^}]*)\}/)?.[1];
+    const active = css.match(/\.messageHubCategory--active \.messageHubCategoryLabel\s*\{([^}]*)\}/)?.[1];
+    expect(shared).toContain('color: var(--theme-text-primary, #10182d)'); expect(active).not.toMatch(/(?:^|;)\s*color:/);
+    expect(css).toMatch(/\.notificationTopicLink\s*\{[^}]*color: var\(--theme-accent-text/);
+    expect(categories(nodes).every(entry => all(entry).find(node => node.props.className === 'messageHubIcon').props.tone === 'accent-text')).toBe(true);
   });
   it('inactive homepage does not request comments or any private summary/conversations', () => {
     const nodes = render(() => Notifications({ active: false }));

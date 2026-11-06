@@ -15,6 +15,8 @@ vi.mock("@tarojs/taro", () => ({
     reLaunch: vi.fn(),
   },
 }));
+const harness = vi.hoisted(() => ({ renderer: 'skyline' as 'skyline' | 'webview' }));
+vi.mock("../../hooks/usePageRenderer", () => ({ usePageRenderer: () => harness.renderer }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
 vi.mock("../dimension", () => ({
   getNavInfo: () => ({
@@ -36,6 +38,7 @@ afterEach(() => {
 
 describe("navbar shared-element opt-out", () => {
   it.each(["skyline", "webview"])("keeps settings actions outside ShareElement under %s", renderer => {
+    harness.renderer = renderer as 'skyline' | 'webview';
     vi.stubGlobal("getCurrentPages", () => [{ renderer }]);
     const openSettings = () => Taro.navigateTo({ url: "/pages/secondary/settings/index" });
     const action = createElement("image", { onClick: openSettings });

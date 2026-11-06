@@ -8,7 +8,7 @@ import { cacheService, CacheCategory } from "../../../../utils/CacheService";
 import "./index.scss";
 import UserAvatar from '../../../../components/UserAvatar';
 import TopicTag from "../../../../components/TopicTag";
-import CommentIcon from "../../../../assets/comment.svg?raw";
+import { Comment as CommentIcon } from "gzk-ui/icons";
 import ThemedIcon from "../../../../components/ThemedIcon";
 import PinnedTopicCard from "../../../../components/PinnedTopicCard";
 import { splitTopicAnnouncement } from "../../../../utils/topicAnnouncement";

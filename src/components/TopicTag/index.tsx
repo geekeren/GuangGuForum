@@ -2,8 +2,8 @@ import { Text, View, type ViewProps } from "@tarojs/components";
 import { useTheme } from "../../hooks/useTheme";
 import { THEME_PALETTES } from "../../utils/themePreferences";
 import ThemedIcon from "../ThemedIcon";
-import HashIcon from "../../assets/topic-hash.svg?raw";
-import AnnouncementIcon from "../../assets/home-announcement.svg?raw";
+import { TopicHash as HashIcon } from "gzk-ui/icons";
+import { AnnouncementFilled as AnnouncementIcon } from "gzk-ui/icons";
 import "./index.scss";
 
 interface Props {

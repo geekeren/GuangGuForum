@@ -1,4 +1,5 @@
-import { Button, Image, ScrollView, Text, View } from "@tarojs/components";
+import { Image, ScrollView, Text, View } from "@tarojs/components";
+import { GzkButton as Button } from "gzk-ui/native-form";
 import Taro from "@tarojs/taro";
 import { useEffect, useRef, useState } from "react";
 import MentionTextarea, { type MentionEditorHandle } from "../../components/MentionTextarea";
@@ -6,16 +7,17 @@ import ThemedIcon from "../../components/ThemedIcon";
 import { isSkyline } from "../../utils/renderer";
 import { getCommentBody } from "../../utils/mentions";
 import type { CommentMentionBinding, CommentMentionTarget } from '../../utils/commentMentionBindings';
-import MentionIcon from "../../assets/composer-mention.svg?raw";
-import EmojiIcon from "../../assets/composer-emoji.svg?raw";
-import KeyboardIcon from "../../assets/composer-keyboard.svg?raw";
-import CollapseIcon from "../../assets/composer-collapse.svg?raw";
-import AddIcon from "../../assets/composer-add.svg?raw";
-import CameraIcon from "../../assets/composer-camera.svg?raw";
-import PhotoIcon from "../../assets/composer-photo.svg?raw";
-import FavoriteIcon from "../../assets/composer-favorite.svg?raw";
-import { MAX_COMMENT_ATTACHMENTS, STICKERS, type Sticker } from "../../utils/stickers";
-import { EMOJIS, getCommonEmojiUsage, recordCommentEmojiUsage } from "../../utils/emojiUsage";
+import { Mention as MentionIcon } from "gzk-ui/icons";
+import { Emoji as EmojiIcon } from "gzk-ui/icons";
+import { Keyboard as KeyboardIcon } from "gzk-ui/icons";
+import { Collapse as CollapseIcon } from "gzk-ui/icons";
+import { Plus as AddIcon } from "gzk-ui/icons";
+import { Camera as CameraIcon } from "gzk-ui/icons";
+import { Photo as PhotoIcon } from "gzk-ui/icons";
+import { Star as FavoriteIcon } from "gzk-ui/icons";
+import { MAX_COMMENT_ATTACHMENTS, type Sticker } from "../../utils/stickers";
+import { getCommonEmojiUsage, recordCommentEmojiUsage } from "../../utils/emojiUsage";
+import ComposerEmojiPanel from '../../components/ComposerEmojiPanel';
 import { isImageCompressionEnabled } from "../../utils/imageCompressionPreferences";
 import { photoAttachment, stickerAttachment, type CommentAttachment } from "../../utils/commentAttachments";
 import { ensureImageHostBound } from '../../utils/imageUploadGuard';
@@ -60,8 +62,6 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, m
   attachments.current = { stickers, photos, previews };
   const [panelTab, setPanelTab] = useState<'common' | 'emoji' | 'sticker'>('common');
   const [commonUsage, setCommonUsage] = useState(getCommonEmojiUsage);
-  const panelEmojis = panelTab === 'common' ? commonUsage.emojis : EMOJIS;
-  const panelStickers = panelTab === 'common' ? commonUsage.stickers : STICKERS;
   const panelOpen = useRef(false);
   const lastKeyboardHeight = useRef(300);
   const awaitingKeyboard = useRef(false);
@@ -280,29 +280,8 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, m
       </View>}
       {showEmojis && (
         <View className='commentPopupEmojiPanel' style={{ height: inputHeight + "px", paddingBottom: safeBottom + "px" }}>
-          <View className='commentPopupPanelTabs'>
-            <View className={`commentPopupPanelTab${panelTab === 'common' ? ' commentPopupPanelTab--active' : ''}`} ariaRole='button' onClick={() => setPanelTab('common')}><Text>常用</Text></View>
-            <View className={`commentPopupPanelTab${panelTab === 'emoji' ? ' commentPopupPanelTab--active' : ''}`} ariaRole='button' onClick={() => setPanelTab('emoji')}><Text>表情</Text></View>
-            <View className={`commentPopupPanelTab${panelTab === 'sticker' ? ' commentPopupPanelTab--active' : ''}`} ariaRole='button' onClick={() => setPanelTab('sticker')}><Text>过早客</Text></View>
-          </View>
-          <ScrollView type={skyline ? 'custom' : undefined} scrollY className='commentPopupPanelScroll' {...{ 'keyboard-dismiss-mode': 'none' }}>
-            <View className='commentPopupEmojiGrid'>
-              {panelTab === 'common' && <Text className='commentPopupCommonHeading'>Emoji</Text>}
-              {panelTab === 'common' && panelEmojis.length === 0 && <Text className='commentPopupCommonEmpty'>选择后，常用 Emoji 会显示在这里</Text>}
-              {panelTab !== 'sticker' && Array.from({ length: Math.ceil(panelEmojis.length / 8) }, (_, row) => (
-                <View className='commentPopupPanelRow' key={row}>
-                  {panelEmojis.slice(row * 8, row * 8 + 8).map(emoji => <View key={emoji} className='commentPopupPanelEmoji' ariaRole='button' ariaLabel={`插入表情${emoji}`} onClick={() => { if (!sending) insertEmoji(emoji); }}><Text>{emoji}</Text></View>)}
-                </View>
-              ))}
-              {panelTab === 'common' && <Text className='commentPopupCommonHeading'>自定义表情</Text>}
-              {panelTab === 'common' && panelStickers.length === 0 && <Text className='commentPopupCommonEmpty'>选择后，常用自定义表情会显示在这里</Text>}
-              {panelTab !== 'emoji' && Array.from({ length: Math.ceil(panelStickers.length / 5) }, (_, row) => (
-                <View className='commentPopupPanelRow' key={row}>
-                  {panelStickers.slice(row * 5, row * 5 + 5).map(sticker => <View className='commentPopupSticker' key={sticker.filename} ariaRole='button' ariaLabel={`添加表情包${sticker.name}`} onClick={() => selectSticker(sticker)}><Image lazyLoad src={sticker.url} mode='aspectFit' className='commentPopupStickerImage' /></View>)}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
+          <ComposerEmojiPanel tab={panelTab} common={commonUsage} disabled={sending} scrollViewType={skyline ? 'custom' : undefined}
+            onTabChange={setPanelTab} onEmoji={insertEmoji} onSticker={selectSticker} />
         </View>
       )}
     </View>

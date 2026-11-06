@@ -5,8 +5,8 @@ import { useTheme } from "../../hooks/useTheme";
 import { THEME_PALETTES } from "../../utils/themePreferences";
 import { usePageRenderer } from "../../hooks/usePageRenderer";
 import ThemedIcon from "../ThemedIcon";
-import ChevronLeftIcon from "../../assets/chevron-left.svg?raw";
-import HomeIcon from "../../assets/nav-home.svg?raw";
+import { ChevronLeft as ChevronLeftIcon } from "gzk-ui/icons";
+import { Home as HomeIcon } from "gzk-ui/icons";
 import "./index.scss";
 
 interface Props {
@@ -22,17 +22,23 @@ interface Props {
   shared?: boolean;
   leftAction?: React.ReactNode;
   children?: React.ReactNode;
+  autoHeight?: boolean;
+  centeredContent?: boolean;
+  backgroundRGB?: string;
 }
 
 const Navbar = (props: Props) => {
-  const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, left = false, shareKey, shared = true, leftAction, children } = props;
+  const { title, back = false, home = false, modal = false, scrollProgress = 0, workletDriven = false, titleStyle: customTitleStyle, left = false, shareKey, shared = true, leftAction, children, autoHeight = false, centeredContent = false, backgroundRGB } = props;
   const { theme } = useTheme();
   const skyline = usePageRenderer() === "skyline";
-  const surfaceRGB = THEME_PALETTES[theme]["surface-rgb"];
+  const surfaceRGB = backgroundRGB ?? THEME_PALETTES[theme]["surface-rgb"];
   const { capsulePaddingTop, capsuleHeight, capsuleWidth, capsuleLeft, screenWidth, statusBarHeight, marginSides } = getNavInfo();
   const paddingRight = screenWidth - capsuleLeft + Math.max(marginSides, 12);
   const singleBtnWidth = (capsuleWidth - 0.5) / 2;
   const hasLeft = back || home || leftAction;
+  // navLeft's existing content-box width includes an additional left padding.
+  const leftReserved = hasLeft ? capsuleWidth + marginSides * 2 : marginSides;
+  const balancedReserved = Math.max(leftReserved, paddingRight);
 
   const router = Taro.useRouter();
   const inModal = modal || router.params.modal === "true";
@@ -60,9 +66,9 @@ const Navbar = (props: Props) => {
 
   const content = (
     <View className="customNavbar" style={navBgStyle}>
-      <View className="navBar" style={{ paddingTop: navBarPaddingTop + "px", paddingLeft: (hasLeft ? 0 : marginSides) + "px", paddingRight: paddingRight + "px" }}>
+      <View className="navBar" style={{ paddingTop: navBarPaddingTop + "px", paddingLeft: (centeredContent ? balancedReserved - (hasLeft ? leftReserved : 0) : hasLeft ? 0 : marginSides) + "px", paddingRight: (centeredContent ? balancedReserved : paddingRight) + "px" }}>
         {hasLeft && (
-          <View className="navLeft" style={{ width: (capsuleWidth + marginSides) + "px", paddingLeft: marginSides + "px" }}>
+          <View className="navLeft" style={{ width: (capsuleWidth + marginSides) + "px", paddingLeft: marginSides + "px", ...(centeredContent ? { marginLeft: (leftReserved - balancedReserved) + "px", marginRight: (balancedReserved - leftReserved) + "px" } : {}) }}>
             {(back || home) && (
               <View className="navCapsule" style={{ height: capsuleHeight + "px", borderRadius: (capsuleHeight / 2) + "px" }}>
                 {back && (
@@ -94,7 +100,7 @@ const Navbar = (props: Props) => {
             )}
           </View>
         )}
-        <View className={`navContent ${left ? 'navContent--left' : ''}`} style={{ height: capsuleHeight + "px" }}>
+        <View className={`navContent ${left ? 'navContent--left' : ''}${autoHeight ? ' navContent--autoHeight' : ''}`} style={autoHeight ? { height: 'auto', minHeight: capsuleHeight + "px" } : { height: capsuleHeight + "px" }}>
           {title && !children && (
             <Text className="navTitle" style={titleStyle} maxLines={skyline ? 1 : undefined} overflow={skyline ? 'ellipsis' : undefined}>{title}</Text>
           )}

@@ -3,14 +3,16 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { compileString } from 'sass';
 import Taro from '@tarojs/taro';
+import { getOwnProfileSettings, saveOwnProfileSettings, type OwnProfileSettings } from 'guanggu-forum-api';
+import type { ProfileEditState } from '../profileEditState';
 import EditProfilePage from '../edit-profile';
 import Me from '../../me';
 import UserProfilePage from '../../user';
 import { THEME_PALETTES } from '../../../utils/themePreferences';
-const runtime = vi.hoisted(() => ({ account: 'fixture', routeUsername: 'other', theme: 'light' as 'light' | 'dark', refs: [] as any[], cursor: 0, effects: [] as any[], profile: null as any, fresh: vi.fn() }));
-vi.mock('react', () => ({ useRef: (value: any) => { const i = runtime.cursor++; if (!(i in runtime.refs)) runtime.refs[i] = { current: value }; return runtime.refs[i]; }, useEffect: (fn: any) => runtime.effects.push(fn), useSyncExternalStore: (_: any, snapshot: any) => snapshot() }));
-vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', ScrollView: 'ScrollView', Picker: 'Picker' }));
-vi.mock('@tarojs/taro', () => ({ default: { navigateTo: vi.fn(), enableAlertBeforeUnload: vi.fn(), disableAlertBeforeUnload: vi.fn(), showModal: vi.fn(), eventCenter: { trigger: vi.fn(), on: vi.fn(), off: vi.fn() } }, useRouter: () => ({ params: { username: runtime.routeUsername } }), useDidShow: () => {}, useDidHide: () => {} }));
+const runtime = vi.hoisted(() => ({ account: 'fixture', routeUsername: 'other', theme: 'light' as 'light' | 'dark', refs: [] as any[], cursor: 0, effects: [] as any[], hide: undefined as (() => void) | undefined, profile: null as any, fresh: vi.fn() }));
+vi.mock('react', () => ({ useMemo: (compute: () => unknown) => compute(), useRef: (value: any) => { const i = runtime.cursor++; if (!(i in runtime.refs)) runtime.refs[i] = { current: value }; return runtime.refs[i]; }, useEffect: (fn: any) => runtime.effects.push(fn), useSyncExternalStore: (_: any, snapshot: any) => snapshot() }));
+vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', ScrollView: 'ScrollView', Picker: 'Picker', Image: 'Image' }));
+vi.mock('@tarojs/taro', () => ({ default: { navigateTo: vi.fn(), enableAlertBeforeUnload: vi.fn(), disableAlertBeforeUnload: vi.fn(), showModal: vi.fn(), showToast: vi.fn(), eventCenter: { trigger: vi.fn(), on: vi.fn(), off: vi.fn() } }, useRouter: () => ({ params: { username: runtime.routeUsername } }), useDidShow: () => {}, useDidHide: (callback: () => void) => { runtime.hide = callback; } }));
 vi.mock('guanggu-forum-api', () => ({ getOwnProfileSettings: vi.fn(), saveOwnProfileSettings: vi.fn(), getUserProfile: vi.fn() }));
 vi.mock('../../../utils/currentUser', () => ({ getCachedUsername: () => runtime.account, subscribeCurrentAccount: () => () => {} }));
 vi.mock('../../../hooks/useCurrentUsername', () => ({ useCurrentUsername: () => ({ username: runtime.account, loading: false, error: false, retry: vi.fn() }) }));
@@ -29,7 +31,21 @@ vi.mock('../../../components/UserProfileDetail', () => ({ default: 'UserProfileD
 function all(tree: any): any[] { if (Array.isArray(tree)) return tree.flatMap(all); if (!tree || typeof tree !== 'object') return []; if (typeof tree.type === 'function') return all(tree.type(tree.props)); return [tree, ...all(tree.props?.children)]; }
 function render(component: any) { runtime.cursor = 0; return all(component()); }
 const fields = { nickname: '', gender: 'x', generation: 'z', signature: '', location: '', website: '', college: '', company: '', self_intro: '' };
-beforeEach(() => { runtime.refs = []; runtime.effects = []; runtime.account = 'fixture'; runtime.theme = 'light'; runtime.profile = { username: 'fixture' }; vi.mocked(Taro.navigateTo).mockClear(); vi.mocked(Taro.eventCenter.on).mockClear(); runtime.fresh.mockReset().mockResolvedValue({}); });
+function deferred<T>() { let resolve!: (value: T) => void; let reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
+async function loadedEditor() {
+  const draft: OwnProfileSettings = { username: 'fixture', email: 'fixture@example.invalid', fields: { ...fields }, options: { gender: [], generation: [] } };
+  vi.mocked(getOwnProfileSettings).mockResolvedValue(draft);
+  render(EditProfilePage);
+  const store = runtime.refs[0].current as ProfileEditState;
+  store.activate('fixture'); await store.load(); store.change('nickname', 'synthetic changed nickname');
+  const save = () => render(EditProfilePage).find(node => node.props.ariaLabel === '保存个人资料')!.props.onClick();
+  return { store, draft, save };
+}
+beforeEach(() => {
+  runtime.refs = []; runtime.effects = []; runtime.hide = undefined; runtime.account = 'fixture'; runtime.theme = 'light'; runtime.profile = { username: 'fixture' };
+  vi.mocked(Taro.navigateTo).mockClear(); vi.mocked(Taro.eventCenter.on).mockClear(); vi.mocked(Taro.eventCenter.trigger).mockClear(); vi.mocked(Taro.showModal).mockReset(); vi.mocked(Taro.showToast).mockReset();
+  vi.mocked(getOwnProfileSettings).mockReset(); vi.mocked(saveOwnProfileSettings).mockReset(); runtime.fresh.mockReset().mockResolvedValue({});
+});
 describe('profile settings navigation and native form', () => {
   it('Me moves settings to the left navbar and replaces only its own profile action with an edit arrow', () => {
     const nodes = render(() => Me({ active: true })); const navbar = nodes.find(node => node.type === 'Navbar');
@@ -167,6 +183,80 @@ describe('profile settings navigation and native form', () => {
     }
     const source = readFileSync(resolve(process.cwd(), 'src/pages/settings/edit-profile.tsx'), 'utf8');
     expect(source).not.toMatch(/setTimeout|setInterval|nextTick|\.focus\(/);
+  });
+  it('standard fields keep all labels beside controls, multiline aligned, and picker arrows reflect API values only', () => {
+    render(EditProfilePage); const store = runtime.refs[0].current; store.activate('fixture');
+    const options = { gender: [{ value: 'a', label: '第一项' }, { value: 'x', label: '当前性别完整名称' }], generation: [{ value: 'z', label: '年代完整名称' }] };
+    store.value = { ...store.snapshot(), draft: { username: 'fixture', email: '', fields, options }, fields: { ...fields } };
+    const nodes = render(EditProfilePage);
+    const rows = nodes.filter(node => node.props.className?.split(' ').includes('gzkFormField'));
+    expect(rows).toHaveLength(11);
+    for (const row of rows) expect(row.props.children.map((child: any) => child.props.className)).toEqual(['gzkFormFieldLabel', 'gzkFormFieldControl']);
+    expect(rows.find(row => row.props.children[0].props.children === '个人简介')!.props.className).toContain('gzkFormField--multiline');
+    const pickers = nodes.filter(node => node.type === 'Picker'); expect(pickers.map(node => node.props.value)).toEqual([1, 0]);
+    expect(nodes.filter(node => node.props.className === 'gzkSelectArrow')).toHaveLength(2);
+    expect(nodes.filter(node => node.props.className === 'gzkSelectValue').map(node => node.props.children)).toEqual(['当前性别完整名称', '年代完整名称']);
+    expect(nodes.some(node => node.props.children === '选择')).toBe(false);
+    for (const value of [-1, 2, 'garbage', '', 0.5]) pickers[0].props.onChange({ detail: { value } });
+    expect(store.snapshot().fields!.gender).toBe('x');
+    pickers[0].props.onChange({ detail: { value: '0' } }); expect(store.snapshot().fields!.gender).toBe('a');
+  });
+  it('profile footer adds safe-bottom spacing to its preview-style pill buttons without changing save gating', () => {
+    render(EditProfilePage); const store = runtime.refs[0].current; store.activate('fixture');
+    store.value = { ...store.snapshot(), draft: { username: 'fixture', email: '', fields, options: { gender: [], generation: [] } }, fields: { ...fields }, dirty: true };
+    let nodes = render(EditProfilePage);
+    expect(nodes.find(node => node.props.className === 'profileEditorRefresh')!.props.children).toBe('刷新资料');
+    expect(nodes.find(node => node.props.ariaLabel === '保存个人资料')!.props.className).not.toContain('profileEditorSave--disabled');
+    store.value = { ...store.snapshot(), saving: true };
+    nodes = render(EditProfilePage);
+    const save = nodes.find(node => node.props.ariaLabel === '保存个人资料')!;
+    expect(save.props.className).toContain('profileEditorSave--disabled'); expect(save.props.children.props.children).toBe('保存中…');
+    const css = compileString(readFileSync(resolve(process.cwd(), 'src/pages/settings/edit-profile.scss'), 'utf8'), { loadPaths: [resolve(process.cwd(), 'src/pages/settings')] }).css;
+    const dock = css.match(/\.profileEditorDock\s*\{([^}]*)\}/)![1];
+    expect(dock).toContain('padding-bottom: calc(26rpx + env(safe-area-inset-bottom))'); expect(dock).not.toContain('max(');
+    const buttons = css.match(/\.profileEditorRefresh, \.profileEditorSave\s*\{([^}]*)\}/)![1];
+    expect(buttons).toContain('height: 80rpx'); expect(buttons).toContain('border-radius: 44rpx');
+    const primary = css.match(/(?:^|\n)\.profileEditorSave\s*\{([^}]*)\}/)![1];
+    expect(primary).toContain('linear-gradient(110deg'); expect(primary).toContain('box-shadow: 0 6rpx 18rpx');
+  });
+  it('shows the established native success toast once after a verified save, without a specialized saved card or render replay', async () => {
+    const { store, draft, save } = await loadedEditor();
+    const pending = deferred<OwnProfileSettings>(); vi.mocked(saveOwnProfileSettings).mockReturnValue(pending.promise);
+    const completed = new Promise<void>(resolve => vi.mocked(Taro.showToast).mockImplementationOnce(() => { resolve(); return Promise.resolve({ errMsg: 'showToast:ok' }); }));
+    save(); save();
+    expect(saveOwnProfileSettings).toHaveBeenCalledTimes(1); expect(vi.mocked(saveOwnProfileSettings).mock.calls[0][0]).toBe(draft);
+    expect(Taro.showToast).not.toHaveBeenCalled(); expect(Taro.eventCenter.trigger).not.toHaveBeenCalled();
+    const verified = { ...draft, fields: { ...draft.fields, nickname: 'synthetic changed nickname' } };
+    pending.resolve(verified); await completed;
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '已保存', icon: 'success' }); expect(Taro.showToast).toHaveBeenCalledTimes(1);
+    expect(Taro.eventCenter.trigger).toHaveBeenCalledWith('ownProfileSettingsUpdated', 'fixture'); expect(Taro.eventCenter.trigger).toHaveBeenCalledTimes(1);
+    expect(store.snapshot().draft).toBe(verified); expect(store.snapshot().dirty).toBe(false);
+    for (let round = 0; round < 3; round++) {
+      expect(render(EditProfilePage).some(node => node.props.className === 'profileEditorNotice')).toBe(false); save();
+    }
+    expect(Taro.showToast).toHaveBeenCalledTimes(1); expect(saveOwnProfileSettings).toHaveBeenCalledTimes(1); expect(Taro.showModal).not.toHaveBeenCalled();
+    const css = compileString(readFileSync(resolve(process.cwd(), 'src/pages/settings/edit-profile.scss'), 'utf8'), { loadPaths: [resolve(process.cwd(), 'src/pages/settings')] }).css;
+    expect(css).not.toContain('profileEditorNotice'); expect(css).toContain('profileEditorError');
+  });
+  it.each(['VERIFICATION', 'NETWORK', 'HTTP'])('unconfirmed save (%s) keeps the error/retry feedback and draft without a success toast', async code => {
+    const { store, save } = await loadedEditor(); vi.mocked(saveOwnProfileSettings).mockRejectedValue({ code });
+    const completed = new Promise<void>(resolve => { const stop = store.subscribe(() => { if (!store.snapshot().saving && store.snapshot().error) { stop(); resolve(); } }); });
+    save(); await completed;
+    expect(Taro.showToast).not.toHaveBeenCalled(); expect(Taro.eventCenter.trigger).not.toHaveBeenCalled();
+    expect(store.snapshot().fields!.nickname).toBe('synthetic changed nickname'); expect(store.snapshot().requiresRefresh).toBe(true); expect(store.snapshot().dirty).toBe(true);
+    const error = render(EditProfilePage).find(node => node.props.className === 'profileEditorError');
+    expect(error).toBeDefined(); expect(error!.props.children).toContain('，点击刷新检查'); save(); expect(saveOwnProfileSettings).toHaveBeenCalledTimes(1);
+  });
+  it.each(['hide', 'account', 'reactivate'])('late confirmed save after %s cannot toast or notify success', async boundary => {
+    const { store, draft, save } = await loadedEditor(); const pending = deferred<OwnProfileSettings>(); vi.mocked(saveOwnProfileSettings).mockReturnValue(pending.promise);
+    const originalSave = store.save.bind(store); let completion: Promise<void> | undefined;
+    vi.spyOn(store, 'save').mockImplementation(success => { const saving = originalSave(success); completion = saving; return saving; });
+    save(); expect(store.snapshot().saving).toBe(true);
+    if (boundary === 'hide') runtime.hide!();
+    else if (boundary === 'account') runtime.account = 'other';
+    else store.activate('fixture');
+    pending.resolve(draft); await completion;
+    expect(Taro.showToast).not.toHaveBeenCalled(); expect(Taro.eventCenter.trigger).not.toHaveBeenCalled(); expect(store.snapshot().draft).toBeNull();
   });
   it('editor fields use only API fields and options, readonly identity and no guessed avatar/password or limits', () => {
     render(EditProfilePage); const store = runtime.refs[0].current; store.activate('fixture');

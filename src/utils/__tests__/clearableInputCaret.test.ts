@@ -55,8 +55,9 @@ describe('shared native control caret and focus contract', () => {
   });
   it('uses the genuine single-line native cursorColor prop and does not introduce a forced focus workaround', () => {
     expect(native(render(ClearableInput, { value: '', cursorColor: '#0754d7', onInput: vi.fn() })).props.cursorColor).toBe('#0754d7');
-    const source = readFileSync(resolve(process.cwd(), 'src/components/ClearableInput/index.tsx'), 'utf8');
-    expect(source).not.toMatch(/setTimeout|setInterval|nextTick|\.focus\(/);
-    expect(source).toContain('微信原生模板未绑定 cursor-color');
+    const input = readFileSync(resolve(process.cwd(), 'packages/gzk-ui/src/components/Input/index.tsx'), 'utf8');
+    const textarea = readFileSync(resolve(process.cwd(), 'packages/gzk-ui/src/components/Textarea/index.tsx'), 'utf8');
+    for (const source of [input, textarea]) expect(source).not.toMatch(/setTimeout|setInterval|nextTick|\.focus\(/);
+    expect(textarea).toContain('微信原生模板未绑定 cursor-color');
   });
 });

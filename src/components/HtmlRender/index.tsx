@@ -7,7 +7,7 @@ import "./index.scss";
 import { URLS } from "guanggu-forum-api";
 import { isSkyline } from "../../utils/renderer";
 import { usePageRenderer } from "../../hooks/usePageRenderer";
-import LinkChipIcon from "../../assets/link-chip.svg";
+import { LinkChipUrl as LinkChipIcon } from "gzk-ui/icon-urls";
 import { isCustomStickerUrl } from "../../utils/stickers";
 
 interface TopicMeta {
@@ -51,9 +51,70 @@ type ParsedHtmlElement = TaroElement & { h5tagName?: string };
 const blockTags = new Set(["div", "p", "ul", "ol", "li", "blockquote", "pre", "h1", "h2", "h3", "h4", "h5", "h6", "table", "thead", "tbody", "tr", "td", "th", "hr"]);
 
 type BodyImageScope = { active: boolean; fullBleed: boolean };
-type ImageState = { src: string; width?: number; height?: number; revision: number };
+type ImageState = { src: string; width?: number; height?: number; revision: number; staged?: boolean; displayed?: boolean };
+// Tokens authorize pre-paint presentation only, never geometry or account data.
+// An abandoned render retains at most 32 data-free flags; parsed tokens are one-shot.
+const pendingImagePresentations = new Map<string, true>();
+let nextImagePresentation = 0;
+const PRESENTATION_ATTRIBUTE = 'data-html-image-presentation';
+function stripPresentationAttributes(html: string) {
+  // Preserve text/code examples verbatim. Scan opening tags with quoted attribute
+  // values intact; never strip a lookalike attribute prefix or reserialize HTML.
+  return html.replace(/<!--[^]*?-->|<\/?[A-Za-z][^>"']*(?:"[^"]*"[^>"']*|'[^']*'[^>"']*)*>/g, tag => {
+    if (tag.startsWith('<!--') || tag.startsWith('</')) return tag;
+    return tag.replace(/(\s+)([^\s=/>]+)(\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/g, (attribute, _space, name) =>
+      name.toLowerCase() === PRESENTATION_ATTRIBUTE ? '' : attribute);
+  });
+}
+function prepareImagePresentation() {
+  const token = `html-image-${++nextImagePresentation}`;
+  pendingImagePresentations.set(token, true);
+  if (pendingImagePresentations.size > 32) pendingImagePresentations.delete(pendingImagePresentations.keys().next().value!);
+  return token;
+}
 const bodyImageRoots = new WeakMap<TaroElement, BodyImageScope>();
 const imageStates = new WeakMap<TaroElement, ImageState>();
+const bodyImageHosts = new WeakMap<TaroElement, TaroElement>();
+
+function imageHost(image: TaroElement) {
+  let host = bodyImageHosts.get(image);
+  if (host && image.parentElement === host) return host;
+  const parent = image.parentElement;
+  if (!parent) return;
+  host = image.ownerDocument.createElement('view');
+  host.className = 'htmlBodyImageHost';
+  parent.insertBefore(host, image); host.appendChild(image);
+  bodyImageHosts.set(image, host);
+  return host;
+}
+function stageBodyImage(image: TaroElement) {
+  const state = imageStates.get(image), host = imageHost(image);
+  if (!state || !host || state.displayed) return;
+  state.staged = true;
+  host.className = 'htmlBodyImageHost htmlBodyImageHost--staged';
+  host.setAttribute('style', 'height: 180px; transform: translateX(0px)');
+  image.className += image.className.split(' ').includes('htmlBodyImage') ? '' : ' htmlBodyImage';
+  image.setAttribute('mode', 'aspectFit');
+  image.setAttribute('style', 'display: block; flex-shrink: 0; width: 100%; height: 180px; max-width: 100%; margin: 0; opacity: 0');
+  if (!host.children.some(child => child.className.split(' ').includes('htmlBodyImageSkeleton'))) {
+    const skeleton = image.ownerDocument.createElement('view');
+    skeleton.className = 'htmlBodyImageSkeleton'; host.appendChild(skeleton);
+  }
+}
+function stageParsedBodyImages(root: TaroElement) {
+  for (const child of [...root.children]) {
+    if (imageStates.has(child)) stageBodyImage(child);
+    else stageParsedBodyImages(child);
+  }
+}
+
+function imageMeasureSelector(element: TaroElement) {
+  const id = element.uid || element.sid;
+  if (/^[A-Za-z_][\w-]*$/.test(id)) return `#${id}`;
+  const className = `htmlImageMeasure-${element.sid}`;
+  if (!element.className.split(' ').includes(className)) element.className += ` ${className}`;
+  return `.${className}`;
+}
 const containedImageTags = new Set(['ul', 'ol', 'li', 'blockquote', 'pre', 'table', 'td', 'th']);
 
 function bodyImageOwner(image: TaroElement) {
@@ -69,69 +130,119 @@ function sizeBodyImage(image: TaroElement) {
   if (!owner || !state || state.src !== image.props.src) return;
   image.setAttribute('mode', 'aspectFit');
   if (!image.className.split(' ').includes('htmlBodyImage')) image.className += ' htmlBodyImage';
+  const host = imageHost(image);
+  if (!host) return;
+  if (owner.scope.fullBleed && !state.displayed) stageBodyImage(image);
   if (!state.width || !state.height) {
-    image.setAttribute('style', 'display: block; width: 100%; height: 180px; max-width: 100%; margin: 12rpx auto');
+    if (!state.staged) image.setAttribute('style', 'display: block; width: 100%; height: 180px; max-width: 100%; margin: 12rpx auto');
     return;
   }
   const { root, scope } = owner;
-  let parent = image.parentElement;
+  let parent: TaroElement | null = host.parentElement;
   while (parent && parent !== root && parent.nodeName !== 'view') parent = parent.parentElement;
   if (!parent) return;
   let contained = false;
-  for (let ancestor = image.parentElement; ancestor && ancestor !== root; ancestor = ancestor.parentElement) {
+  for (let ancestor: TaroElement | null = host.parentElement; ancestor && ancestor !== root; ancestor = ancestor.parentElement) {
     if (containedImageTags.has((ancestor as ParsedHtmlElement).h5tagName || '')
       || ancestor.style.getPropertyValue('width') || ancestor.style.getPropertyValue('max-width')
       || ['hidden', 'auto'].includes(ancestor.style.getPropertyValue('overflow'))
       || ['hidden', 'auto'].includes(ancestor.style.getPropertyValue('overflow-x'))) contained = true;
   }
   const revision = ++state.revision;
-  // Native templates use id=uid||sid. Keep authored ids, with a class fallback for unsafe selectors.
-  const measureId = parent.uid || parent.sid;
-  let selector = `#${measureId}`;
-  if (!/^[A-Za-z_][\w-]*$/.test(measureId)) {
-    const measureClass = `htmlImageMeasure-${parent.sid}`;
-    if (!parent.className.split(' ').includes(measureClass)) parent.className += ` ${measureClass}`;
-    selector = `.${measureClass}`;
+  // Resolve only the explicit viewport containing this mounted topic body.
+  let viewport: TaroElement | null = null;
+  if (scope.fullBleed && !contained) {
+    for (let ancestor = root.parentElement; ancestor; ancestor = ancestor.parentElement) {
+      if (ancestor.className.split(' ').includes('topicBodyImageViewport')) { viewport = ancestor; break; }
+    }
   }
+  const selector = imageMeasureSelector(parent);
   const measuredParent = parent;
-  Taro.nextTick(() => {
-    if (!scope.active || state.revision !== revision || image.props.src !== state.src
-      || bodyImageOwner(image)?.scope !== scope) return;
-    const query = Taro.createSelectorQuery();
-    query.select(selector).fields({
-      rect: true, size: true,
-      computedStyle: ['padding-left', 'padding-right', 'border-left-width', 'border-right-width'],
-    }, rect => {
+  const measuredHost = host;
+  const current = () => scope.active && state.revision === revision && image.props.src === state.src
+    && bodyImageOwner(image)?.scope === scope;
+  const commitSize = (displayWidth: number, displayHeight: number, offset: number, fullBleed: boolean, parentWidth?: number) => {
+    if (!current()) return;
+    measuredHost.setAttribute('style', state.staged
+      ? `height: ${displayHeight}px; width: ${displayWidth}px; max-width: ${fullBleed ? 'none' : '100%'}; ${parentWidth === undefined ? 'margin-left: auto; margin-right: auto;' : `left: ${(parentWidth - displayWidth) / 2}px;`} transform: translateX(${offset}px)`
+      : `transform: translateX(${offset}px)`);
+    image.setAttribute('style', `display: block; flex-shrink: 0; width: ${displayWidth}px; height: ${displayHeight}px; max-width: ${fullBleed ? 'none' : '100%'}; margin: 0; border-radius: ${fullBleed ? '0' : '8rpx'}${state.staged ? '; opacity: 1' : ''}`);
+    state.displayed = true;
+    if (state.staged) {
+      measuredHost.className = 'htmlBodyImageHost htmlBodyImageHost--staged htmlBodyImageHost--ready';
+      for (const child of measuredHost.children) if (child.className.split(' ').includes('htmlBodyImageSkeleton')) child.style.setProperty('opacity', '0');
+    }
+    if (fullBleed) for (let ancestor = measuredHost.parentElement; ancestor && ancestor !== measuredParent; ancestor = ancestor.parentElement) ancestor.style.setProperty('display', 'block');
+  };
+  const containedFallback = () => {
+    // A failed native measurement must not leave a successfully loaded photo hidden.
+    // The bounded aspectFit frame is safe without assuming the viewport's origin.
+    if (!current() || !state.staged || state.displayed) return;
+    const windowHeight = Number(Taro.getWindowInfo().windowHeight);
+    const available = Number.isFinite(windowHeight) && windowHeight > 0 ? windowHeight * 0.6 : 180;
+    const width = Math.min(state.width!, 300);
+    const height = Math.min(state.height! * width / state.width!, available);
+    const scaledWidth = height * state.width! / state.height!;
+    commitSize(scaledWidth, height, 0, false);
+    measuredHost.setAttribute('style', `height: ${height}px; width: 100%; transform: translateX(0px)`);
+    image.setAttribute('style', `display: block; flex-shrink: 0; width: 100%; height: ${height}px; max-width: 100%; margin: 0; border-radius: 8rpx; opacity: 1`);
+  };
+  const measure = () => {
+    if (!current()) return;
+    try {
+      const query = Taro.createSelectorQuery();
+      let viewportRect: Record<string, unknown> | null = null;
+      const fields = { rect: true, size: true, computedStyle: ['padding-left', 'padding-right', 'border-left-width', 'border-right-width'] };
+      if (viewport) query.select(imageMeasureSelector(viewport)).fields(fields, rect => { viewportRect = rect; });
+      query.select(selector).fields(fields, rect => {
       if (!scope.active || state.revision !== revision || image.props.src !== state.src
         || bodyImageOwner(image)?.scope !== scope) return;
       const inset = (key: string) => Math.max(0, parseFloat(rect?.[key]) || 0);
       const leftInset = inset('padding-left') + inset('border-left-width');
       const parentWidth = Number(rect?.width) - leftInset - inset('padding-right') - inset('border-right-width');
       const parentLeft = Number(rect?.left) + leftInset;
-      if (!Number.isFinite(parentWidth) || parentWidth <= 0 || !Number.isFinite(parentLeft)) return;
+      if (!Number.isFinite(parentWidth) || parentWidth <= 0 || !Number.isFinite(parentLeft)) { containedFallback(); return; }
       const window = Taro.getWindowInfo();
-      const viewportWidth = Number(window.windowWidth);
+      const viewportInset = (key: string) => Math.max(0, parseFloat(String(viewportRect?.[key] ?? '')) || 0);
+      const viewportLeft = Number(viewportRect?.left) + viewportInset('padding-left') + viewportInset('border-left-width');
+      const viewportWidth = Number(viewportRect?.width) - viewportInset('padding-left') - viewportInset('padding-right') - viewportInset('border-left-width') - viewportInset('border-right-width');
       const maxHeight = Number(window.windowHeight) * 0.6;
-      if (!Number.isFinite(viewportWidth) || viewportWidth <= 0 || !Number.isFinite(maxHeight) || maxHeight <= 0) return;
+      if (!Number.isFinite(maxHeight) || maxHeight <= 0) { containedFallback(); return; }
       const width = state.width!;
       const height = state.height!;
-      const fullBleed = scope.fullBleed && !contained && width >= height && width >= viewportWidth
-        && height * viewportWidth / width <= maxHeight;
+      const fullBleed = scope.fullBleed && !contained && viewportRect !== null
+        && Number.isFinite(viewportLeft) && Number.isFinite(viewportWidth) && viewportWidth > 0
+        && width >= height && width >= viewportWidth && height * viewportWidth / width <= maxHeight;
       const targetWidth = fullBleed ? viewportWidth : parentWidth;
       const scale = Math.min(1, targetWidth / width, maxHeight / height);
       const displayWidth = width * scale;
       const displayHeight = height * scale;
-      const marginLeft = fullBleed ? -parentLeft : (parentWidth - displayWidth) / 2;
-      // Explicit matching dimensions + aspectFit show the entire image, including tall screenshots.
-      image.setAttribute('style', `display: block; width: ${displayWidth}px; height: ${displayHeight}px; max-width: ${fullBleed ? 'none' : '100%'}; margin: 12rpx 0; margin-left: ${marginLeft}px; border-radius: ${fullBleed ? '0' : '8rpx'}`);
-      // A linked image must not be clipped by an inline Span/chip formatting context.
-      if (fullBleed) {
-        for (let ancestor = image.parentElement; ancestor && ancestor !== measuredParent; ancestor = ancestor.parentElement) {
-          ancestor.style.setProperty('display', 'block');
-        }
-      }
-    }).exec();
-  });
+      const offset = fullBleed ? viewportLeft + viewportWidth / 2 - (parentLeft + parentWidth / 2) : 0;
+      // Align the explicit frame to the measured content center without negative
+      // margins; the transform moves that center to the actual viewport, not the screen origin.
+      if (state.staged && !state.displayed) {
+        // Reading the actual host box forces the 180px loading baseline to exist
+        // in native layout before committing a px-to-px height transition.
+        const commitMeasured = () => {
+          if (!current()) return;
+          try { Taro.nextTick(() => { if (current()) commitSize(displayWidth, displayHeight, offset, fullBleed, parentWidth); }); }
+          catch { if (current()) commitSize(displayWidth, displayHeight, offset, fullBleed, parentWidth); }
+        };
+        try {
+          if (!current()) return;
+          Taro.createSelectorQuery().select(imageMeasureSelector(measuredHost)).fields({ rect: true, size: true }, baseline => {
+            if (!current()) return;
+            if (!baseline || !Number.isFinite(Number(baseline.height)) || Number(baseline.height) <= 0) {
+              commitSize(displayWidth, displayHeight, offset, fullBleed, parentWidth); return;
+            }
+            commitMeasured();
+          }).exec();
+        } catch { if (current()) commitSize(displayWidth, displayHeight, offset, fullBleed, parentWidth); }
+      } else commitSize(displayWidth, displayHeight, offset, fullBleed, parentWidth);
+      }).exec();
+    } catch { containedFallback(); }
+  };
+  try { Taro.nextTick(measure); } catch { containedFallback(); }
 }
 
 function visitBodyImages(root: TaroElement) {
@@ -147,11 +258,23 @@ function normalizeSkylineElement(element: TaroElement, tagName: string) {
   // occupies one inline slot; its single View child owns the chip box styles.
   const classes = element.className.split(" ");
   if (classes.includes("html-link--external") || classes.includes("html-mentionHost")) return;
+  const preservesWhitespace = (node: TaroElement | null) => {
+    for (let parent = node; parent; parent = parent.parentElement) {
+      if (['pre', 'code'].includes((parent as ParsedHtmlElement).h5tagName || '')) return true;
+    }
+    return false;
+  };
+  const preserve = preservesWhitespace(element);
   const originalChildren = [...element.childNodes];
   type HtmlChild = (typeof originalChildren)[number];
   const isBlock = (child: HtmlChild) => child.nodeName === "view" || blockTags.has((child as ParsedHtmlElement).h5tagName || "");
   const hasBlocks = originalChildren.some(isBlock);
-  if (hasBlocks && tagName !== "pre" && tagName !== "code") {
+  if (!preserve) {
+    for (const child of originalChildren) if (child.nodeName === '#text') {
+      child.textContent = (child.textContent || '').replace(/[\t\n\r\f ]+/g, ' ');
+    }
+  }
+  if (hasBlocks && !preserve) {
     // HTML indentation between blocks is not an authored blank line. A native
     // Text would give it a line box; keep spaces between inline words intact.
     const isWhitespace = (child: TaroElement) => child.nodeName === "#text" && /^[\t\n\r\f ]*$/.test(child.textContent || "");
@@ -183,6 +306,48 @@ function normalizeSkylineElement(element: TaroElement, tagName: string) {
     element.insertBefore(marker, element.firstChild);
   }
 
+  const normalizeRun = (fragments: HtmlChild[]) => {
+    if (preserve) return;
+    const leaves: Array<{ node: HtmlChild; text: string; br: boolean; protected: boolean }> = [];
+    const collect = (node: HtmlChild) => {
+      const elementNode = node instanceof TaroElement ? node : null;
+      const atomic = elementNode?.className.split(' ').some(name => name === 'html-link--external' || name === 'html-mentionHost');
+      if (atomic || preservesWhitespace(elementNode || node.parentElement)) {
+        leaves.push({ node, text: '￼', br: false, protected: true }); return;
+      }
+      if (node.nodeName === '#text') {
+        leaves.push({ node, text: node.textContent || '', br: (node.parentElement as ParsedHtmlElement | null)?.h5tagName === 'br', protected: false });
+      } else for (const child of node.childNodes) collect(child);
+    };
+    fragments.forEach(collect);
+    // Native Text preserves source spaces/newlines; HTML normal flow collapses
+    // them. Trim line-edge source spaces but never authored BR or code content.
+    let lineStart = true;
+    let previousText: (typeof leaves)[number] | undefined;
+    for (const leaf of leaves) {
+      if (leaf.br) {
+        if (previousText && !previousText.protected) previousText.text = previousText.text.replace(/ +$/, '');
+        lineStart = true; previousText = undefined;
+      } else if (leaf.protected) { lineStart = false; previousText = undefined; }
+      else {
+        if (lineStart || previousText?.text.endsWith(' ')) leaf.text = leaf.text.replace(/^ +/, '');
+        if (leaf.text) { lineStart = false; previousText = leaf; }
+      }
+    }
+    if (previousText && !previousText.protected) previousText.text = previousText.text.replace(/ +$/, '');
+    const visible = leaves.filter(leaf => leaf.br || leaf.protected || leaf.text.length);
+    if (visible.length && visible.every(leaf => leaf.br)) {
+      // N authored breaks need N blank lines, not the N+1 lines produced by
+      // a Text containing N newlines. NBSP supplies the first empty line box.
+      visible[0].text = ' ';
+    } else if (visible.at(-1)?.br) {
+      // A terminal HTML BR ends the current line; only additional terminal BRs
+      // create explicit blank lines. Keep leading/interior BRs untouched.
+      visible[visible.length - 1].text = '';
+    }
+    for (const leaf of leaves) if (!leaf.protected) leaf.node.textContent = leaf.text;
+  };
+
   if (element.nodeName === "view") {
     // View siblings have independent block layout in Skyline. A chip and its
     // surrounding text must share one Span formatting context, not just put a
@@ -190,6 +355,7 @@ function normalizeSkylineElement(element: TaroElement, tagName: string) {
     let fragments: HtmlChild[] = [];
     const flush = () => {
       if (!fragments.length) return;
+      normalizeRun(fragments);
       const mixed = fragments.some(child => child.nodeName === "span");
       const run = element.ownerDocument.createElement(mixed ? "span" : "text");
       if (mixed) run.className = "htmlInlineFlow";
@@ -333,6 +499,7 @@ Taro.options.html.transformElement = (
             sizeBodyImage(taroEle);
             return;
           }
+          if (state.staged) return; // Pre-effect loads cache dimensions without revealing a temporary size.
         }
         const displayWidth = Math.min(width, 300) / (sticker ? 2 : 1);
         taroEle.setAttribute(
@@ -357,6 +524,11 @@ Taro.options.html.transformElement = (
       taroEle.tagName = "VIEW";
       taroEle.nodeName = "view";
     }
+  }
+  const presentation = taroEle.props[PRESENTATION_ATTRIBUTE];
+  if (typeof presentation === 'string' && pendingImagePresentations.delete(presentation)) {
+    stageParsedBodyImages(taroEle);
+    taroEle.removeAttribute(PRESENTATION_ATTRIBUTE);
   }
   if (isSkyline()) {
     normalizeSkylineElement(taroEle, htmlEle.tagName);
@@ -416,14 +588,30 @@ const HtmlRender = (props: Props) => {
   const { meta, cleanHtml } = useMemo(() => parseTopicMeta(html), [html]);
   // Root text has no parser parent; put it in a neutral block for normalization.
   const renderHtml = skyline ? `<div>${cleanHtml}</div>` : cleanHtml;
+  const presentation = useMemo(() => props.variant === 'body' && props.fullBleedImages
+    ? { token: prepareImagePresentation() } : null, [renderHtml, props.variant, props.fullBleedImages]);
+  const previousPresentation = useRef<string | null>(null);
+  if (previousPresentation.current && previousPresentation.current !== presentation?.token) pendingImagePresentations.delete(previousPresentation.current);
+  previousPresentation.current = presentation?.token ?? null;
+  // Strip our reserved attribute from authored markup before adding the one
+  // generated root. A pending token copied into comments cannot stage their images.
+  const authoredHtml = stripPresentationAttributes(renderHtml);
+  const presentedHtml = presentation ? `<div ${PRESENTATION_ATTRIBUTE}="${presentation.token}">${authoredHtml}</div>` : authoredHtml;
 
   useEffect(() => {
     const root = htmlEle.current;
-    if (!root || props.variant !== 'body') return;
+    if (!root || props.variant !== 'body') {
+      return () => { if (presentation) pendingImagePresentations.delete(presentation.token); };
+    }
+    if (presentation) pendingImagePresentations.delete(presentation.token);
     const scope = { active: true, fullBleed: !!props.fullBleedImages };
     bodyImageRoots.set(root, scope);
     visitBodyImages(root);
+    const resize = () => { if (scope.active) visitBodyImages(root); };
+    Taro.onWindowResize?.(resize);
     return () => {
+      Taro.offWindowResize?.(resize);
+      if (presentation) pendingImagePresentations.delete(presentation.token);
       scope.active = false;
       if (bodyImageRoots.get(root) === scope) bodyImageRoots.delete(root);
     };
@@ -437,7 +625,7 @@ const HtmlRender = (props: Props) => {
       <View
         ref={htmlEle}
         className='taro-html html'
-        dangerouslySetInnerHTML={{ __html: renderHtml }}
+        dangerouslySetInnerHTML={{ __html: presentedHtml }}
       />
     </View>
   );

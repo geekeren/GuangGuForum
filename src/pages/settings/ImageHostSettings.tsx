@@ -1,4 +1,5 @@
-import { Button, Input, Text, View } from '@tarojs/components';
+import { Text, View } from '@tarojs/components';
+import { GzkButton as Button, GzkNativeInput as Input } from 'gzk-ui/native-form';
 import Taro from '@tarojs/taro';
 import { useRef, useState } from 'react';
 import { bindImageHostToken, getImageHostSettings, unbindImageHostToken, ImageHostSettingsError, type ImageHostSettings as Settings } from 'guanggu-forum-api';

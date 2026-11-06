@@ -410,7 +410,12 @@
     .h5-p:last-child { margin-bottom: 0; }
     .h5-img { max-width: 100%; border-radius: $radius-sm; overflow: hidden; margin: 12rpx 0; }
     // Photo size changes should not animate through a distorted intermediate aspect ratio.
+    .htmlBodyImageHost { display: flex; flex-direction: row; align-items: center; justify-content: center; width: 100%; min-width: 0; overflow: visible; margin: 12rpx 0; }
     .htmlBodyImage { transition: none; }
+    // Only topic-detail photos are staged. Animate the frame, never image width/height.
+    .htmlBodyImageHost--staged { position: relative; overflow: hidden; transition: height 220ms ease; }
+    .htmlBodyImageHost--staged .htmlBodyImage { transition: opacity 140ms ease; }
+    .htmlBodyImageSkeleton { position: absolute; inset: 0; border-radius: $radius-sm; background: $surfaceAlt; border: 1rpx solid $border-color; box-sizing: border-box; pointer-events: none; transition: opacity 140ms ease; }
   }
 }
 

@@ -3,13 +3,14 @@ import Taro from "@tarojs/taro";
 import { readFileSync } from "node:fs";
 import { isSkyline } from "../renderer";
 import CommentComposer from "../../pages/topicDetail/CommentComposer";
+import ComposerEmojiPanel from '../../components/ComposerEmojiPanel';
 import { STICKERS } from "../stickers";
 import { getCommonEmojiUsage, recordCommentEmojiUsage } from "../emojiUsage";
 import { compressCommentPhoto } from "../commentPhotos";
 import { photoAttachment, stickerAttachment, type CommentAttachment } from "../commentAttachments";
 import { isImageCompressionEnabled } from '../imageCompressionPreferences';
 
-const harness = vi.hoisted(() => ({ state: [] as any[], cursor: 0, refs: [] as any[], refCursor: 0 }));
+const harness = vi.hoisted(() => ({ state: [] as any[], cursor: 0, refs: [] as any[], refCursor: 0, bound: true }));
 vi.mock("react", () => ({
   useEffect: () => {},
   useRef: (initial: any) => { const i = harness.refCursor++; if (!(i in harness.refs)) harness.refs[i] = { current: initial }; return harness.refs[i]; },
@@ -28,6 +29,8 @@ vi.mock("../../components/MentionTextarea", () => ({ default: "MentionTextarea" 
 vi.mock("../renderer", () => ({ isSkyline: vi.fn(() => true) }));
 vi.mock("../commentPhotos", () => ({ compressCommentPhoto: vi.fn() }));
 vi.mock('../imageCompressionPreferences', () => ({ isImageCompressionEnabled: vi.fn() }));
+// These consumer cases simulate binding outcomes; they do not exercise real auth/storage/network.
+vi.mock('../imageUploadGuard', () => ({ ensureImageHostBound: () => Promise.resolve(harness.bound) }));
 vi.mock("../emojiUsage", async (importOriginal) => ({
   ...await importOriginal<typeof import('../emojiUsage')>(),
   getCommonEmojiUsage: vi.fn(),
@@ -37,7 +40,8 @@ vi.mock("../emojiUsage", async (importOriginal) => ({
 function elements(tree: any): any[] {
   if (Array.isArray(tree)) return tree.flatMap(elements);
   if (!tree || typeof tree !== "object") return [];
-  return [tree, ...elements(tree.props?.children)];
+  const rendered = tree.type === ComposerEmojiPanel ? ComposerEmojiPanel(tree.props) : null;
+  return [tree, ...elements(rendered), ...elements(tree.props?.children)];
 }
 const props = { value: "@first 正文内容", stickers: [] as typeof STICKERS, onStickersChange: vi.fn(), photos: [] as string[], onPhotosChange: vi.fn(), previewAttachments: undefined as CommentAttachment[] | undefined, onAttachmentsChange: undefined as ((next: CommentAttachment[]) => void) | undefined, sending: false, onChange: vi.fn(), onClose: vi.fn(), onSend: vi.fn() };
 function render() {
@@ -48,7 +52,7 @@ function find(tree: any, name: string) {
   return elements(tree).find(e => e.type === name || e.props?.className?.split(" ").includes(name)).props;
 }
 beforeEach(() => {
-  harness.state = []; harness.refs = [];
+  harness.state = []; harness.refs = []; harness.bound = true;
   props.value = "@first 正文内容"; props.sending = false;
   props.stickers = [];
   props.photos = [];
@@ -92,7 +96,7 @@ describe("Skyline comment sheet with WebView fallback", () => {
     expect(find(tree, 'commentStickerPreviews').scrollWithAnimation).toBe(true);
     expect(elements(tree).some(e => e.props?.id === firstPhotoTarget)).toBe(true);
     find(tree, 'commentPopupEmoji').onClick();
-    find(render(), 'commentPopupSticker').onClick();
+    find(render(), 'composerEmojiSticker').onClick();
     tree = render();
     expect(imageSources()).toEqual([STICKERS[0].url, '/tmp/old.jpg', '/tmp/photo.jpg', STICKERS[0].url]);
     expect(find(tree, 'commentStickerPreviews').scrollIntoView).not.toBe(firstPhotoTarget);
@@ -116,14 +120,16 @@ describe("Skyline comment sheet with WebView fallback", () => {
     expect(props.photos).toEqual(['/tmp/old.jpg', '/tmp/new1.jpg', '/tmp/new2.jpg']);
     expect(elements(render()).filter(e => e.props?.className === 'commentStickerPreviewImage').map(e => e.props.src)).toEqual(props.photos);
   });
-  it('previews only compressed paths, retaining valid images when another compression fails', async () => {
+  it.each([false, true])('previews every original and preserves upload compression intent=%s without running compression in UI', async compressionEnabled => {
+    vi.mocked(isImageCompressionEnabled).mockReturnValue(compressionEnabled);
+    props.onAttachmentsChange = next => { props.previewAttachments = next; props.photos = next.flatMap(item => item.kind === 'photo' ? [item.path] : []); };
     find(render(), 'commentPopupMore').onClick();
-    vi.mocked(Taro.chooseMedia).mockResolvedValueOnce({ tempFiles: [{ tempFilePath: '/tmp/original.jpg' }, { tempFilePath: '/tmp/bad.png' }] } as any);
-    vi.mocked(compressCommentPhoto).mockResolvedValueOnce('/tmp/compressed.jpg').mockRejectedValueOnce(new Error('unsupported format'));
+    vi.mocked(Taro.chooseMedia).mockResolvedValueOnce({ tempFiles: [{ tempFilePath: '/tmp/original.jpg' }, { tempFilePath: '/tmp/second.png' }] } as any);
     await elements(render()).find(e => e.props?.ariaLabel === '照片')!.props.onClick();
-    expect(props.photos).toEqual(['/tmp/compressed.jpg']);
-    expect(find(render(), 'commentStickerPreviewImage').src).toBe('/tmp/compressed.jpg');
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '部分图片压缩失败，请重新选择', icon: 'none' });
+    expect(props.photos).toEqual(['/tmp/original.jpg', '/tmp/second.png']);
+    expect(elements(render()).filter(e => e.props?.className === 'commentStickerPreviewImage').map(e => e.props.src)).toEqual(props.photos);
+    expect(props.previewAttachments?.every(item => item.kind === 'photo' && item.compress === compressionEnabled)).toBe(true);
+    expect(compressCommentPhoto).not.toHaveBeenCalled(); expect(Taro.showToast).not.toHaveBeenCalled();
   });
   it.each([true, false])('animates the always-mounted upper attachment region in Skyline=%s', async skyline => {
     vi.mocked(isSkyline).mockReturnValue(skyline);
@@ -163,17 +169,17 @@ describe("Skyline comment sheet with WebView fallback", () => {
     elements(render()).find(e => e.props?.ariaLabel === '删除所选照片')!.props.onClick();
     expect(props.photos).toHaveLength(4);
     find(render(), 'commentPopupEmoji').onClick();
-    find(render(), 'commentPopupSticker').onClick();
+    find(render(), 'composerEmojiSticker').onClick();
     expect(props.onStickersChange).toHaveBeenLastCalledWith([STICKERS[0]]);
     props.stickers = [STICKERS[0]];
     props.onStickersChange.mockClear();
-    find(render(), 'commentPopupSticker').onClick();
+    find(render(), 'composerEmojiSticker').onClick();
     expect(props.onStickersChange).not.toHaveBeenCalled();
   });
   it('allows repeated stickers up to the combined limit and restricts album count to remaining slots', async () => {
     props.photos = ['/tmp/1.jpg', '/tmp/2.jpg'];
     find(render(), 'commentPopupEmoji').onClick();
-    const sticker = find(render(), 'commentPopupSticker');
+    const sticker = find(render(), 'composerEmojiSticker');
     sticker.onClick(); sticker.onClick(); sticker.onClick(); sticker.onClick();
     expect(props.onStickersChange).toHaveBeenLastCalledWith([STICKERS[0], STICKERS[0], STICKERS[0]]);
     expect(props.onStickersChange).toHaveBeenCalledTimes(3);
@@ -229,7 +235,7 @@ describe("Skyline comment sheet with WebView fallback", () => {
     const action = elements(render()).find(e => e.props?.ariaLabel === (source === 'camera' ? '拍照' : '照片'))!;
     await action.props.onClick();
     expect(Taro.chooseMedia).toHaveBeenCalledWith({ count: source === 'camera' ? 1 : 5, mediaType: ['image'], sourceType: [source], sizeType: ['original'] });
-    expect(compressCommentPhoto).toHaveBeenCalledWith('/tmp/photo.jpg');
+    expect(compressCommentPhoto).not.toHaveBeenCalled();
     const tree = render();
     expect(find(tree, 'commentStickerPreviewImage').src).toBe('/tmp/photo.jpg');
     expect(props.onChange).not.toHaveBeenCalled();
@@ -237,6 +243,15 @@ describe("Skyline comment sheet with WebView fallback", () => {
     expect(find(tree, 'MentionTextarea').focus).toBe(false);
     elements(tree).find(e => e.props?.ariaLabel === '删除所选照片')!.props.onClick();
     expect(elements(render()).some(e => e.props?.className?.split(' ').includes('commentPopupPhotoPreview'))).toBe(false);
+  });
+  it('does not open media or alter drafts when the synthetic binding guard denies access', () => {
+    harness.bound = false;
+    find(render(), 'commentPopupMore').onClick();
+    return elements(render()).find(e => e.props?.ariaLabel === '照片')!.props.onClick().then(() => {
+      expect(Taro.chooseMedia).not.toHaveBeenCalled(); expect(props.photos).toEqual([]);
+      expect(props.onChange).not.toHaveBeenCalled(); expect(props.onPhotosChange).not.toHaveBeenCalled();
+      expect(props.onStickersChange).not.toHaveBeenCalled();
+    });
   });
   it('ignores cancellation, reports permission errors and keeps favorite a placeholder', async () => {
     find(render(), 'commentPopupMore').onClick();
@@ -257,6 +272,7 @@ describe("Skyline comment sheet with WebView fallback", () => {
     vi.mocked(Taro.chooseMedia).mockReturnValueOnce(new Promise(done => { resolve = done; }) as any);
     const pending = action.props.onClick();
     await action.props.onClick();
+    for (let tick = 0; tick < 4; tick++) await Promise.resolve();
     expect(Taro.chooseMedia).toHaveBeenCalledOnce();
     resolve({ tempFiles: [] });
     await pending;
@@ -271,24 +287,24 @@ describe("Skyline comment sheet with WebView fallback", () => {
   });
   it("shows five stickers per row in the second tab and previews selected images", () => {
     find(render(), "commentPopupEmoji").onClick();
-    const tabs = elements(render()).filter(e => e.props?.className?.split(' ').includes('commentPopupPanelTab'));
+    const tabs = elements(render()).filter(e => e.props?.className?.split(' ').includes('composerEmojiTab'));
     tabs[2].props.onClick();
     let tree = render();
-    const rows = elements(tree).filter(e => e.props?.className === 'commentPopupPanelRow');
+    const rows = elements(tree).filter(e => e.props?.className === 'composerEmojiRow');
     expect(rows).toHaveLength(6);
     expect(rows.every(row => row.props.children.length === 5)).toBe(true);
-    const cells = elements(tree).filter(e => e.props?.className === 'commentPopupSticker');
+    const cells = elements(tree).filter(e => e.props?.className === 'composerEmojiSticker');
     expect(cells.every(cell => cell.props.children.type === 'Image')).toBe(true);
     expect(cells[0].props.ariaLabel).toBe(`添加表情包${STICKERS[0].name}`);
-    find(tree, 'commentPopupSticker').onClick();
+    find(tree, 'composerEmojiSticker').onClick();
     expect(props.onStickersChange).toHaveBeenCalledWith([STICKERS[0]]);
     props.stickers = [STICKERS[0]];
     props.onStickersChange.mockClear();
-    elements(render()).filter(e => e.props?.className === 'commentPopupSticker')[1].props.onClick();
+    elements(render()).filter(e => e.props?.className === 'composerEmojiSticker')[1].props.onClick();
     expect(props.onStickersChange).toHaveBeenCalledWith([STICKERS[0], STICKERS[1]]);
     props.stickers = STICKERS.slice(0, 5);
     props.onStickersChange.mockClear();
-    find(render(), 'commentPopupSticker').onClick();
+    find(render(), 'composerEmojiSticker').onClick();
     expect(props.onStickersChange).not.toHaveBeenCalled();
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '图片和表情包最多只能添加5个', icon: 'none' });
     props.stickers = [STICKERS[0]];
@@ -300,13 +316,13 @@ describe("Skyline comment sheet with WebView fallback", () => {
     find(tree, 'commentStickerRemove').onClick();
     expect(props.onStickersChange).toHaveBeenLastCalledWith([]);
     props.stickers = [];
-    elements(render()).filter(e => e.props?.className === 'commentPopupSticker')[1].props.onClick();
+    elements(render()).filter(e => e.props?.className === 'composerEmojiSticker')[1].props.onClick();
     expect(props.onStickersChange).toHaveBeenLastCalledWith([STICKERS[1]]);
     props.stickers = STICKERS.slice(0, 5);
     props.sending = true;
     props.onStickersChange.mockClear();
     vi.mocked(Taro.showToast).mockClear();
-    find(render(), 'commentPopupSticker').onClick();
+    find(render(), 'composerEmojiSticker').onClick();
     expect(Taro.showToast).not.toHaveBeenCalled();
     find(render(), 'commentStickerRemove').onClick();
     expect(props.onStickersChange).not.toHaveBeenCalled();
@@ -401,7 +417,7 @@ describe("Skyline comment sheet with WebView fallback", () => {
     const keyboardIcon = find(tree, "commentPopupEmoji").children.props.src;
     expect(find(tree, "commentPopupEmoji").ariaLabel).toBe("切换到键盘");
     find(tree, "MentionTextarea").onKeyboardHeightChange({ detail: { height: 336 } });
-    find(tree, "commentPopupPanelEmoji").onClick();
+    find(tree, "composerEmojiCell").onClick();
     tree = render();
     expect(find(tree, "commentPopupBody").style.bottom).toBe("336px");
     expect(find(tree, "MentionTextarea").focus).toBe(false);
@@ -422,36 +438,36 @@ describe("Skyline comment sheet with WebView fallback", () => {
     const controller = { insertText: vi.fn() };
     find(tree, "MentionTextarea").editorRef.current = controller;
     expect(elements(tree).some(e => e.props?.className === 'commentPopupQuickEmojis')).toBe(false);
-    expect(elements(tree).some(e => e.props?.className === 'commentPopupPanelEmoji')).toBe(false);
+    expect(elements(tree).some(e => e.props?.className === 'composerEmojiCell')).toBe(false);
     find(tree, 'commentPopupEmoji').onClick();
     tree = render();
-    const tabs = elements(tree).filter(e => e.props?.className?.split(' ').includes('commentPopupPanelTab'));
+    const tabs = elements(tree).filter(e => e.props?.className?.split(' ').includes('composerEmojiTab'));
     expect(tabs.map(tab => tab.props.children.props.children)).toEqual(['常用', '表情', '过早客']);
-    expect(tabs[0].props.className).toContain('commentPopupPanelTab--active');
-    expect(elements(tree).filter(e => e.props?.className === 'commentPopupPanelEmoji').map(e => e.props.children.props.children)).toEqual(['👍', '😂']);
-    expect(elements(tree).filter(e => e.props?.className === 'commentPopupCommonHeading').map(e => e.props.children)).toEqual(['Emoji', '自定义表情']);
+    expect(tabs[0].props.className).toContain('composerEmojiTab--active');
+    expect(elements(tree).filter(e => e.props?.className === 'composerEmojiCell').map(e => e.props.children.props.children)).toEqual(['👍', '😂']);
+    expect(elements(tree).filter(e => e.props?.className === 'composerEmojiHeading').map(e => e.props.children)).toEqual(['Emoji', '自定义表情']);
     const nodes = elements(tree);
-    expect(nodes.findIndex(e => e.props?.className === 'commentPopupPanelEmoji')).toBeLessThan(nodes.findIndex(e => e.props?.className === 'commentPopupSticker'));
-    find(tree, 'commentPopupSticker').onClick();
+    expect(nodes.findIndex(e => e.props?.className === 'composerEmojiCell')).toBeLessThan(nodes.findIndex(e => e.props?.className === 'composerEmojiSticker'));
+    find(tree, 'composerEmojiSticker').onClick();
     expect(props.onStickersChange).toHaveBeenCalledWith([STICKERS[0]]);
     props.stickers = STICKERS.slice(0, 5);
     props.onStickersChange.mockClear();
-    find(render(), 'commentPopupSticker').onClick();
+    find(render(), 'composerEmojiSticker').onClick();
     expect(props.onStickersChange).not.toHaveBeenCalled();
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '图片和表情包最多只能添加5个', icon: 'none' });
-    find(tree, 'commentPopupPanelEmoji').onClick();
+    find(tree, 'composerEmojiCell').onClick();
     expect(controller.insertText).toHaveBeenCalledWith('👍');
     expect(find(render(), 'MentionTextarea').focus).toBe(false);
     props.sending = true;
     controller.insertText.mockClear();
-    find(render(), 'commentPopupPanelEmoji').onClick();
+    find(render(), 'composerEmojiCell').onClick();
     expect(controller.insertText).not.toHaveBeenCalled();
     find(render(), "commentPopupEmoji").onClick();
     expect(elements(render()).some(e => e.props?.className === "commentPopupEmojiPanel")).toBe(true);
     props.sending = false;
     find(render(), 'commentPopupEmoji').onClick();
     expect(elements(render()).some(e => e.props?.className === "commentPopupEmojiPanel")).toBe(false);
-    expect(elements(render()).some(e => e.props?.className === 'commentPopupPanelEmoji')).toBe(false);
+    expect(elements(render()).some(e => e.props?.className === 'composerEmojiCell')).toBe(false);
   });
   it("connects mention and emoji tools to the editor and expands more emojis", () => {
     let tree = render();
@@ -461,16 +477,16 @@ describe("Skyline comment sheet with WebView fallback", () => {
     expect(controller.openMentions).toHaveBeenCalledOnce();
     find(tree, "commentPopupEmoji").onClick();
     tree = render();
-    elements(tree).filter(e => e.props?.className?.split(' ').includes('commentPopupPanelTab'))[1].props.onClick();
+    elements(tree).filter(e => e.props?.className?.split(' ').includes('composerEmojiTab'))[1].props.onClick();
     tree = render();
-    const emojis = elements(tree).filter(e => e.props?.className === "commentPopupPanelEmoji");
+    const emojis = elements(tree).filter(e => e.props?.className === "composerEmojiCell");
     expect(emojis).toHaveLength(90);
-    const rows = elements(tree).filter(e => e.props?.className === 'commentPopupPanelRow');
+    const rows = elements(tree).filter(e => e.props?.className === 'composerEmojiRow');
     expect(rows).toHaveLength(12);
     expect(rows.slice(0, -1).every(row => row.props.children.length === 8)).toBe(true);
     expect(rows[11].props.children).toHaveLength(2);
     expect(emojis.map(e => e.props.children.props.children)).toEqual(expect.arrayContaining(["😓", "🍉", "🎁", "🍻", "👍"]));
-    find(tree, "commentPopupPanelEmoji").onClick();
+    find(tree, "composerEmojiCell").onClick();
     expect(controller.insertText).toHaveBeenCalledWith("😊");
     find(tree, "commentPopupMention").onClick();
     expect(elements(render()).some(e => e.props?.className === "commentPopupEmojiPanel")).toBe(false);
@@ -479,13 +495,13 @@ describe("Skyline comment sheet with WebView fallback", () => {
     vi.mocked(getCommonEmojiUsage).mockReturnValue({ emojis: [], stickers: [] });
     find(render(), 'commentPopupEmoji').onClick();
     let tree = render();
-    expect(elements(tree).filter(e => e.props?.className === 'commentPopupCommonEmpty')).toHaveLength(2);
-    expect(elements(tree).filter(e => e.props?.className === 'commentPopupPanelEmoji')).toHaveLength(0);
+    expect(elements(tree).filter(e => e.props?.className === 'composerEmojiEmpty')).toHaveLength(2);
+    expect(elements(tree).filter(e => e.props?.className === 'composerEmojiCell')).toHaveLength(0);
     find(tree, 'commentPopupEmoji').onClick();
     vi.mocked(getCommonEmojiUsage).mockReturnValue({ emojis: ['❤️'], stickers: [] });
     find(render(), 'commentPopupEmoji').onClick();
     tree = render();
-    expect(find(tree, 'commentPopupPanelEmoji').children.props.children).toBe('❤️');
+    expect(find(tree, 'composerEmojiCell').children.props.children).toBe('❤️');
   });
 });
 
@@ -498,7 +514,7 @@ it('records selected emoji and sticker immediately and refreshes common without 
   elements(render()).find(e => e.props?.ariaLabel === '插入表情👍')!.props.onClick();
   expect(recordCommentEmojiUsage).toHaveBeenCalledWith('👍', []);
   expect(elements(render()).some(e => e.props?.ariaLabel === '插入表情😂')).toBe(true);
-  find(render(), 'commentPopupSticker').onClick();
+  find(render(), 'composerEmojiSticker').onClick();
   expect(recordCommentEmojiUsage).toHaveBeenCalledWith('', [STICKERS[1]]);
   expect(props.onSend).not.toHaveBeenCalled();
 });

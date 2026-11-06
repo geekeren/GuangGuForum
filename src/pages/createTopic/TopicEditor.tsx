@@ -5,19 +5,20 @@ import { createImageUploadController, ImageUploadError, uploadImage } from 'guan
 import RichTopicBody, { type ImageInsertionResult, type RichBodyHandle } from './RichTopicBody';
 import { serializeTopicDocument, type TopicDocument } from '../../utils/topicDocument';
 import ThemedIcon from '../../components/ThemedIcon';
-import MentionIcon from '../../assets/composer-mention.svg?raw';
-import EmojiIcon from '../../assets/composer-emoji.svg?raw';
-import KeyboardIcon from '../../assets/composer-keyboard.svg?raw';
-import AddIcon from '../../assets/editor-add.svg?raw';
-import HeadingIcon from '../../assets/editor-heading.svg?raw';
-import BoldIcon from '../../assets/editor-bold.svg?raw';
-import ListIcon from '../../assets/editor-list.svg?raw';
-import TrashIcon from '../../assets/search-trash.svg?raw';
-import CameraIcon from '../../assets/composer-camera.svg?raw';
-import PhotoIcon from '../../assets/composer-photo.svg?raw';
-import FavoriteIcon from '../../assets/composer-favorite.svg?raw';
-import { EMOJIS, getCommonEmojiUsage, recordCommentEmojiUsage } from '../../utils/emojiUsage';
+import { Mention as MentionIcon } from "gzk-ui/icons";
+import { Emoji as EmojiIcon } from "gzk-ui/icons";
+import { Keyboard as KeyboardIcon } from "gzk-ui/icons";
+import { Collapse as CollapseIcon, EditorHeading2, EditorHeading3 } from "gzk-ui/icons";
+import { EditorHeading as HeadingIcon } from "gzk-ui/icons";
+import { EditorBold as BoldIcon } from "gzk-ui/icons";
+import { EditorList as ListIcon } from "gzk-ui/icons";
+import { Trash as TrashIcon } from "gzk-ui/icons";
+import { Camera as CameraIcon } from "gzk-ui/icons";
+import { Photo as PhotoIcon } from "gzk-ui/icons";
+import { Star as FavoriteIcon } from "gzk-ui/icons";
+import { getCommonEmojiUsage, recordCommentEmojiUsage } from '../../utils/emojiUsage';
 import { MAX_COMMENT_ATTACHMENTS, STICKERS, type Sticker } from '../../utils/stickers';
+import ComposerEmojiPanel from '../../components/ComposerEmojiPanel';
 import { compressCommentPhoto } from '../../utils/commentPhotos';
 import { isImageCompressionEnabled } from '../../utils/imageCompressionPreferences';
 import { getCachedUsername } from '../../utils/currentUser';
@@ -96,13 +97,17 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     && (name === 'list' ? formatStatus.list === value : formatStatus[name]);
   const formatStatusRef = useRef(formatStatus); formatStatusRef.current = formatStatus;
   const [focused, setFocused] = useState(false);
-  // Textarea focus requests are not evidence of native Editor focus. Only the
-  // body's real focus/blur events control the toolbar's visibility.
+  // Focus requests/keyboard heights are not evidence of native Editor focus.
+  // Real focus or a completed body tap can expose tools, without claiming a keyboard opened.
   const [bodyFocused, setBodyFocused] = useState(false);
   const bodyFocusedRef = useRef(false);
+  // A completed tap on the actual body can restore tools when native Editor
+  // retains focus and therefore does not emit a second focus event.
+  const [bodyTapped, setBodyTapped] = useState(false);
+  const bodyTappedRef = useRef(false);
+  const bodyTapStarted = useRef(false);
   const [toolsHidden, setToolsHidden] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const lastKeyboardHeight = useRef(300);
   const nativeKeyboardHeight = useRef(0);
   // The body owns its own scroll viewport so a long draft no longer scrolls the
   // whole page. Measure the viewport/content to render a persistent scrollbar;
@@ -112,20 +117,35 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   const [bodyScrollTop, setBodyScrollTop] = useState(0);
   // The body grows to the space left below it, so the page itself stays fixed.
   const [bodyTop, setBodyTop] = useState(0);
+  const [bodyTranslation, setBodyTranslation] = useState(0);
+  const bodyMeasureRequest = useRef(0);
   const [dockHeight, setDockHeight] = useState(0);
   const bodyScrollTopRef = useRef(0);
   const bodyMeasureTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const bodyScrollbarTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const measureBodyScroll = () => {
+    const request = ++bodyMeasureRequest.current;
+    const measuredWidth = measuredViewport.current.width;
+    const measuredBaselineTop = measuredViewport.current.baselineTop;
+    const measuredAccount = getCachedUsername();
     Taro.createSelectorQuery()
       .select('.topicEditorBody').boundingClientRect()
       .select('.topicEditorBodyScroll').boundingClientRect()
       .select('.topicEditorBodyContent').boundingClientRect()
       .select('.topicEditorDock').boundingClientRect()
+      .select(`#${viewportProbeId.current}`).boundingClientRect()
       .exec(result => {
-        if (!active.current || !pageVisible.current) return;
+        if (!active.current || !pageVisible.current || request !== bodyMeasureRequest.current || disabledRef.current
+          || measuredAccount !== account.current || measuredAccount !== getCachedUsername()
+          || measuredWidth !== measuredViewport.current.width || measuredBaselineTop !== measuredViewport.current.baselineTop) return;
         const top = Number(result?.[0]?.top);
-        if (Number.isFinite(top)) setBodyTop(previous => Math.abs(previous - top) < 0.5 ? previous : top);
+        const probeTop = Number(result?.[4]?.top);
+        const baselineTop = measuredViewport.current.baselineTop;
+        const translation = Number.isFinite(probeTop) && baselineTop !== undefined ? baselineTop - probeTop : 0;
+        if (Number.isFinite(top)) {
+          setBodyTop(previous => Math.abs(previous - top) < 0.5 ? previous : top);
+          setBodyTranslation(previous => Math.abs(previous - translation) < 0.5 ? previous : translation);
+        }
         const dock = Number(result?.[3]?.height);
         const measuredDock = Number.isFinite(dock) && dock > 0 ? dock : 0;
         setDockHeight(previous => Math.abs(previous - measuredDock) < 0.5 ? previous : measuredDock);
@@ -154,10 +174,10 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   const pageVisible = useRef(true);
   const viewportProbeId = useRef(`topic-dock-viewport-${++nextDockViewportId}`);
   const viewportRequest = useRef(0);
-  const measuredViewport = useRef<{ width: number; baselineHeight: number; baselineBottom?: number }>({ width: 0, baselineHeight: 0 });
+  const measuredViewport = useRef<{ width: number; baselineHeight: number; baselineBottom?: number; baselineTop?: number }>({ width: 0, baselineHeight: 0 });
   const [viewport, setViewport] = useState<{ baselineHeight: number; viewportHeight: number; baselineBottom?: number; viewportBottom?: number }>({ baselineHeight: 0, viewportHeight: 0 });
-  const awaitingKeyboard = useRef(false);
   const panelOpen = useRef(false);
+  const panelGeneration = useRef(0);
   const windowInfo = Taro.getWindowInfo();
   const safeBottom = windowInfo.safeArea ? Math.max(0, windowInfo.screenHeight - windowInfo.safeArea.bottom) : 0;
   const updateKeyboardHeight = (height: number) => {
@@ -165,28 +185,51 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     const nextHeight = Math.min(Math.max(0, height), windowInfo.windowHeight);
     nativeKeyboardHeight.current = nextHeight;
     if (nextHeight > 0) {
-      lastKeyboardHeight.current = nextHeight;
       tryHideKeyboardAccessoryView();
     }
     measureViewport();
     scheduleBodyMeasure();
-    if (panelOpen.current || (awaitingKeyboard.current && nextHeight === 0)) return;
-    awaitingKeyboard.current = false;
     setKeyboardHeight(nextHeight);
   };
-  const dockVisible = bodyFocused && !disabled && !toolsHidden;
+  const dockVisible = (bodyFocused || bodyTapped || !!panel) && !disabled && !toolsHidden;
   const panelVisible = !!panel && !disabled && !toolsHidden;
   const overlayVisible = dockVisible || panelVisible;
-  const inputHeight = panel ? lastKeyboardHeight.current : keyboardHeight;
-  // The fixed sheet and the panel occupy siblings, exactly like CommentComposer.
-  // Measure remaining body space once per layout/keyboard event, never poll.
+  // Native Editor has no programmatic keyboard-open API. The sheet replaces
+  // the keyboard region, but a hide request never fabricates a zero keyboard height.
   const viewportBottom = viewport.viewportBottom ?? viewport.viewportHeight;
   const viewportInset = resolveViewportInset(viewport);
-  const bodyReserved = (dockVisible ? dockHeight : 0) + (overlayVisible ? inputHeight : 0);
+  const layoutBottom = viewportBottom > 0 ? viewportBottom + viewportInset : windowInfo.windowHeight;
+  // The card's single outside bottom margin separates its background/viewport
+  // from the dock. Last-line breathing room is scrollable body-content padding.
+  // Overlay panels/docks already own their safe-area inset; reserve it only at rest.
+  const bodyBottomGap = 24 * windowInfo.windowWidth / 750 + (!overlayVisible && keyboardHeight === 0 ? safeBottom : 0);
+  // Leave roughly two editable lines where space permits. On extreme viewports
+  // the sheet shrinks to zero rather than forcing content outside the viewport.
+  // Body and probe tops are sampled together in client coordinates. Normalize
+  // translation only; a resized viewport's bottom inset is not body movement.
+  const bodyLayoutTop = bodyTop + bodyTranslation;
+  const panelHeight = panelVisible
+    ? Math.min(300, Math.max(0, layoutBottom - bodyLayoutTop - dockHeight - bodyBottomGap - 72))
+    : 0;
+  const inputHeight = panelVisible ? panelHeight : keyboardHeight;
+  // During native hide settlement the sheet and keyboard occupy the same bottom
+  // region, not stacked regions. Preserve the actual keyboard's obstruction.
+  const bodyReserved = (dockVisible ? dockHeight : 0) + Math.max(keyboardHeight, panelHeight);
+  // The fixed dock cancels page pan via viewportInset, but the body DOM stays
+  // panned. Use its raw client top against that dock's client bottom; subtracting
+  // normalized bodyLayoutTop here would leave a second full pan-sized gap.
   const bodyAvailable = viewportBottom > 0
-    ? Math.max(0, Math.round(viewportBottom + viewportInset - bodyTop - bodyReserved))
+    ? Math.max(0, Math.round(viewportBottom + viewportInset - bodyTop - bodyReserved - bodyBottomGap))
     : 0;
   const editor = useRef<RichBodyHandle>(null);
+  const [headingOpen, setHeadingOpen] = useState(false);
+  const headingOpenRef = useRef(false);
+  const toolsDismissed = useRef(false);
+  const closeHeading = () => { headingOpenRef.current = false; setHeadingOpen(false); };
+  const clearBodyInteraction = () => {
+    bodyTapStarted.current = false;
+    bodyTappedRef.current = false; setBodyTapped(false);
+  };
   const currentAttachments = useRef(attachments);
   currentAttachments.current = attachments;
   const active = useRef(true);
@@ -197,7 +240,8 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   const disabledRef = useRef(disabled); disabledRef.current = disabled;
   const runFormat = ({ name, value: formatValue }: FormatTool) => {
     const status = formatStatusRef.current;
-    if (disabledRef.current || !active.current || !pageVisible.current || !bodyFocusedRef.current || !status.available || !editor.current) return;
+    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername() || !(bodyFocusedRef.current || bodyTappedRef.current) || !status.available || !editor.current) return;
+    closeHeading();
     // A single native tap formats the current selection. Do not rewrite contents,
     // hide/reopen the keyboard, or emulate textarea-only focus/holdKeyboard props.
     editor.current.format(name, name === 'list' && status.list === formatValue ? '' : formatValue);
@@ -211,10 +255,14 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
           || !Number.isFinite(rect.height) || rect.height <= 0 || !Number.isFinite(rect.width) || rect.width <= 0) return;
         const measured = measuredViewport.current;
         if (measured.width !== rect.width) {
-          measured.width = rect.width; measured.baselineHeight = 0; measured.baselineBottom = undefined;
+          bodyMeasureRequest.current++;
+          measured.width = rect.width; measured.baselineHeight = 0; measured.baselineBottom = undefined; measured.baselineTop = undefined;
         }
         const bottom = Number.isFinite(rect.bottom) && Number.isFinite(rect.top) && Math.abs(rect.bottom - rect.top - rect.height) <= 1 ? rect.bottom : undefined;
-        if (nativeKeyboardHeight.current === 0 && !awaitingKeyboard.current && !panelOpen.current) {
+        if (nativeKeyboardHeight.current === 0) {
+          if (Number.isFinite(rect.top) && measured.baselineTop !== rect.top) {
+            bodyMeasureRequest.current++; measured.baselineTop = rect.top;
+          }
           measured.baselineHeight = Math.max(measured.baselineHeight, rect.height);
           if (bottom !== undefined) measured.baselineBottom = Math.max(measured.baselineBottom ?? bottom, bottom);
         }
@@ -226,9 +274,10 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   };
   useDidHide(() => {
     pageVisible.current = false;
-    viewportRequest.current++;
+    toolsDismissed.current = true; closeHeading(); clearBodyInteraction();
+    panelGeneration.current++;
+    viewportRequest.current++; bodyMeasureRequest.current++;
     nativeKeyboardHeight.current = 0;
-    awaitingKeyboard.current = false;
     panelOpen.current = false;
     bodyFocusedRef.current = false; setBodyFocused(false);
     setKeyboardHeight(0); setPanel(null); setFocused(false);
@@ -249,29 +298,45 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     currentAttachments.current = change(currentAttachments.current);
     onAttachmentsChange(change);
   };
-  const showKeyboard = (notify = false) => {
-    const canFocus = editor.current?.canFocus?.() ?? false;
-    if (panelOpen.current && canFocus) {
-      awaitingKeyboard.current = true;
-      setKeyboardHeight(lastKeyboardHeight.current);
-    } else if (!canFocus) {
-      awaitingKeyboard.current = false;
-      setKeyboardHeight(nativeKeyboardHeight.current);
-      if (notify) Taro.showToast({ title: '请点击正文唤起键盘', icon: 'none' });
-    }
+  const closePanel = () => {
+    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    closeHeading();
+    panelGeneration.current++;
     panelOpen.current = false;
     setToolsHidden(false);
     setPanel(null);
-    setFocused(canFocus);
-    measureViewport();
+    measureViewport(); scheduleBodyMeasure();
   };
+  const showKeyboard = () => {
+    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    closePanel();
+    // Only the source textarea supports a focus request. Native body taps remain
+    // the actual focus target; panel controls never change the existing focus.
+    setFocused(editor.current?.canFocus?.() ?? false);
+  };
+  // Only a completed fresh body tap releases this latch. A start, scroll or
+  // delayed focus/height event cannot restore tools over another field.
+  const dismissTools = () => {
+    toolsDismissed.current = true; closeHeading(); clearBodyInteraction();
+    panelGeneration.current++;
+    panelOpen.current = false;
+    bodyFocusedRef.current = false; setBodyFocused(false);
+    setFocused(false); setPanel(null); setToolsHidden(true);
+    setKeyboardHeight(nativeKeyboardHeight.current);
+    viewportRequest.current++; bodyMeasureRequest.current++;
+  };
+  const collapseTools = () => {
+    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    dismissTools();
+    // A rejected hide request must neither clear drafts nor reopen dismissed UI.
+    try { void Taro.hideKeyboard().catch(() => undefined); } catch { /* Native API unavailable. */ }
+  };
+  useEffect(() => {
+    if (disabled || account.current !== getCachedUsername()) dismissTools();
+  }, [disabled, getCachedUsername()]);
   useImperativeHandle(inputRef, () => ({
-    focus: () => showKeyboard(true),
-    dismissTools: () => {
-      panelOpen.current = false; awaitingKeyboard.current = false;
-      setFocused(false); setPanel(null); setToolsHidden(true);
-      viewportRequest.current++;
-    },
+    focus: showKeyboard,
+    dismissTools,
     insertText: (text: string) => editor.current?.insertText(text),
     snapshot: () => editor.current?.snapshot() ?? Promise.reject(new Error('Editor unavailable')),
   }));
@@ -290,7 +355,9 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     measureViewport();
     return () => {
       active.current = false;
-      viewportRequest.current++;
+      bodyTapStarted.current = false; bodyTappedRef.current = false;
+      panelGeneration.current++;
+      viewportRequest.current++; bodyMeasureRequest.current++;
       clearTimeout(bodyMeasureTimer.current); bodyMeasureTimer.current = undefined;
       clearTimeout(bodyScrollbarTimer.current); bodyScrollbarTimer.current = undefined;
       Taro.offKeyboardHeightChange?.(keyboardListener);
@@ -341,7 +408,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   };
 
   const choosePhoto = async (source: 'camera' | 'album') => {
-    if (disabledRef.current || !active.current || !pageVisible.current || selecting.current) return;
+    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername() || selecting.current) return;
     const remaining = MAX_COMMENT_ATTACHMENTS - currentAttachments.current.length;
     if (remaining <= 0) { Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' }); return; }
     selecting.current = true;
@@ -428,7 +495,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     update(items => items.filter(item => item.id !== id));
   };
   const addSticker = (sticker: Sticker) => {
-    if (disabledRef.current || !active.current || !pageVisible.current || account.current !== getCachedUsername()) return;
+    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
     if (currentAttachments.current.length >= MAX_COMMENT_ATTACHMENTS) { Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' }); return; }
     const selected: TopicAttachment = { id: attachmentId(), kind: 'sticker', sticker };
     update(items => [...items, selected]);
@@ -453,30 +520,56 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     }).map(item => item.id));
     if (deleted.size) update(current => current.filter(item => !deleted.has(item.id)));
   };
+  const canUseHeading = () => !disabledRef.current && active.current && pageVisible.current && !toolsDismissed.current
+    && account.current === getCachedUsername() && (bodyFocusedRef.current || bodyTappedRef.current) && formatStatusRef.current.available && !!editor.current;
+  const toggleHeading = () => {
+    if (!canUseHeading()) return;
+    headingOpenRef.current = !headingOpenRef.current;
+    setHeadingOpen(headingOpenRef.current);
+  };
+  const chooseHeading = (level: 2 | 3) => {
+    if (!headingOpenRef.current || !canUseHeading()) return;
+    closeHeading();
+    editor.current!.format('header', formatStatusRef.current.header === level ? '' : `h${level}`);
+  };
   const togglePanel = (next: 'emoji' | 'more') => {
-    if (disabled) return;
-    if (panel === next) { showKeyboard(true); return; }
+    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    closeHeading();
+    if (panel === next) { closePanel(); return; }
     if (next === 'emoji') setCommon(getCommonEmojiUsage());
-    setFocused(false);
-    awaitingKeyboard.current = false;
-    const wasOpen = panelOpen.current;
+    panelGeneration.current++;
     panelOpen.current = true;
     setPanel(next);
-    if (!wasOpen) void Taro.hideKeyboard();
+    // Capture keeps the native selection; request keyboard dismissal without
+    // Editor.blur, fabricated focus/height, or a document rewrite. A failed hide
+    // leaves the panel/draft intact and real keyboard events remain authoritative.
+    if (next === 'emoji') {
+      // Withhold only the supported source-textarea focus prop so a render does
+      // not counteract hiding. Native Editor has no focus prop to toggle.
+      setFocused(false);
+      try { void Taro.hideKeyboard().catch(() => undefined); } catch { /* Native API unavailable. */ }
+    }
   };
-  const emojis = tab === 'common' ? common.emojis : EMOJIS;
-  const stickers = tab === 'common' ? common.stickers : STICKERS;
+  const renderedPanelGeneration = panelGeneration.current;
+  const currentEmojiPanel = () => panelOpen.current && renderedPanelGeneration === panelGeneration.current
+    && !disabledRef.current && active.current && pageVisible.current && !toolsDismissed.current && account.current === getCachedUsername();
+  const insertEmoji = (emoji: string) => {
+    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    editor.current?.insertText(emoji);
+    recordCommentEmojiUsage(emoji, []);
+    setCommon(getCommonEmojiUsage());
+  };
   const failedPhoto = attachments.find((item): item is Photo => item.kind === 'photo' && item.phase === 'failed');
   const previews = attachments.filter(item => !item.richManaged);
   const failedInsertion = previews.some(item => item.insertionState === 'failed' || item.insertionState === 'uncertain');
   const overlayStyle = { width: `${windowInfo.windowWidth}px`, height: `${windowInfo.windowHeight}px`, bottom: `${-viewportInset}px`, ...themeVariables(theme) };
-  const dockStyle = { bottom: `${inputHeight}px`, paddingBottom: inputHeight > 0 ? '0px' : `${safeBottom}px`, maxHeight: `${Math.max(0, windowInfo.windowHeight - inputHeight)}px` };
-  const resumeLabel = editor.current?.canFocus?.() ? '切换到键盘' : '收起面板';
+  const dockStyle = { bottom: `${inputHeight}px`, paddingBottom: keyboardHeight > 0 || panelHeight > 0 ? '0px' : `${safeBottom}px`, maxHeight: `${Math.max(0, layoutBottom - inputHeight)}px` };
+  const resumeLabel = '收起表情面板';
   const nativeControls = process.env.TARO_ENV === 'weapp';
   const palette = THEME_PALETTES[theme];
-  const toolbarControl = (label: string, icon: string, selected: boolean, unavailable: boolean, action: () => void, secondary = false) => {
+  const toolbarControl = (label: string, icon: string, selected: boolean, unavailable: boolean, action: () => void, secondary = false, extraClass = '') => {
     const tone = selected ? 'accent' : secondary ? 'secondary' : 'primary';
-    const className = `topicEditorTool${selected ? ' topicEditorTool--active' : ''}${unavailable && !nativeControls ? ' topicEditorTool--disabled' : ''}`;
+    const className = `topicEditorTool${selected ? ' topicEditorTool--active' : ''}${unavailable && !nativeControls ? ' topicEditorTool--disabled' : ''}${extraClass ? ` ${extraClass}` : ''}`;
     return nativeControls
       ? <View key={label} className={className}><topic-format-button icon={svgIconSource(icon, selected ? palette['accent-primary'] : secondary ? palette['text-secondary'] : palette['text-primary'])}
           label={label} disabled={unavailable} active={selected} background={palette['brand-soft']} onFormatend={action} /></View>
@@ -546,11 +639,31 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
       >
         <View className='topicEditorBodyContent'>
           <RichTopicBody handleRef={editor} value={value} document={document} attachments={attachments} placeholder={placeholder}
-            disabled={disabled} focus={focused && !panel} onChange={handleBodyChange}
+            disabled={disabled} focus={focused} onChange={handleBodyChange}
             onFormatStatusChange={setFormatStatus}
-            onFocus={() => { bodyFocusedRef.current = true; setBodyFocused(true); setToolsHidden(false); setFocused(true); panelOpen.current = false; setPanel(null); measureViewport(); scheduleBodyMeasure(); }}
-            onTouchStart={() => showKeyboard()}
-            onBlur={() => { bodyFocusedRef.current = false; setBodyFocused(false); setFocused(false); }}
+            onFocus={() => {
+              if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+              bodyFocusedRef.current = true; setBodyFocused(true); setToolsHidden(false); setFocused(true);
+              panelGeneration.current++; panelOpen.current = false; setPanel(null); measureViewport(); scheduleBodyMeasure();
+            }}
+            onTouchStart={() => {
+              bodyTapStarted.current = !disabledRef.current && active.current && pageVisible.current && account.current === getCachedUsername();
+              if (!bodyTapStarted.current) return;
+              closeHeading();
+              // Close the sheet so the actual body remains the native tap target,
+              // but do not release the dismissal latch or fabricate focus here.
+              if (!toolsDismissed.current) showKeyboard();
+            }}
+            onTouchMove={() => { bodyTapStarted.current = false; }}
+            onTouchCancel={() => { bodyTapStarted.current = false; }}
+            onBodyTap={() => {
+              const started = bodyTapStarted.current; bodyTapStarted.current = false;
+              if (!started || disabledRef.current || !active.current || !pageVisible.current || account.current !== getCachedUsername()) return;
+              toolsDismissed.current = false;
+              bodyTappedRef.current = true; setBodyTapped(true);
+              showKeyboard(); scheduleBodyMeasure();
+            }}
+            onBlur={() => { closeHeading(); clearBodyInteraction(); bodyFocusedRef.current = false; setBodyFocused(false); setFocused(false); }}
           />
         </View>
       </ScrollView>
@@ -562,35 +675,33 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     <RootPortal>
     <View id={viewportProbeId.current} className='topicEditorViewportProbe' />
     {overlayVisible && <View className='topicEditorDockHost' style={overlayStyle}>
+    {headingOpen && !disabled && account.current === getCachedUsername() && <View className='topicEditorHeadingBackdrop' onTouchStart={closeHeading} />}
     {dockVisible && <View className='topicEditorDock' style={dockStyle}>
+    {headingOpen && !disabled && account.current === getCachedUsername() && <View className='topicEditorHeadingMenu'>
+      {toolbarControl('二级标题', EditorHeading2, formatStatus.header === 2, !formatStatus.available, () => chooseHeading(2))}
+      {toolbarControl('三级标题', EditorHeading3, formatStatus.header === 3, !formatStatus.available, () => chooseHeading(3))}
+    </View>}
     <View className='topicEditorToolbar'>
+      {toolbarControl('标题', HeadingIcon, headingOpen || formatStatus.header === 2 || formatStatus.header === 3, disabled || !formatStatus.available, toggleHeading)}
       {FORMAT_TOOLS.map(tool => toolbarControl(tool.label, tool.icon, !!formatActive(tool.name, tool.value), disabled || !formatStatus.available, () => runFormat(tool)))}
       {toolbarControl('选择照片', PhotoIcon, false, disabled, () => { void choosePhoto('album'); })}
-      {toolbarControl(panel === 'emoji' ? resumeLabel : '表情', panel === 'emoji' ? KeyboardIcon : EmojiIcon, panel === 'emoji', disabled, () => togglePanel('emoji'), true)}
-      {toolbarControl(panel === 'more' ? resumeLabel : '更多功能', panel === 'more' ? KeyboardIcon : AddIcon, panel === 'more', disabled, () => togglePanel('more'), true)}
+      {toolbarControl(panel === 'emoji' ? resumeLabel : '表情', panel === 'emoji' ? KeyboardIcon : EmojiIcon, panel === 'emoji', disabled, () => {
+        if (panel !== 'emoji' || currentEmojiPanel()) togglePanel('emoji');
+      }, true)}
+      {toolbarControl('收起工具栏', CollapseIcon, false, disabled, collapseTools, true, 'topicEditorTool--collapse')}
     </View>
     </View>}
-    {panelVisible && <View className='topicEditorPanelRegion' style={{ height: `${inputHeight}px`, paddingBottom: `${safeBottom}px` }}>
-      {!dockVisible && <View className='topicEditorPanelHeader'>
-        <View className='topicEditorPanelAction' ariaRole='button' ariaLabel='表情' onClick={() => { if (panel !== 'emoji') togglePanel('emoji'); }}><Text>表情</Text></View>
-        <View className='topicEditorPanelAction' ariaRole='button' ariaLabel='更多功能' onClick={() => { if (panel !== 'more') togglePanel('more'); }}><Text>更多</Text></View>
-        <View className='topicEditorPanelAction' ariaRole='button' ariaLabel={resumeLabel} onClick={() => showKeyboard(true)}><Text>{resumeLabel}</Text></View>
-      </View>}
-      {panel === 'emoji' && <View className='topicEditorPanel'>
-        <View className='topicEditorTabs'>{(['common', 'emoji', 'sticker'] as const).map((item, index) => <View key={item} className={`topicEditorTab${tab === item ? ' topicEditorTab--active' : ''}`} ariaRole='button' onClick={() => setTab(item)}><Text>{['常用', '表情', '过早客'][index]}</Text></View>)}</View>
-        <ScrollView type={scrollViewType} scrollY className='topicEditorPanelScroll' {...{ 'keyboard-dismiss-mode': 'none' }}>
-          {tab === 'common' && <Text className='topicCommonHeading'>Emoji</Text>}
-          {tab === 'common' && emojis.length === 0 && <Text className='topicCommonEmpty'>选择后，常用 Emoji 会显示在这里</Text>}
-          {tab !== 'sticker' && Array.from({ length: Math.ceil(emojis.length / 8) }, (_, row) => <View className='topicPanelRow' key={`emoji-${row}`}>
-            {emojis.slice(row * 8, row * 8 + 8).map(emoji => <View className='topicPanelEmoji' key={emoji} ariaRole='button' ariaLabel={`插入表情${emoji}`} onClick={() => { if (!disabled) { editor.current?.insertText(emoji); recordCommentEmojiUsage(emoji, []); setCommon(getCommonEmojiUsage()); } }}><Text>{emoji}</Text></View>)}
-          </View>)}
-          {tab === 'common' && <Text className='topicCommonHeading'>自定义表情</Text>}
-          {tab === 'common' && stickers.length === 0 && <Text className='topicCommonEmpty'>选择后，常用自定义表情会显示在这里</Text>}
-          {tab !== 'emoji' && Array.from({ length: Math.ceil(stickers.length / 5) }, (_, row) => <View className='topicPanelRow' key={`sticker-${row}`}>
-            {stickers.slice(row * 5, row * 5 + 5).map(sticker => <View className='topicPanelSticker' key={sticker.filename} ariaRole='button' ariaLabel={`添加表情包${sticker.name}`} onClick={() => addSticker(sticker)}><Image lazyLoad src={sticker.url} mode='aspectFit' className='topicPanelStickerImage' /></View>)}
-          </View>)}
-        </ScrollView>
-      </View>}
+    {panelVisible && <View className='topicEditorPanelRegion' style={{ bottom: '0px', height: `${panelHeight}px`, paddingBottom: `${keyboardHeight === 0 ? Math.min(safeBottom, panelHeight) : 0}px` }}>
+      {panel === 'emoji' && <ComposerEmojiPanel tab={tab} common={common} disabled={disabled} scrollViewType={scrollViewType}
+        onTabChange={next => {
+          if (currentEmojiPanel()) setTab(next);
+        }} onEmoji={emoji => { if (currentEmojiPanel()) insertEmoji(emoji); }} onSticker={sticker => { if (currentEmojiPanel()) addSticker(sticker); }}
+        renderTabControl={nativeControls ? (item, select, content) => <topic-format-button icon='' label={item === 'common' ? '常用' : item === 'emoji' ? '表情' : '过早客'}
+          disabled={disabled} active={false} background='transparent' captureOnly style={{ height: `${14.91 * 1.4}px` }} onFormatend={select}>{content}</topic-format-button> : undefined}
+        renderStickerControl={nativeControls ? (sticker, select, content) => <topic-format-button icon='' label={`添加表情包${sticker.name}`}
+          disabled={disabled} active={false} background='transparent' captureOnly style={{ height: '112rpx' }} onFormatend={select}>{content}</topic-format-button> : undefined}
+        renderEmojiControl={nativeControls ? (emoji, select, content) => <topic-format-button icon='' label={`插入表情${emoji}`}
+          disabled={disabled} active={false} background='transparent' captureOnly style={{ height: '100%' }} onFormatend={select}>{content}</topic-format-button> : undefined} />}
       {panel === 'more' && <View className='topicEditorPanel'><View className='topicMoreActions'>
         <View className='topicMoreAction' ariaRole='button' ariaLabel='拍照' onClick={() => choosePhoto('camera')}><View className='topicMoreSquare'><ThemedIcon src={CameraIcon} tone='secondary' className='topicMoreIcon' /></View><Text>拍照</Text></View>
         <View className='topicMoreAction' ariaRole='button' ariaLabel='照片' onClick={() => choosePhoto('album')}><View className='topicMoreSquare'><ThemedIcon src={PhotoIcon} tone='secondary' className='topicMoreIcon' /></View><Text>照片</Text></View>

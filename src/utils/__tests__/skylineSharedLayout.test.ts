@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { runInNewContext } from "node:vm";
-import { document, hydrate, options, TaroEvent } from "@tarojs/runtime";
+import { document, hydrate, options, TaroEvent, TaroElement } from "@tarojs/runtime";
 import { getComponentsAlias, internalComponents } from "@tarojs/shared";
 import Taro from "@tarojs/taro";
 import TopicList from "../../pages/home/topics/topicList";
@@ -47,8 +47,10 @@ function parse(html: string) {
   root.innerHTML = html;
   return root;
 }
-function listTree() {
+function listTree(renderer: 'skyline' | 'webview' = 'skyline') {
   const list = new TopicList({ getTopics: vi.fn() }, {});
+  // Direct class invocation has no provider; supply the real mounted context explicitly.
+  list.context = renderer;
   list.state = { topics: [{ link: "/t/1", title: "长标题".repeat(40), category: "长板块", username: "long_user", commentCount: "4" } as any], loadingPage: 1 };
   return list.render();
 }
@@ -220,7 +222,7 @@ describe("shared dual-renderer layout", () => {
     const override = rest.split(".topicListEmpty")[0];
     expect(baseline).toContain("margin: 0 22rpx 14rpx;");
     expect(baseline).toContain("padding: 22rpx 26rpx 20rpx;");
-    expect(baseline).toContain("font-size: 30rpx;");
+    expect(baseline).toContain("font-size: 17.2PX;");
     expect(baseline).toContain("flex-wrap: nowrap;");
     expect(override).not.toMatch(/font-size:|padding(?:-[a-z]+)?:|margin(?:-[a-z]+)?:/);
     expect(override).toContain("height: auto;");
@@ -239,7 +241,7 @@ describe("shared dual-renderer layout", () => {
   it("only selects native wrapper styling for a Skyline page renderer", () => {
     expect(elements(listTree()).find(e => e.type === "ScrollView").props.className).toBe("topicList topicList--skyline");
     vi.stubGlobal("getCurrentPages", () => [{ renderer: "webview" }]);
-    expect(elements(listTree()).find(e => e.type === "ScrollView").props.className).toBe("topicList");
+    expect(elements(listTree('webview')).find(e => e.type === "ScrollView").props.className).toBe("topicList");
   });
   it("specifies horizontal direction on shared search/filter rows", () => {
     for (const path of ["components/SearchEntry/index.scss", "components/SearchHotTopics/index.scss", "components/NodePicker/index.scss", "pages/node/topicList/index.scss"]) {
@@ -257,6 +259,21 @@ describe("shared dual-renderer layout", () => {
 });
 
 describe("Skyline HTML parser normalization", () => {
+  it.each(['skyline', 'webview'] as const)('keeps the actual posting source separator and authored rule as distinct block nodes in %s', renderer => {
+    vi.stubGlobal('getCurrentPages', () => [{ renderer }]);
+    const footer = source('pages/createTopic/index.tsx').match(/const FROM_MINI = '([^']+)';/)![1];
+    const root = parse(`<div><p>作者正文</p><hr><p><img src="synthetic.png"></p>${footer}</div>`);
+    const blocks = root.firstChild!.childNodes;
+    expect(blocks.map(node => node instanceof TaroElement ? node.className : undefined)).toEqual(['h5-p', 'h5-hr', 'h5-p', 'h5-hr', 'h5-p']);
+    expect(blocks[1].nodeName).toBe('view'); expect(blocks[3].nodeName).toBe('view');
+    expect(blocks[1].childNodes).toHaveLength(0); expect(blocks[3].childNodes).toHaveLength(0);
+    expect(blocks[0].textContent).toBe('作者正文');
+    expect(blocks[4].textContent).toContain('本帖发自');
+    expect(nodes(blocks[2]).filter(node => node.nodeName === 'image')).toHaveLength(1);
+    // Existing real rule styling supplies paint; the footer is not a fake CSS
+    // border or a newline run consumed by ordinary Skyline normalization.
+    expect(source('components/HtmlRender/index.scss')).toMatch(/\.h5-hr\s*\{[^}]*height:\s*2rpx;[^}]*background:\s*\$border-color;/);
+  });
   it("preserves styled text and br while rendering mentions as rounded inline boxes", () => {
     const root = parse("<p>正文<strong>加粗<span>内联</span></strong><br>换行<a href='/u/alice'>@alice</a></p><p>第二段</p>");
     const paragraph = root.firstChild!;
@@ -342,11 +359,50 @@ describe("Skyline HTML parser normalization", () => {
     expect(root.firstChild!.firstChild!.textContent).toBe("Hello world\n下一行 &nbsp;");
     expect(root.firstChild!.lastChild!.textContent).toBe("  one\n    two");
   });
-  it("keeps explicitly authored blank paragraphs and standalone text whitespace", () => {
+  it("keeps explicitly authored blank paragraphs while collapsing ordinary source whitespace", () => {
     const root = parse("<div><p>第一段</p><p><br></p><p>第二段</p></div>");
     expect(root.firstChild!.childNodes).toHaveLength(3);
-    expect(root.firstChild!.childNodes[1].textContent).toBe("\n");
-    expect(parse("<div>  普通文本\n</div>").firstChild!.textContent).toBe("  普通文本\n");
+    expect(root.firstChild!.childNodes[1].textContent).toBe(" ");
+    expect(parse("<div>  普通文本\n</div>").firstChild!.textContent).toBe("普通文本");
+  });
+  it.each([
+    ['<p>text<br></p>', 'text'],
+    ['<p>text<br><br></p>', 'text\n'],
+    ['<p><br>text</p>', '\ntext'],
+    ['<p><br><br>text</p>', '\n\ntext'],
+    ['<p>one<br>two<br></p>', 'one\ntwo'],
+    ['<p><strong>text<br></strong></p>', 'text'],
+    ['<p>one\n<br>two</p>', 'one\ntwo'],
+    ['<p> one\t <strong> two </strong> \n three </p>', 'one two three'],
+    ['<p> <br> </p>', ' \n '],
+  ])('normalizes native ordinary line boxes for %s without losing explicit breaks', (html, expected) => {
+    const root = parse(html); expect(root.textContent).toBe(expected);
+    expect(root.firstChild!.childNodes).toHaveLength(1);
+  });
+  it.each([1, 2, 3])('keeps %s authored blank lines between image blocks with no extra newline line box', count => {
+    const root = parse(`<div><img src='synthetic.png'>${'<br>'.repeat(count)}<img src='other.png'></div>`);
+    const block = root.firstChild!;
+    expect(block.childNodes.map(node => node.nodeName)).toEqual(['image', 'text', 'image']);
+    const run = block.childNodes[1]; expect(run.textContent).toBe(' ' + '\n'.repeat(count - 1));
+    expect(run.textContent!.split('\n')).toHaveLength(count);
+    expect((block.firstChild as TaroElement).props.src).toBe('synthetic.png'); expect((block.lastChild as TaroElement).props.src).toBe('other.png');
+  });
+  it('keeps authored empty paragraphs and leading/trailing image breaks as independent one-line runs', () => {
+    const root = parse('<div><br><img src="synthetic.png"><br><p><br><br></p><br></div>');
+    const block = root.firstChild!; expect(block.childNodes.map(node => node.nodeName)).toEqual(['text', 'image', 'text', 'view', 'text']);
+    expect(block.childNodes.filter(node => node.nodeName === 'text').map(node => node.textContent)).toEqual([' ', ' ', ' ']);
+    expect(block.childNodes[3].textContent).toBe(' \n');
+  });
+  it('preserves ancestor pre/code whitespace and breaks inside nested inline wrappers', () => {
+    const root = parse('<div><pre><span>  one\n <strong> two\t </strong><br></span></pre><p><code>  a\n b<br></code></p></div>');
+    expect(root.firstChild!.firstChild!.textContent).toBe('  one\n  two\t \n');
+    expect(root.firstChild!.lastChild!.textContent).toBe('  a\n b\n');
+  });
+  it('collapses source whitespace around atomic chips without trimming their labels or authored breaks', () => {
+    const root = parse('<p> one \n <a href="/u/alice">@alice</a> \t two<br></p>');
+    expect(root.textContent).toBe('one @alice two');
+    const mention = nodes(root).find(node => node.className === 'html-mentionHost');
+    expect(mention.firstChild!.className).toBe('html-link html-link--mention'); expect(mention.textContent).toBe('@alice');
   });
   it("does not normalize server indentation or comment spans on WebView", () => {
     vi.stubGlobal("getCurrentPages", () => [{ renderer: "webview" }]);
@@ -506,7 +562,8 @@ describe("Skyline HTML parser normalization", () => {
     expect(jsx).toContain('import { Span, Text, View } from "@tarojs/components";');
     expect(jsx).toContain("{skyline && <Span style={{ display: 'none' }} />}");
     expect(jsx).toContain("<View\n        ref={htmlEle}");
-    expect(jsx).toContain("dangerouslySetInnerHTML={{ __html: renderHtml }}");
+    expect(jsx).toContain("dangerouslySetInnerHTML={{ __html: presentedHtml }}");
+    expect(jsx).toContain('const presentedHtml = presentation ?');
     expect(jsx).toContain('const renderHtml = skyline ? `<div>${cleanHtml}</div>` : cleanHtml;');
   });
   it("generates WeChat view/text/span templates with class and style in memory", () => {

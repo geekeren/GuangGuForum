@@ -1,6 +1,6 @@
-@import "../../vars.scss";
+@import "../../styles/tokens.scss";
 
-.loading {
+.gzkLoading {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -18,13 +18,13 @@
   }
 }
 
-.spinner {
+.gzkLoadingSpinner {
   position: relative;
   flex-shrink: 0;
-  animation: spin 1s linear infinite;
+  animation: gzkLoadingSpin 1s linear infinite;
 }
 
-.spinnerBlade {
+.gzkLoadingBlade {
   position: absolute;
   left: 50%;
   top: 0;
@@ -45,14 +45,14 @@
   &:nth-child(8) { transform: rotate(315deg); opacity: 0.125; }
 }
 
-.tip {
+.gzkLoadingLabel {
   margin-top: 20rpx;
   font-size: 14.91PX;
   line-height: 1.5;
   color: $text-muted;
 }
 
-@keyframes spin {
+@keyframes gzkLoadingSpin {
   to {
     transform: rotate(360deg);
   }

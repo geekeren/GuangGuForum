@@ -1,6 +1,6 @@
 import { View, Text } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import SearchIcon from "../../assets/search.svg?raw";
+import { Search as SearchIcon } from "gzk-ui/icons";
 import ThemedIcon from "../ThemedIcon";
 import { useSearchPlaceholder } from "../../hooks/useSearchPlaceholder";
 import { buildSearchRoute } from "../../utils/searchRoute";

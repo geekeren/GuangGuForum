@@ -41,6 +41,7 @@
     "@tarojs/shared": "4.1.10",
     "@tarojs/taro": "4.1.10",
     "guanggu-forum-api": "workspace:^",
+    "gzk-ui": "workspace:^",
     "path-to-regexp": "^6.2.1",
     "query-string": "^7.1.1",
     "react": "^18.0.0",

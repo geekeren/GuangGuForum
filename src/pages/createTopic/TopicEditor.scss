@@ -1,12 +1,13 @@
 @import "../../vars.scss";
 
 .topicEditor { min-width: 0; }
+// Topic emoji sheets replace the keyboard region; the dock remains toolbar-only.
 // Keep the draft in its own viewport: page-level scrolling made long posts move
 // the whole form, and the native overlay scrollbar faded away on iOS.
 // The height is measured at runtime so the body fills the space left below it.
 .topicEditorBody { position: relative; min-width: 0; }
 .topicEditorBodyScroll { width: 100%; height: 40vh; min-height: 0; }
-.topicEditorBodyContent { min-width: 0; padding-right: 4rpx; box-sizing: border-box; }
+.topicEditorBodyContent { min-width: 0; padding-right: 4rpx; padding-bottom: 24rpx; box-sizing: border-box; }
 .topicEditorBodyScrollbar { position: absolute; top: 8rpx; bottom: 8rpx; right: -8rpx; width: 6rpx; pointer-events: none; }
 .topicEditorBodyScrollThumb { position: absolute; right: 0; width: 4rpx; border-radius: 2rpx; background: rgba(140, 140, 140, 0.55); }
 .richTopicBody { color: $text-primary; background: $surface; }
@@ -55,26 +56,17 @@
 .topicUploadError { display: block; color: var(--theme-danger, #c74646); font-size: 12.61PX; line-height: 1.6; margin-bottom: 16rpx; }
 .createTopic .topicEditorInput { min-height: 240rpx; }
 .topicEditorToolbar { display: flex; flex-direction: row; align-items: center; flex-wrap: nowrap; background: $surface; border-radius: 20rpx; }
-.topicEditorTool { flex: 1; min-width: 0; height: 72rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; }
+.topicEditorTool { flex: none; width: 72rpx; min-width: 0; height: 72rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; }
+.topicEditorTool--collapse { margin-left: auto; }
+.topicEditorHeadingBackdrop { position: absolute; inset: 0; pointer-events: auto; }
+.topicEditorHeadingMenu { position: absolute; left: 30rpx; bottom: 100%; margin-bottom: 8rpx; display: flex; flex-direction: row; padding: 8rpx; border: 1rpx solid $border-color; border-radius: 20rpx; background: $surface; box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.12); }
 .topicEditorToolIcon { display: block; width: 40rpx; height: 40rpx; }
 .topicEditorToolGlyph { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; flex: none; border-radius: 16rpx; }
 .topicEditorTool--active .topicEditorToolGlyph, .topicEditorTool:active .topicEditorToolGlyph { background: $color-brand-soft; }
 .topicEditorTool--disabled { opacity: 0.35; }
 .topicEditorPanelRegion { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; background: $surfaceAlt; }
-.topicEditorPanelHeader { display: flex; flex-shrink: 0; border-bottom: 1rpx solid $border-color; }
-.topicEditorPanelAction { flex: 1; padding: 16rpx 12rpx; text-align: center; font-size: 12.61PX; color: $color-brand; }
 .topicEditorPanelRegion > .topicEditorPanel { flex: 1; height: 0; min-height: 0; }
 .topicEditorPanel { display: flex; flex-direction: column; height: 100%; min-height: 0; background: $surfaceAlt; border-radius: 16rpx; }
-.topicEditorTabs { display: flex; flex-direction: row; flex-shrink: 0; border-bottom: 1rpx solid $border-color; }
-.topicEditorTab { flex: 1; padding: 20rpx 0; text-align: center; color: $text-muted; font-size: 14.91PX; }
-.topicEditorTab--active { color: $color-brand; font-weight: 600; }
-.topicEditorPanelScroll { flex: 1; height: 0; min-height: 0; width: 100%; }
-.topicPanelRow { display: flex; flex-direction: row; width: 100%; }
-.topicPanelEmoji { width: 12.5%; height: 76rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; font-size: 22.93PX; flex-shrink: 0; }
-.topicPanelSticker { width: 20%; height: 104rpx; display: flex; flex-direction: row; align-items: center; justify-content: center; flex-shrink: 0; }
-.topicPanelStickerImage { width: 84rpx; height: 84rpx; }
-.topicCommonHeading { display: block; color: $text-muted; padding: 16rpx 20rpx 6rpx; font-size: 12.61PX; }
-.topicCommonEmpty { display: block; color: $text-faint; padding: 20rpx; font-size: 12.61PX; }
 .topicMoreActions { display: flex; flex-direction: row; flex-wrap: wrap; padding: 24rpx 20rpx; }
 .topicMoreAction { width: 25%; display: flex; flex-direction: column; align-items: center; color: $text-muted; font-size: 12.61PX; margin-bottom: 22rpx; }
 .topicMoreSquare { width: 88rpx; height: 88rpx; border-radius: 20rpx; background: $surface; display: flex; flex-direction: row; align-items: center; justify-content: center; margin-bottom: 12rpx; }

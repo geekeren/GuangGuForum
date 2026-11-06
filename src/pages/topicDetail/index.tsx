@@ -1,12 +1,6 @@
 import { getScrollViewType } from "../../utils/renderer";
-import {
-  Button,
-  Image,
-  ScrollView,
-  ShareElement,
-  Text,
-  View,
-} from "@tarojs/components";
+import { Image, ScrollView, ShareElement, Text, View } from "@tarojs/components";
+import { GzkButton as Button } from "gzk-ui/native-form";
 import Taro, {
   useRouter,
   useShareAppMessage,
@@ -34,7 +28,7 @@ import UserAvatar from '../../components/UserAvatar';
 import { readCommentSortAscending, subscribeCommentSort, writeCommentSortAscending } from "../../utils/commentSortPreferences";
 import { rpxToPx } from "../../utils/dimension";
 import { useTheme } from "../../hooks/useTheme";
-import { getThemeSnapshot, subscribeTheme } from "../../utils/themePreferences";
+import { getThemeSnapshot, subscribeTheme, THEME_PALETTES } from "../../utils/themePreferences";
 import { isSkyline } from "../../utils/renderer";
 import { trimStrings } from "../../utils/trimStrings";
 import { formatReplySummary } from "../../utils/replySummary";
@@ -43,11 +37,11 @@ import { startCommentScroll } from "../../utils/commentScroll";
 import HtmlRender from "../../components/HtmlRender";
 import CommentComposer from "./CommentComposer";
 import TopicTag from "../../components/TopicTag";
-import CommentIcon from "../../assets/comment.svg?raw";
+import { Comment as CommentIcon } from "gzk-ui/icons";
 import WechatIcon from "../../assets/wechat.svg";
-import SortAscIcon from "../../assets/sort-asc.svg?raw";
-import SortDescIcon from "../../assets/sort-desc.svg?raw";
-import UpvoteIcon from "../../assets/upvote.svg?raw";
+import { SortAsc as SortAscIcon } from "gzk-ui/icons";
+import { SortDesc as SortDescIcon } from "gzk-ui/icons";
+import { Upvote as UpvoteIcon } from "gzk-ui/icons";
 import RelatingTopics from "./relatingTopics";
 import PullDownRefresh, { PullDownRefreshRef } from "../../components/PullDownRefresh";
 import AddToDesktopGuide from "../../components/AddToDesktopGuide";
@@ -62,6 +56,11 @@ import { MAX_COMMENT_ATTACHMENTS } from "../../utils/stickers";
 import { buildAttachmentComment, photoAttachment, stickerAttachment, type CommentAttachment } from "../../utils/commentAttachments";
 import { useCommentPhotoUploads } from '../../hooks/useCommentPhotoUploads';
 import { openLoginModal } from "../../utils/auth";
+
+function topicCanvasRGB(theme: 'light' | 'dark') {
+  const hex = THEME_PALETTES[theme].bg.slice(1);
+  return [0, 2, 4].map(offset => parseInt(hex.slice(offset, offset + 2), 16)).join(', ');
+}
 
 const Index = () => {
   const [refreshTime, setRefreshTime] = useState<number>(() => Date.now());
@@ -91,7 +90,7 @@ const Index = () => {
   const locatedRouteRef = useRef("");
   const workletReady = useRef(false);
   const scrollProgressSV = useRef<any>(null);
-  const navbarDarkSV = useRef<any>(null);
+  const navbarCanvasSV = useRef<any>(null);
   const { theme } = useTheme();
   const pullDownRef = useRef<PullDownRefreshRef>(null);
   const router = useRouter();
@@ -154,8 +153,8 @@ const Index = () => {
       const sv = (Taro as any).worklet.shared(0);
       page._scrollProgress = sv;
       scrollProgressSV.current = sv;
-      const dark = (Taro as any).worklet.shared(getThemeSnapshot().theme === "dark");
-      navbarDarkSV.current = dark;
+      const canvas = (Taro as any).worklet.shared(topicCanvasRGB(getThemeSnapshot().theme));
+      navbarCanvasSV.current = canvas;
 
       Taro.nextTick(() => {
         page.applyAnimatedStyle(".customNavbar", () => {
@@ -163,7 +162,7 @@ const Index = () => {
           const p = Math.min(Math.max(sv.value, 0), 1);
           return {
             backdropFilter: `blur(${p * 20}px)`,
-            backgroundColor: `rgba(${dark.value ? "27, 34, 48" : "255, 255, 255"}, ${p * 0.85})`,
+            backgroundColor: `rgba(${canvas.value}, ${p * 0.85})`,
           };
         });
 
@@ -173,7 +172,7 @@ const Index = () => {
   });
   useEffect(() => {
     const updateNavbarTheme = () => {
-      if (navbarDarkSV.current) navbarDarkSV.current.value = getThemeSnapshot().theme === "dark";
+      if (navbarCanvasSV.current) navbarCanvasSV.current.value = topicCanvasRGB(getThemeSnapshot().theme);
     };
     updateNavbarTheme();
     return subscribeTheme(updateNavbarTheme);
@@ -267,7 +266,7 @@ const Index = () => {
   if (!topicDetail) {
     return (
       <View className={skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}>
-        <Navbar back home title='帖子详情' />
+        <Navbar back home title='帖子详情' backgroundRGB={topicCanvasRGB(theme)} />
         <View className='topicDetailLoading'>
           <Loading />
         </View>
@@ -329,7 +328,7 @@ const Index = () => {
         <Navbar
           back
           home
-         
+          backgroundRGB={topicCanvasRGB(theme)}
           scrollProgress={navScrollProgress}
           title={navScrollProgress <= 0.3 ? '帖子详情' : topicDetail?.title}
           titleStyle={navScrollProgress <= 0.3 ? { opacity: 1 } : {
@@ -367,7 +366,7 @@ const Index = () => {
             }}
           >
             <View className='topicDetailFlow'>
-            <View className='main'>
+            <View className='main topicBodyImageViewport'>
               <View className='header'>
                 <View className='title'>
                   <ShareElement className='topicTitleShare' mapkey={`topic_title_${tid}`}>

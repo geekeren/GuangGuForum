@@ -20,6 +20,6 @@
     "resolveJsonModule": true,
     "typeRoots": ["node_modules/@types"]
   },
-  "include": ["./src", "./types"],
+  "include": ["./src", "./types", "./packages/gzk-ui/src"],
   "compileOnSave": false
 }

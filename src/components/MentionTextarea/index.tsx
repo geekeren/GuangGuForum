@@ -1,4 +1,5 @@
-import { View, Text, Textarea } from "@tarojs/components";
+import { View, Text } from "@tarojs/components";
+import { GzkNativeTextarea as Textarea } from "gzk-ui/native-form";
 import Taro from "@tarojs/taro";
 import { ComponentProps, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { AI_MENTION_USERNAME, getMentionSegments, getMentionQuery, getMentionCandidates, replaceInlineMention } from "../../utils/mentions";

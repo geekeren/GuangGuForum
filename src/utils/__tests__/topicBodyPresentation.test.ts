@@ -44,7 +44,9 @@ describe('shared topic body and native list presentation', () => {
     const cell = css.match(/\.topicEditorTool\s*\{([^}]*)\}/)![1];
     const glyph = css.match(/\.topicEditorToolGlyph\s*\{([^}]*)\}/)![1];
     const icon = css.match(/\.topicEditorToolIcon\s*\{([^}]*)\}/)![1];
-    expect(cell).toContain('flex: 1'); expect(cell).toContain('height: 72rpx');
+    expect(cell).toContain('flex: none'); expect(cell).toContain('width: 72rpx'); expect(cell).toContain('height: 72rpx');
+    expect(css).toMatch(/\.topicEditorTool--collapse\s*\{[^}]*margin-left: auto/);
+    expect(css).toMatch(/\.topicEditorHeadingMenu\s*\{[^}]*bottom: 100%/);
     expect(cell).toContain('align-items: center'); expect(cell).toContain('justify-content: center');
     expect(glyph).toContain('width: 64rpx'); expect(glyph).toContain('height: 64rpx');
     expect(glyph).toContain('border-radius: 16rpx'); expect(glyph).toContain('flex: none');
@@ -52,11 +54,11 @@ describe('shared topic body and native list presentation', () => {
     expect(css).toMatch(/\.topicEditorTool--active \.topicEditorToolGlyph, \.topicEditorTool:active \.topicEditorToolGlyph\s*\{[^}]*background:\s*var\(--theme-brand-soft,/);
     expect(css).not.toMatch(/\.topicEditorTool--active\s*[,\{]/);
     for (const asset of ['editor-bold', 'editor-list', 'editor-add']) {
-      expect(read(`src/assets/${asset}.svg`)).toContain('viewBox="0 0 24 24"');
-      expect(read(`src/assets/${asset}.svg`)).toContain('stroke-width="1.8"');
-      expect(read(`src/assets/${asset}.svg`)).toContain('currentColor');
+      expect(read(`packages/gzk-ui/src/icons/assets/${asset}.svg`)).toContain('viewBox="0 0 24 24"');
+      expect(read(`packages/gzk-ui/src/icons/assets/${asset}.svg`)).toContain('stroke-width="1.8"');
+      expect(read(`packages/gzk-ui/src/icons/assets/${asset}.svg`)).toContain('currentColor');
     }
-    expect(read('src/assets/editor-list.svg').match(/r="1\.4"/g)).toHaveLength(3);
+    expect(read('packages/gzk-ui/src/icons/assets/editor-list.svg').match(/r="1\.4"/g)).toHaveLength(3);
   });
   it('scopes native empty-item/marker slots without rewriting native content, counters or indentation', () => {
     const css = compile('src/pages/createTopic/TopicEditor.scss');

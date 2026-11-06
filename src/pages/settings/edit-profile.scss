@@ -4,20 +4,18 @@
 .profileEditorScroll { flex: 1; height: 0; min-height: 0; width: 100%; }
 .profileEditorStatus { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 360rpx; padding: 32rpx; gap: 24rpx; }
 .profileEditorFields { margin: 16rpx 24rpx 24rpx; padding: 8rpx 24rpx 24rpx; border-radius: 24rpx; background: $surface; }
-.profileEditorField { display: flex; flex-direction: column; gap: 16rpx; padding: 24rpx 0; border-bottom: 1rpx solid $border-color; }
+.profileEditorField { padding: 24rpx 0; border-bottom: 1rpx solid $border-color; }
 .profileEditorField:last-child { border-bottom: none; }
-.profileEditorLabel { display: block; font-size: 14.91PX; line-height: 1.5; font-weight: 600; }
 .profileEditorReadonly { display: block; font-size: 16.05PX; line-height: 1.6; word-break: break-all; }
 .profileEditorMuted { display: block; padding: 18rpx 0; font-size: 12.61PX; line-height: 1.6; color: $text-muted; }
 .profileEditorInput, .profileEditorTextarea { width: 100%; min-height: 56rpx; padding: 12rpx 8rpx; box-sizing: border-box; font-size: 16.05PX; line-height: 1.6; color: $text-primary; caret-color: var(--theme-input-caret, #0754d7); }
 .profileEditorTextarea { min-height: 180rpx; }
 .profileEditorControl { border-radius: 16rpx; background: $surfaceAlt; padding: 8rpx; }
 .profileEditorControl--disabled { pointer-events: none; opacity: 0.6; }
-.profileEditorPicker { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 20rpx; padding: 20rpx 16rpx; border-radius: 16rpx; background: $surfaceAlt; font-size: 16.05PX; line-height: 1.6; }
 .profileEditorAction { color: var(--theme-accent-text, #0754d7); font-size: 14.91PX; line-height: 1.6; }
-.profileEditorError, .profileEditorNotice { display: block; margin: 16rpx 24rpx; padding: 20rpx; border-radius: 18rpx; font-size: 14.91PX; line-height: 1.6; word-break: break-all; }
-.profileEditorError { color: var(--theme-danger-text, #b83b3b); background: var(--theme-danger-soft, #fff0f0); }
-.profileEditorNotice { color: var(--theme-accent-text, #0754d7); background: var(--theme-accent-muted, #e8efff); }
-.profileEditorDock { display: flex; flex-direction: row; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 24rpx; padding: 20rpx 32rpx max(20rpx, env(safe-area-inset-bottom)); background: $surface; border-top: 1rpx solid $border-color; }
-.profileEditorSave { display: flex; flex-direction: row; align-items: center; justify-content: center; min-width: 180rpx; padding: 20rpx 32rpx; border-radius: 24rpx; color: var(--theme-on-accent, #fff); background: var(--theme-accent-primary, #1f69ff); font-size: 16.05PX; line-height: 1.5; }
-.profileEditorSave--disabled { opacity: 0.4; }
+.profileEditorError { display: block; margin: 16rpx 24rpx; padding: 20rpx; border-radius: 18rpx; font-size: 14.91PX; line-height: 1.6; word-break: break-all; color: var(--theme-danger-text, #b83b3b); background: var(--theme-danger-soft, #fff0f0); }
+.profileEditorDock { display: flex; flex-direction: row; flex-shrink: 0; align-items: center; gap: 16rpx; padding: 26rpx 30rpx; padding-bottom: calc(26rpx + env(safe-area-inset-bottom)); background: $bgColor; }
+.profileEditorRefresh, .profileEditorSave { display: flex; flex-direction: row; align-items: center; justify-content: center; height: 80rpx; min-width: 0; box-sizing: border-box; border-radius: 44rpx; font-size: 16.05PX; font-weight: 600; line-height: 1.5; }
+.profileEditorRefresh { flex: 1; color: $text-primary; background: $surface; border: 2rpx solid $border-color; }
+.profileEditorSave { flex: 2; color: var(--theme-on-accent, #fff); background: linear-gradient(110deg, $color-brand, $color-brand-dark); box-shadow: 0 6rpx 18rpx rgba(31, 105, 255, 0.12); }
+.profileEditorSave--disabled { opacity: 0.6; }

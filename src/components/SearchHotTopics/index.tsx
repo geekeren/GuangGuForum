@@ -1,10 +1,11 @@
 import { getScrollViewType } from "../../utils/renderer";
-import { View, Text, Button, Image, ScrollView } from "@tarojs/components";
+import { View, Text, Image, ScrollView } from "@tarojs/components";
+import { GzkButton as Button } from "gzk-ui/native-form";
 import Taro from "@tarojs/taro";
 import { useEffect, useState } from "react";
 import type { HotTopic } from "guanggu-forum-api";
 import { getSearchHotTopics, loadHotTopicCategories } from "../../utils/searchPlaceholder";
-import HotIcon from "../../assets/hot-flame.svg";
+import { HotFlameUrl as HotIcon } from "gzk-ui/icon-urls";
 import HotTopicRank from "../HotTopicRank";
 import "./index.scss";
 

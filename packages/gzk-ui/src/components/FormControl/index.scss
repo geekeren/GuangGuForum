@@ -1,0 +1,52 @@
+@import "../../styles/tokens.scss";
+
+.clearableWrap {
+  position: relative;
+  width: 100%;
+
+  .clearableControl {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .clearableControl,
+  .clearableControl input,
+  .clearableControl textarea,
+  .clearableControl .weui-input,
+  .clearableControl .weui-textarea {
+    caret-color: var(--theme-input-caret, #0754d7);
+  }
+
+  .clearableBtn {
+    position: absolute;
+    right: 16rpx;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36rpx;
+    height: 36rpx;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: $border-strong;
+  }
+
+  .clearableBtnText {
+    font-size: 11.47PX;
+    color: #fff;
+    line-height: 1;
+  }
+
+  &.clearableWrap--hasValue .clearableControl {
+    // Reserve the clear target instead of drawing it over the last characters.
+    padding-right: 64rpx;
+  }
+
+  &--textarea {
+    .clearableBtn {
+      top: 28rpx;
+      transform: none;
+    }
+  }
+}

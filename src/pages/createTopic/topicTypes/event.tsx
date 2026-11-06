@@ -1,4 +1,5 @@
-import { View, Text, Picker } from "@tarojs/components";
+import { View, Text } from "@tarojs/components";
+import { GzkPicker as Picker } from "gzk-ui/native-form";
 import Taro from "@tarojs/taro";
 import { ClearableInput } from "../../../components/ClearableInput";
 import TopicTitle from '../TopicTitle';

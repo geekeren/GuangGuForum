@@ -15,17 +15,17 @@ import TopicTag from "../../../components/TopicTag";
 import Scene from "../../../assets/discovery-scene.svg?raw";
 import { useTheme } from "../../../hooks/useTheme";
 import { discoverySceneSource } from "../../../utils/discoveryScene";
-import TrendIcon from "../../../assets/discovery-trend.svg";
-import FlameIcon from "../../../assets/discovery-flame.svg";
-import HeartIcon from "../../../assets/discovery-heart.svg";
-import WaterIcon from "../../../assets/discovery-node-water.svg";
-import WorkIcon from "../../../assets/discovery-node-work.svg";
-import CodeIcon from "../../../assets/discovery-node-code.svg";
-import HouseIcon from "../../../assets/discovery-node-house.svg";
-import CarIcon from "../../../assets/discovery-node-car.svg";
-import ChatIcon from "../../../assets/discovery-node-chat.svg";
-import FoodIcon from "../../../assets/discovery-node-food.svg";
-import CityIcon from "../../../assets/discovery-node-city.svg";
+import { DiscoveryTrendUrl as TrendIcon } from "gzk-ui/icon-urls";
+import { DiscoveryFlameUrl as FlameIcon } from "gzk-ui/icon-urls";
+import { DiscoveryHeartUrl as HeartIcon } from "gzk-ui/icon-urls";
+import { DiscoveryNodeWaterUrl as WaterIcon } from "gzk-ui/icon-urls";
+import { DiscoveryNodeWorkUrl as WorkIcon } from "gzk-ui/icon-urls";
+import { DiscoveryNodeCodeUrl as CodeIcon } from "gzk-ui/icon-urls";
+import { DiscoveryNodeHouseUrl as HouseIcon } from "gzk-ui/icon-urls";
+import { DiscoveryNodeCarUrl as CarIcon } from "gzk-ui/icon-urls";
+import { DiscoveryNodeChatUrl as ChatIcon } from "gzk-ui/icon-urls";
+import { DiscoveryNodeFoodUrl as FoodIcon } from "gzk-ui/icon-urls";
+import { DiscoveryNodeCityUrl as CityIcon } from "gzk-ui/icon-urls";
 import "./index.scss";
 
 interface DiscoveryProps {

@@ -74,7 +74,7 @@
   .messageHubCategories { display: flex; flex-direction: row; align-items: flex-start; justify-content: space-around; flex-shrink: 0; padding: 26rpx 24rpx 24rpx; }
   .messageHubCategory { display: flex; flex-direction: column; align-items: center; gap: 14rpx; flex: 1; min-width: 0; }
   .messageHubCategoryIcon { position: relative; display: flex; flex-direction: row; align-items: center; justify-content: center; width: 80rpx; height: 80rpx; border-radius: 24rpx; background: var(--theme-accent-muted, #e8efff); }
-  .messageHubCategory--active .messageHubCategoryLabel { font-weight: 400; color: var(--theme-accent-text, #0754d7); }
+  .messageHubCategory--active .messageHubCategoryLabel { font-weight: 400; }
   .messageHubIcon { width: 40rpx; height: 40rpx; }
   .messageHubCategoryLabel { display: block; font-size: 14PX; line-height: 1.5; color: var(--theme-text-primary, #10182d); }
   .messageHubUnreadDot { position: absolute; right: 4rpx; top: 4rpx; width: 14rpx; height: 14rpx; border-radius: 50%; background: #f24b5d; }

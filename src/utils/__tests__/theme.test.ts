@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { BRAND_COLOR, SURFACE_RGB, TEXT_FAINT_COLOR } from "../theme";
 
-const styles = readFileSync("src/vars.scss", "utf8");
+const styles = readFileSync("packages/gzk-ui/src/styles/tokens.scss", "utf8");
 function token(name: string) {
   return styles.match(new RegExp(`\\$${name}:\\s*(#[a-f0-9]{6})`))![1];
 }
@@ -29,13 +29,17 @@ describe("restored original foundation", () => {
     const topics = readFileSync("src/pages/home/topics/index.scss", "utf8");
     expect(home).toContain(".tabTitle {\n        color: $color-brand;");
     expect(home).toContain("background: linear-gradient(135deg, $color-brand-light, $color-brand);");
-    expect(topics).toContain("&--active {\n    color: #fff;");
-    expect(topics).toContain("background: linear-gradient(150deg, #4b8cff, #0754ee);");
+    expect(topics).toContain("&--active {\n    font-weight: 700;");
+    expect(topics).not.toContain("&::after");
+    const topicControls = readFileSync("src/pages/home/topics/index.tsx", "utf8");
+    expect(topicControls).toContain('const color = selected ? "#fff" : palette["text-primary"];');
+    expect(topicControls).toContain('"linear-gradient(150deg, #4b8cff, #0754ee)"');
+    expect(topicControls).toContain('<Text style={{ color }}>{tab.title}</Text>');
     expect(home).not.toContain("background: $color-brand;");
   });
   it("resolves the four currentColor active navigation vectors from the restored brand", () => {
     for (const [name, paint] of [["home", "fill"], ["discover", "stroke"], ["notification", "stroke"], ["user", "stroke"]]) {
-      const svg = readFileSync(`src/assets/${name}-active.svg`, "utf8");
+      const svg = readFileSync(`packages/gzk-ui/src/icons/assets/${name}-active.svg`, "utf8");
       expect(svg).toContain(`${paint}="currentColor"`);
       expect(svg).not.toMatch(/<image\b|base64|data:image/i);
       expect(svg).not.toContain(BRAND_COLOR);
@@ -44,7 +48,10 @@ describe("restored original foundation", () => {
     expect(home).toContain("<ThemedIcon src={(active ? tab.activeIcon : tab.icon)!}");
     expect(home).toContain("tone={active ? 'accent' : 'secondary'}");
     expect(home).toContain(`lightColor={active ? '${BRAND_COLOR}' : '#6b7488'}`);
-    const themedIcon = readFileSync("src/components/ThemedIcon/index.tsx", "utf8");
+    const wrapper = readFileSync("src/components/ThemedIcon/index.tsx", "utf8");
+    expect(wrapper).toContain("GzkIcon");
+    expect(wrapper).toContain("useTheme");
+    const themedIcon = readFileSync("packages/gzk-ui/src/components/Icon/index.tsx", "utf8");
     expect(themedIcon).toContain('accent: palette["accent-primary"]');
     expect(themedIcon).toContain('theme === "light" && lightColor ? lightColor : roles[tone]');
     expect(themedIcon).toContain("svgIconSource(src, resolvedColor)");

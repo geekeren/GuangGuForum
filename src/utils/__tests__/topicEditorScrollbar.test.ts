@@ -47,16 +47,46 @@ describe('create topic scrolling surface', () => {
     // The editor card already has 36rpx right padding, so moving 8rpx into it
     // cannot reach the card/screen edge. The bar stays outside the text box.
     expect(36 - 8).toBeGreaterThan(0);
-    expect(readFileSync(resolve(process.cwd(), 'src/pages/createTopic/index.scss'), 'utf8')).toContain('padding: 32rpx 36rpx;');
+    expect(readFileSync(resolve(process.cwd(), 'src/pages/createTopic/index.scss'), 'utf8')).toContain('padding: 32rpx 36rpx 0;');
+  });
+  it('keeps a scrollable last-line gap without adding keyboard or safe-area padding to the body content', () => {
+    const css = sass.compile(resolve(process.cwd(), 'src/pages/createTopic/TopicEditor.scss')).css;
+    const content = css.match(/\.topicEditorBodyContent\s*\{([^}]*)\}/)![1];
+    expect(content).toContain('padding-bottom: 24rpx;');
+    expect(content).toContain('box-sizing: border-box;');
+    expect(content).not.toMatch(/safe-area|keyboard|vh/);
+    expect(editorSource).toContain('24 * windowInfo.windowWidth / 750');
+    expect(editorSource).toContain('!overlayVisible && keyboardHeight === 0 ? safeBottom : 0');
   });
   it('uses the common caret token for native/source body and title without native focus props', () => {
     const css = sass.compile(resolve(process.cwd(), 'src/pages/createTopic/TopicEditor.scss')).css;
     expect(css.match(/caret-color:\s*var\(--theme-input-caret, #0754d7\)/g)).toHaveLength(3);
   });
+  it('aligns the inner scroll viewport with the card bottom and retains only one scrollable last-line gap', () => {
+    const pageCss = sass.compile(resolve(process.cwd(), 'src/pages/createTopic/index.scss')).css;
+    const card = pageCss.match(/\.createTopic \.editorSection\s*\{([^}]*)\}/)![1];
+    expect(card).toContain('padding: 32rpx 36rpx 0;'); expect(card).toContain('margin: 0 20rpx 24rpx;'); expect(card).toContain('min-height: 0;');
+    const css = sass.compile(resolve(process.cwd(), 'src/pages/createTopic/TopicEditor.scss')).css;
+    const content = css.match(/\.topicEditorBodyContent\s*\{([^}]*)\}/)![1];
+    expect(content).toContain('padding-bottom: 24rpx;');
+    // Pure synthetic scroll geometry: at maximum scroll the last-line bottom
+    // is one content inset above the viewport, not card inset + content inset.
+    const gap = 24 * 430 / 750, viewportTop = -20, height = 506, lastLineBottomInContent = 950;
+    const contentHeight = lastLineBottomInContent + gap;
+    const maxScroll = contentHeight - height;
+    const viewportBottom = viewportTop + height;
+    const cardBottom = viewportBottom; // card bottom padding/minimum is zero
+    const lastLineBottomClient = viewportTop + lastLineBottomInContent - maxScroll;
+    expect(cardBottom - viewportBottom).toBe(0);
+    expect(viewportBottom - lastLineBottomClient).toBeCloseTo(gap);
+  });
   it('fills the space left below the editor instead of a fixed-height box', () => {
     expect(editorSource).toContain('viewport.viewportBottom ?? viewport.viewportHeight');
-    expect(editorSource).toContain('viewportBottom + viewportInset - bodyTop - bodyReserved');
-    expect(editorSource).toContain('(dockVisible ? dockHeight : 0) + (overlayVisible ? inputHeight : 0)');
+    expect(editorSource).toContain('viewportBottom + viewportInset - bodyTop - bodyReserved - bodyBottomGap');
+    expect(editorSource).toContain('const bodyLayoutTop = bodyTop + bodyTranslation;');
+    expect(editorSource).toContain('(dockVisible ? dockHeight : 0) + Math.max(keyboardHeight, panelHeight)');
+    expect(editorSource).toContain('const inputHeight = panelVisible ? panelHeight : keyboardHeight;');
+    expect(editorSource).not.toContain('const inputHeight = keyboardHeight + panelHeight;');
     expect(editorSource).toContain('bodyAvailable');
     expect(editorSource).not.toContain('VIEWPORT_SAMPLE_INTERVAL_MS');
     expect(editorSource).not.toContain('DOCK_GESTURE_TIMEOUT_MS');

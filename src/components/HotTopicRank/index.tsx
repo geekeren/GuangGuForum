@@ -1,5 +1,5 @@
 import { View, Text, Image } from "@tarojs/components";
-import HotIcon from "../../assets/hot-flame.svg";
+import { HotFlameUrl as HotIcon } from "gzk-ui/icon-urls";
 import "./index.scss";
 
 export default function HotTopicRank({ rank, padded = true }: { rank: number; padded?: boolean }) {

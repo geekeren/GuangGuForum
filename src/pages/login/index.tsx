@@ -1,4 +1,5 @@
-import { Input, View, Text, ScrollView } from "@tarojs/components";
+import { View, Text, ScrollView } from "@tarojs/components";
+import { GzkNativeInput as Input } from "gzk-ui/native-form";
 import "./index.scss";
 import { useState, useEffect, useRef } from "react";
 import { login } from "guanggu-forum-api";

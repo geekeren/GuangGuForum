@@ -3,7 +3,7 @@
 @keyframes commentPhotoSpin { to { transform: rotate(360deg); } }
 
 .topicDetail {
-  background: linear-gradient(180deg, var(--theme-surface-soft, #eff3fc) 0%, var(--theme-bg, #f5f7fc) 100%);
+  background: var(--theme-bg, #f4f5fa);
   height: 100vh;
   flex-direction: column;
   display: flex;
@@ -66,7 +66,7 @@
     margin: 12rpx 16rpx 0;
     padding: 20rpx 24rpx 16rpx;
     border-radius: 26rpx;
-    // Body photos may extend to the scroll viewport; title/meta keep their text gutters.
+    // Photo geometry uses this card's content box, excluding its padding/border.
     overflow: visible;
 
     .header {
@@ -658,6 +658,15 @@
     &--active, &:active { background: $color-brand-soft; }
   }
   .commentPopupToolIcon { width: 46rpx; height: 46rpx; }
+  // The shared Plus document is line-only; this consumer preserves its circular boundary.
+  .commentPopupMore:not(.commentPopupTool--active) .commentPopupToolIcon {
+    width: 42rpx;
+    height: 42rpx;
+    box-sizing: border-box;
+    padding: 4rpx;
+    border: 2rpx solid $text-sub;
+    border-radius: 50%;
+  }
   .commentPopupSubmit { flex: none; }
   .commentPopupTools { min-width: 0; flex-shrink: 1; }
   .commentPopupMinimum { color: $text-faint; font-size: 12.61PX; margin-right: 16rpx; }
@@ -689,15 +698,6 @@
     }
     &--disabled text, &[disabled] text { color: inherit; }
   }
-  .commentPopupPanelEmoji {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 64rpx;
-    border-radius: 16rpx;
-    font-size: 21.79PX;
-    &:active { background: $surfaceAlt; }
-  }
   .commentPopupEmojiPanel {
     position: absolute;
     left: 0;
@@ -710,29 +710,14 @@
     display: flex;
     flex-direction: column;
   }
-  .commentPopupPanelTabs { display: flex; flex-direction: row; flex: none; height: 72rpx; align-items: center; padding: 0 24rpx; }
   .commentPopupMoreActions { display: flex; flex-direction: row; padding: 36rpx 24rpx; }
   .commentPopupMoreAction { display: flex; flex-direction: column; align-items: center; width: 33.333%; flex: none; color: $text-muted; font-size: 13.76PX; }
   .commentPopupMoreSquare { display: flex; align-items: center; justify-content: center; width: 112rpx; height: 112rpx; margin-bottom: 16rpx; border-radius: 24rpx; background: $surfaceAlt; }
   .commentPopupMoreIcon { width: 52rpx; height: 52rpx; }
   .commentPopupAttachmentRegion { width: 100%; flex: none; overflow: hidden; transition: height 200ms ease; }
   .commentPopupPhotoNotice { display: block; height: 32rpx; line-height: 32rpx; font-size: 12.61PX; color: $text-muted; }
-  .commentPopupPanelTab { padding: 12rpx 24rpx; color: $text-muted; font-size: 14.91PX; border-radius: 16rpx; }
-  .commentPopupPanelTab--active { color: $color-brand; background: $color-brand-soft; }
+  // The shared emoji panel owns its own ScrollView; the more-actions panel retains this viewport.
   .commentPopupPanelScroll { flex: 1; height: 0; min-height: 0; width: 100%; }
-  .commentPopupEmojiGrid {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 16rpx 24rpx;
-  }
-  .commentPopupCommonHeading { display: block; flex: none; margin: 12rpx 0; font-size: 13.76PX; color: $text-muted; }
-  .commentPopupCommonEmpty { display: block; flex: none; padding: 16rpx 0 28rpx; font-size: 13.76PX; color: $text-muted; }
-  .commentPopupPanelRow { display: flex; flex-direction: row; width: 100%; flex: none; }
-  .commentPopupPanelEmoji { width: 12.5%; flex: none; min-width: 0; }
-  .commentPopupSticker { width: 20%; flex: none; min-width: 0; display: flex; flex-direction: column; align-items: center; padding: 8rpx; box-sizing: border-box; }
-  .commentPopupStickerImage { width: 112rpx; height: 112rpx; max-width: 100%; flex: none; }
   .commentStickerPreviews { width: 100%; height: 144rpx; margin-bottom: 12rpx; }
   .commentStickerPreviewTrack { display: flex; flex-direction: row; height: 144rpx; }
   .commentStickerPreview { position: relative; width: 144rpx; height: 144rpx; flex: none; padding: 12rpx; box-sizing: border-box; }
