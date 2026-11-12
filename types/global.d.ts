@@ -17,6 +17,7 @@ declare namespace JSX {
   type NativeFormatEvent = { stopPropagation(): void };
   interface IntrinsicElements {
     'topic-format-button': {
+        compact?: boolean;
       key?: string;
       icon: string;
       label: string;

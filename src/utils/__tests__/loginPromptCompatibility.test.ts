@@ -10,15 +10,15 @@ const compiled = transformSync(source, {
   loader: "tsx", format: "cjs", target: "es2015", jsx: "automatic",
 }).code;
 
-function renderPrompt(props: { icon: string; iconSrc?: string; title: string; desc: string }) {
+function renderPrompt(props: { icon: string; iconSrc?: string; title: string; desc: string }, owner?: object) {
   const openLoginModal = vi.fn();
-  const module = { exports: {} as any };
+  const fixtureModule = { exports: {} as any };
   function LegacyRegExp(pattern: string, flags?: string) {
     if (String(pattern).includes("\\p{")) throw new SyntaxError("Invalid property name");
     return new RegExp(pattern, flags);
   }
   runInNewContext(compiled, {
-    module, exports: module.exports, RegExp: LegacyRegExp,
+    module: fixtureModule, exports: fixtureModule.exports, RegExp: LegacyRegExp,
     require: (id: string) => {
       if (id === "react/jsx-runtime") {
         const jsx = (type: string, nodeProps: any) => ({ type, props: nodeProps });
@@ -26,11 +26,12 @@ function renderPrompt(props: { icon: string; iconSrc?: string; title: string; de
       }
       if (id === "@tarojs/components") return { View: "view", Text: "text", Image: "image" };
       if (id === "../../utils/auth") return { openLoginModal };
+      if (id === "../../hooks/usePageScope") return { usePageOwner: () => owner };
       if (id === "./index.scss") return {};
       throw new Error(`Unexpected dependency: ${id}`);
     },
   });
-  return { tree: module.exports.default(props), openLoginModal };
+  return { tree: fixtureModule.exports.default(props), openLoginModal };
 }
 
 function find(tree: any, className: string): any {
@@ -63,8 +64,9 @@ describe("logged-out prompt on Android engines without Unicode property escapes"
     expect(image.props.svg).toBe(true);
   });
   it("still opens the login modal when the login button is tapped", () => {
-    const { tree, openLoginModal } = renderPrompt({ icon: "早", title: "未登录", desc: "请登录" });
+    const owner = { id: "left-page" };
+    const { tree, openLoginModal } = renderPrompt({ icon: "早", title: "未登录", desc: "请登录" }, owner);
     find(tree, "loginPromptBtn").props.onClick();
-    expect(openLoginModal).toHaveBeenCalledOnce();
+    expect(openLoginModal).toHaveBeenCalledExactlyOnceWith(undefined, owner);
   });
 });

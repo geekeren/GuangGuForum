@@ -1,15 +1,17 @@
-import { getScrollViewType } from "../../utils/renderer";
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import { GzkButton as Button } from "gzk-ui/native-form";
-import Taro from "@tarojs/taro";
 import { useEffect, useState } from "react";
 import type { HotTopic } from "guanggu-forum-api";
-import { getSearchHotTopics, loadHotTopicCategories } from "../../utils/searchPlaceholder";
 import { HotFlameUrl as HotIcon } from "gzk-ui/icon-urls";
+import { usePageNavigation } from "../../hooks/usePageScope";
+import { usePageScrollViewType } from "../../hooks/usePageRenderer";
+import { getSearchHotTopics, loadHotTopicCategories } from "../../utils/searchPlaceholder";
 import HotTopicRank from "../HotTopicRank";
 import "./index.scss";
 
 export default function SearchHotTopics() {
+  const pageNavigation = usePageNavigation();
+  const scrollType = usePageScrollViewType();
   const [topics, setTopics] = useState<HotTopic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -40,7 +42,7 @@ export default function SearchHotTopics() {
         <Text className='searchHotTitle'>今日热议</Text>
         <Text className='searchHotSubtitle'>大家都在看</Text>
       </View>
-      <ScrollView type={getScrollViewType()} scrollY enhanced className='searchHotScroll'>
+      <ScrollView type={scrollType} scrollY enhanced className='searchHotScroll'>
       {loading && <View className='searchEmpty'><Text className='searchEmptyText'>正在加载今日热议…</Text></View>}
       {error && <View className='searchEmpty'>
         <Text className='searchEmptyText'>热议加载失败，不影响关键词搜索</Text>
@@ -50,7 +52,7 @@ export default function SearchHotTopics() {
       {!loading && !error && topics.map((topic, index) => (
         <View key={topic.topicLink} className='searchHotItem' onClick={() => {
           const tid = topic.topicLink.match(/^\/t\/(\d+)/)?.[1];
-          if (tid) Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
+          if (tid) pageNavigation.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
         }}
         >
           <HotTopicRank rank={index + 1} padded={false} />

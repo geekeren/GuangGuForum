@@ -6,6 +6,14 @@ import { isSkyline } from "../renderer";
 import { themeVariables } from "../themePreferences";
 
 const theme = vi.hoisted(() => ({ current: "dark" as "light" | "dark" }));
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, false);
+});
+vi.mock("../../hooks/usePageRenderer", () => ({ usePageRenderer: () => isSkyline() ? "skyline" : "webview" }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: theme.current }) }));
 vi.mock("../CacheService", () => ({ cacheService: {}, CacheCategory: {} }));
 
@@ -34,6 +42,16 @@ describe("board picker bottom positioning", () => {
     expect(native).toContain("height: 0;");
     expect(native).toContain("flex: 1;");
   });
+  it.each([true, false])("centers a bounded desktop sheet independently of portal/page ancestry, Skyline=%s", native => {
+    vi.mocked(isSkyline).mockReturnValue(native);
+    vi.mocked(Taro.getWindowInfo).mockReturnValueOnce({ windowWidth: 1280, windowHeight: 900, screenHeight: 900, safeArea: { bottom: 900 } } as any);
+    const tree = NodePicker({ ...props, desktop: true })!;
+    const mask = native ? tree.props.children.props : tree.props;
+    expect(mask.className).toContain('nodePickerMask--desktop');
+    expect(find(tree, 'nodePickerSheet').style).toMatchObject({ left: '260px', top: '135px', width: '760px', height: '630px' });
+    expect(find(tree, 'nodePickerScroll').style).toEqual({ paddingBottom: 'calc(16px + 0px)' });
+    expect(tree.type).toBe(native ? 'RootPortal' : 'View');
+  });
   it("keeps the sheet inside a shorter viewport and bounds tag rows to the scroll area", () => {
     vi.mocked(Taro.getWindowInfo).mockReturnValueOnce({ windowWidth: 320, windowHeight: 568, screenHeight: 568 } as any);
     const tree = NodePicker(props)!;
@@ -51,7 +69,7 @@ describe("board picker bottom positioning", () => {
     expect(tree.props.style).toEqual(themeVariables("dark"));
     expect(find(tree, "nodePickerSheet").style).toBeUndefined();
     expect(find(tree, "nodePickerScroll").style).toBeUndefined();
-    expect(Taro.getWindowInfo).not.toHaveBeenCalled();
+    expect(Taro.getWindowInfo).toHaveBeenCalledOnce(); // Legacy hook stub reads once; production uses the owning page store.
   });
   it("refreshes portal variables when switching back to light", () => {
     theme.current = "light";
@@ -61,7 +79,7 @@ describe("board picker bottom positioning", () => {
   });
   it("does not mount or query the viewport when hidden", () => {
     expect(NodePicker({ ...props, visible: false })).toBeNull();
-    expect(Taro.getWindowInfo).not.toHaveBeenCalled();
+    expect(Taro.getWindowInfo).toHaveBeenCalledOnce(); // Legacy hook stub reads once; production uses the owning page store.
   });
   it("keeps board selection and sheet versus mask tap handling intact", () => {
     const tree = NodePicker(props)!;

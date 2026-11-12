@@ -3,8 +3,9 @@ import { useImperativeHandle, useState, type RefObject } from 'react';
 import { ClearableTextarea } from '../../components/ClearableInput';
 import { BRAND_COLOR } from '../../utils/theme';
 import { tryHideKeyboardAccessoryView } from '../../utils/keyboardAccessory';
+import { TOPIC_TITLE_MAX_LENGTH } from "./topicConstants";
 
-export const TOPIC_TITLE_MAX_LENGTH = 50;
+export { TOPIC_TITLE_MAX_LENGTH } from "./topicConstants";
 
 interface Props {
   inputRef: RefObject<any>;

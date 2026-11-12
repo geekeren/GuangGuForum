@@ -2,6 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Discovery from "../../pages/home/discovery";
 
 const harness = vi.hoisted(() => ({ topics: [] as any[], loggedIn: true, loginRequired: false }));
+vi.mock("../../hooks/usePageRenderer", async () => {
+  const renderer = await import("../renderer");
+  const usePageRenderer = () => "isSkyline" in renderer && renderer.isSkyline() ? "skyline" : "webview";
+  return { PageRendererContext: undefined, usePageRenderer, usePageScrollViewType: () => usePageRenderer() === "skyline" ? "custom" : undefined };
+});
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, false);
+});
+vi.mock('../../hooks/useViewport', () => ({ useViewport: () => ({ width: 375, height: 667, isDesktop: false }) }));
 vi.mock("react", () => ({ useState: (initial: any) => [typeof initial === "function" ? initial() : initial, vi.fn()], useEffect: vi.fn(), useMemo: (create: any) => create(), useRef: (initial: any) => ({ current: initial }) }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light" }) }));
 vi.mock("@tarojs/components", () => Object.fromEntries(["View", "Text", "Image", "ScrollView"].map(name => [name, name])));

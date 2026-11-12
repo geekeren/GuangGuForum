@@ -24,7 +24,7 @@ describe('topic title local first-line layout contract', () => {
     expect(title).toContain('autoHeight');
   });
   it('preserves the independent title entry, maximum length and clearable textarea contract', () => {
-    expect(title).toContain('export const TOPIC_TITLE_MAX_LENGTH = 50');
+    expect(readFileSync(resolve(process.cwd(), 'src/pages/createTopic/topicConstants.ts'), 'utf8')).toContain('export const TOPIC_TITLE_MAX_LENGTH = 50');
     expect(title).toContain('<ClearableTextarea');
     expect(title).toContain('maxlength={TOPIC_TITLE_MAX_LENGTH}');
     expect(title).toContain("placeholder = '标题（必填）'");

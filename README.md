@@ -178,6 +178,7 @@ Markdown 快捷排版依赖基础库 3.7.11 起的原生选区接口并在运行
 │   ├── guanggu-forum-api/       # API 层：HTML 抓取 → 结构化 JSON
 │   │   ├── src/
 │   │   │   ├── client.ts        #   统一请求 + Cookie 管理（依赖 ICacheService）
+│   │   │   ├── request/         #   HTML 缓存策略、解析缓存与请求修订管理
 │   │   │   ├── utils/
 │   │   │   │   ├── getDataFromHtml.ts  # 声明式 HTML→JSON 解析
 │   │   │   │   └── urls.ts      #   URL 模板
@@ -215,6 +216,9 @@ Markdown 快捷排版依赖基础库 3.7.11 起的原生选区接口并在运行
 │   │   │   ├── RichTopicBody.tsx #    原生 editor、源码兼容与文档快照
 │   │   │   ├── nativeEditor.ts  #     原生上下文适配与有序变更
 │   │   │   ├── editorShortcuts.ts #   保守的 Markdown 局部快捷转换
+│   │   │   ├── topicDrafts.ts   #     草稿存取与上次编辑位置
+│   │   │   ├── topicContent.ts  #     纯函数正文校验、附件合并与 HTML 构建
+│   │   │   ├── useTopicPublishing.ts # 原生快照、预览与发布生命周期
 │   │   │   └── topicTypes/      #     类型策略注册表（HTML 正文）
 │   │   ├── login/               #   登录（账号记忆 + 隐私协议）
 │   │   ├── user/                #   用户主页
@@ -224,6 +228,8 @@ Markdown 快捷排版依赖基础库 3.7.11 起的原生选区接口并在运行
 │   │   └── settings/            #   设置（反馈/开源/缓存管理/退出）
 │   ├── utils/
 │   │   ├── CacheService.ts     #   统一缓存服务（TTL/优先级/分类/保护机制）
+│   │   ├── cacheMetadata.ts    #   storage 与文件缓存共享的数据定义
+│   │   ├── cachePolicy.ts      #   保留、容量、淘汰顺序与系统键保护规则
 │   │   ├── currentUser.ts      #   当前用户（通过 CacheService 读取）
 │   │   ├── linkHandler.ts       #   智能链接路由（站内/白名单/外链）
 │   │   ├── auth.ts              #   登录弹窗
@@ -245,7 +251,7 @@ Markdown 快捷排版依赖基础库 3.7.11 起的原生选区接口并在运行
 
 ### 环境要求
 
-- Node.js 16+
+- Node.js 22.12+（测试工具链需要现代 Node.js；当前验证使用 Node.js 24）
 - Yarn 3+
 - 微信开发者工具
 
@@ -266,6 +272,19 @@ yarn dev:weapp
 
 然后用微信开发者工具打开项目根目录即可预览。
 
+### 质量检查
+
+```bash
+yarn test
+yarn test src/utils/__tests__/requestCache.test.ts
+yarn test:coverage
+yarn lint
+```
+
+`tools/testing` 单独管理 Vitest 及其 Vite 依赖，避免与 Taro 构建使用的 Vite 4 冲突；从仓库根目录执行测试脚本即可，测试夹具仍以仓库根目录为基准。保留根目录的 `vitest.config.ts` 作为统一配置入口。
+
+在 Node.js 24 下，若 ESLint 的 `v8-compile-cache` 在加载 `.mjs` 时报告语法错误，可用 `DISABLE_V8_COMPILE_CACHE=1 yarn lint` 关闭其启动缓存后检查。
+
 ### 构建
 
 ```bash
@@ -277,6 +296,33 @@ yarn build:weapp --env production
 开发 watch 保留 source map 便于本地调试，生产构建不生成 Taro source map。开发者工具打包配置额外忽略 `.map` 文件，避免开发产物进入代码包；`uploadWithSourceMap` 保持开启，开发者工具自身的线上映射设置不变。对比包体积时，应比较相同生产构建的原始文件字节数，不将 gzip 大小或开发 source map 算作小程序代码体积。
 
 小程序使用两个代码包：主包承载首页、详情、搜索、发帖、登录、用户主页、节点和链接页面；唯一的非独立分包 `secondary` 承载私信和设置等非常用页面，首页按 `network: all` 预加载。私信与设置注册在 `pages/secondary/` 下的轻量入口，复用原功能目录，跳转统一使用 `src/utils/appRoutes.ts` 的注册路径；原 `pages/messages/`、`pages/settings/` 仅保留实现，不再注册为页面。共有运行时、工具和模板仍由主包提供，分包减少的是首次下载的主包体积，不代表全部代码体积等量减少。
+
+### 桌面微信布局
+
+`app.config.ts` 的根级 `resizable: true` 开启窗口拉伸，`frameset: true` 启用微信原生分栏。[官方分栏文档](https://developers.weixin.qq.com/miniprogram/dev/framework/view/frameset.html)明确支持 Windows 微信 3.3 及以上；这里不将 macOS 宽屏布局视为已支持原生分栏。
+
+- **Windows 首页**：自定义竖向 Tab 栏复用首页、发现、消息、我的和发帖入口，按首页分栏实际宽度使用下方三档，旁边保留现有列表。即使单栏不足 1024px，也不会退回底部 Tab；大屏单栏也不再嵌套原三栏布局。
+- **Windows 详情与发帖**：使用各自页面的返回/标题和内容，不重复首页导航栏或热门侧栏；详情保留正文、评论、定位和相关推荐，发帖保留四种类型、草稿、原生编辑器和校验后的预览弹层。
+- **macOS 宽屏**：页面宽度达到 1024px 时仍可使用原三栏，整体限宽 1500px。首页导航也采用下方三档，热门板块移到导航下方，右侧保留热门讨论而不重复展示板块；发帖右侧显示主动校验的预览；详情右侧显示相关推荐。
+- **手机**：保留原底部 Tab 和移动端页面。
+
+桌面首页导航三档（单位为逻辑 px，使用**首页所在页面**的实际宽度，而非整窗宽度）：
+
+| 首页页面宽度 | 导航栏宽度 | 内容排列 |
+| --- | --- | --- |
+| <640px | 60px | 仅图标，保留选中态和消息红点 |
+| 640～959px | 160px | 每个导航项的图标与文字左右排列 |
+| ≥960px | 200px | 图标文字导航在上，真实热门板块纵向列表在下 |
+
+高度不足时，导航内容独立滚动，发帖入口位于底部。断点切换保持帖子列表父链和实例，按新内容容器复测，保留当前 Tab 和滚动状态。宽档板块栏只使用既有公共 `getHotNodes`，不为它请求热门讨论；保留话题页自身用于动态 Tab 的既有板块加载，不更改 API 或持久化缓存策略。
+
+例如可用整窗 1500px、微信分栏各约 750px 时，首页使用中档：160px 导航＋约 590px 列表，另一页约 750px。这里只估算页面布局，不是设置原生分栏比例。
+
+`PageScopeProvider` 在页面首挂时捕获 owner、路由和渲染器；`src/utils/pageViewport.ts` 为每个原生 Page 保存独立尺寸，通过该页 Ready、显示、resize 和绑定 owner 的查询更新。`useViewport` 与尺寸计算使用页面宽高，不用整个微信窗口的宽度推断每个分栏大小。设备平台与页面宽度分别判断，桌面客户端的窄分栏仍能显示左侧 Tab。桌面全局胶囊无法证明所属页面，采用保守的栏内导航预留空间。
+
+查询、原生 nextTick 之后的测量、链接跳转和 PageRouter 导航使用捕获的页面 owner，避免延迟操作误用另一栏的全局 Current。原生 PageRouter 的回调包装保留现有 Promise 调用方式；旧客户端没有 PageRouter 时回退既有导航。分栏保留另一页实例，打开新详情仍会挂载并渲染新详情，**不承诺完全没有重渲染或网络请求**。
+
+布局参考图保存在 `docs/design/`，业务内容始终来自既有功能和接口。React 回归只能验证页面 scope、布局和状态契约；尚未进行真实 Windows/macOS 微信、微信开发者工具或真机验收，需检查实际分栏导航栈、分栏拖动/最大化、原生编辑器、鼠标、键盘、安全区、上传、评论定位和分享。
 
 ## 项目约定
 
@@ -306,6 +352,12 @@ yarn build:weapp --env production
 3. 导出类型定义和调用方法
 4. 小程序端通过 `withCache` 包装调用以支持缓存
 
+`client.ts` 负责组织请求、身份隔离和持久化流程；`request/cachePolicy.ts` 负责 HTML 清理与缓存分类，`request/parsedHtmlCache.ts` 管理有界的解析缓存，`request/revisions.ts` 跟踪并发请求。内部模块不依赖页面，也不直接操作本地存储。构造请求时不修改调用方传入的参数对象。
+
+设置页将广告实例生命周期和缓存管理分别放在 `useRewardedAd`、`useCacheManagement` 中。页面负责菜单与视图，hooks 通过既有服务执行业务操作。
+
+发帖页保留表单和类型切换；`topicDrafts` 通过缓存服务管理既有草稿键，`topicContent` 负责正文校验与附件合并，`useTopicPublishing` 管理原生正文快照、预览关闭动画和发布锁。发布采用预览时确认的 HTML、标题、板块和草稿位置，成功后禁止延迟自动保存重建已删除草稿。
+
 ### 缓存规范
 
 所有本地存储**必须**通过 `CacheService` 操作，禁止直接调用 `Taro.setStorageSync`：
@@ -332,7 +384,8 @@ cacheService.getAllCategoryStats();                      // 全部分类统计
 
 缓存策略分层：
 
-- `src/utils/cachePolicy.ts`：定义保留语义与容量预算，不负责联网更新。
+- `src/utils/cacheMetadata.ts`：定义共享分类、优先级和元数据，不依赖存储后端；`CacheService` 保留既有类型导出，现有调用方无需迁移。
+- `src/utils/cachePolicy.ts`：定义保留语义、容量预算、淘汰顺序、系统键与旧业务键识别，共享 UTF-8 字节计算，不负责联网更新。
 - `CacheService`：普通 storage 按 `getStorageInfoSync()` 获取本小程序总用量；预计写入超过 80% 时按过期、优先级、最近访问顺序淘汰到约 60%，未知数据和系统数据受保护。超大业务条目跳过缓存，写入失败可淘汰重试，不影响已获取的网络数据。
 - `TopicFileCache`：详情／回复定位／用户资料 HTML 文件缓存预算 150MiB，默认 1000 条；计入临时文件与并发写入占用。共享索引持久化最近访问顺序，读取不改变联网刷新时间。
 - `topicIndex`：帖子摘要索引有界合并，最多 1000 条且版本包装后的 UTF-8 内容不超过 512KiB；异常／超大条目不挤掉全部有效数据。

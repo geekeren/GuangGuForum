@@ -1,33 +1,33 @@
-import { getScrollViewType } from "../../utils/renderer";
 import { View, ScrollView, Text } from "@tarojs/components";
-import Taro, { useRouter } from "@tarojs/taro";
+import Taro from "@tarojs/taro";
 import { useEffect, useState } from "react";
 import { fetchLinkSummary } from "guanggu-forum-api";
-import type { LinkSummary } from "guanggu-forum-api";
+import { usePageRouter, usePageWindowInfo } from "../../hooks/usePageScope";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
 import Navbar from "../../components/Navbar";
 import Loading from "../../components/Loading";
 import LinkPreviewCard from "../../components/LinkPreviewCard";
-import { isSkyline } from "../../utils/renderer";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
 import "./index.scss";
 
 export default function LinkPreview() {
-  const skyline = isSkyline();
-  const router = useRouter();
+  const skyline = usePageRenderer() === "skyline";
+  const windowInfo = usePageWindowInfo();
+  const router = usePageRouter();
   const url = decodeURIComponent(router.params.url || "");
   const [scrollHeight, setScrollHeight] = useState("auto");
   const { data: summary, request: fetchSummary } = useDataWithCache(fetchLinkSummary);
 
   useEffect(() => {
     if (skyline) return;
-    const sys = Taro.getSystemInfoSync();
+    const sys = windowInfo;
     const statusBarH = sys.statusBarHeight || 0;
     const navH = 44 + statusBarH;
     const safeBottom = sys.safeArea ? sys.screenHeight - sys.safeArea.bottom : 0;
     const btnWrapH = 16 + 20 + 16 + 40 + 20 + safeBottom;
     const available = sys.windowHeight - navH - btnWrapH;
     setScrollHeight(`${available}px`);
-  }, []);
+  }, [windowInfo.windowWidth, windowInfo.windowHeight, skyline]);
 
   useEffect(() => {
     if (url) fetchSummary({ url });
@@ -41,24 +41,23 @@ export default function LinkPreview() {
     });
   };
 
-  const displayTitle = summary?.title || (() => { try { return new URL(url).hostname; } catch { return url; } })();
 
   return (
     <View className={`linkPreviewPage${skyline ? " linkPreviewPage--skyline" : ""}`}>
-      <Navbar back modal={skyline} title="链接预览" />
-      <ScrollView type={getScrollViewType()} scrollY style={skyline ? undefined : { height: scrollHeight }} className="linkPreviewContent">
+      <Navbar back modal={skyline} title='链接预览' />
+      <ScrollView type={skyline ? 'custom' : undefined} scrollY style={skyline ? undefined : { height: scrollHeight }} className='linkPreviewContent'>
         {summary ? (
           <LinkPreviewCard summary={summary} url={url} />
         ) : (
           <Loading />
         )}
       </ScrollView>
-      <View className="copyBtnWrap">
-        <View className="sheetTip">
-          <Text className="sheetTipText">小程序无法直接打开外部链接，请复制后在浏览器中访问</Text>
+      <View className='copyBtnWrap'>
+        <View className='sheetTip'>
+          <Text className='sheetTipText'>小程序无法直接打开外部链接，请复制后在浏览器中访问</Text>
         </View>
-        <View className="copyBtn" onClick={copyLink}>
-          <Text className="copyBtnText">复制链接</Text>
+        <View className='copyBtn' onClick={copyLink}>
+          <Text className='copyBtnText'>复制链接</Text>
         </View>
       </View>
     </View>

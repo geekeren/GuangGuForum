@@ -1,8 +1,6 @@
-import { getScrollViewType } from "../../utils/renderer";
 import { Image, ScrollView, ShareElement, Text, View } from "@tarojs/components";
 import { GzkButton as Button } from "gzk-ui/native-form";
 import Taro, {
-  useRouter,
   useShareAppMessage,
   useShareTimeline,
   useReady,
@@ -20,6 +18,12 @@ import {
   urlPathVaiable,
   URLS,
 } from "guanggu-forum-api";
+import { Comment as CommentIcon , SortAsc as SortAscIcon , SortDesc as SortDescIcon , Upvote as UpvoteIcon } from "gzk-ui/icons";
+import { usePageScope, usePageRouter, usePageNavigation, usePageWindowInfo } from "../../hooks/usePageScope";
+import { createPageSelectorQuery, nextTickForPage } from "../../utils/pageScope";
+import DesktopLayout from "../../components/DesktopLayout";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
+import { useViewport } from "../../hooks/useViewport";
 import "./index.scss";
 import Loading from "../../components/Loading";
 import Navbar from "../../components/Navbar";
@@ -29,19 +33,13 @@ import { readCommentSortAscending, subscribeCommentSort, writeCommentSortAscendi
 import { rpxToPx } from "../../utils/dimension";
 import { useTheme } from "../../hooks/useTheme";
 import { getThemeSnapshot, subscribeTheme, THEME_PALETTES } from "../../utils/themePreferences";
-import { isSkyline } from "../../utils/renderer";
-import { trimStrings } from "../../utils/trimStrings";
 import { formatReplySummary } from "../../utils/replySummary";
 import { findLatestComment, findTargetComment, getCommentElementId, getCommentReplyId } from "../../utils/topicReplyRoute";
 import { startCommentScroll } from "../../utils/commentScroll";
 import HtmlRender from "../../components/HtmlRender";
 import CommentComposer from "./CommentComposer";
 import TopicTag from "../../components/TopicTag";
-import { Comment as CommentIcon } from "gzk-ui/icons";
 import WechatIcon from "../../assets/wechat.svg";
-import { SortAsc as SortAscIcon } from "gzk-ui/icons";
-import { SortDesc as SortDescIcon } from "gzk-ui/icons";
-import { Upvote as UpvoteIcon } from "gzk-ui/icons";
 import RelatingTopics from "./relatingTopics";
 import PullDownRefresh, { PullDownRefreshRef } from "../../components/PullDownRefresh";
 import AddToDesktopGuide from "../../components/AddToDesktopGuide";
@@ -63,6 +61,12 @@ function topicCanvasRGB(theme: 'light' | 'dark') {
 }
 
 const Index = () => {
+  const { owner: owningPage } = usePageScope();
+  const navigation = usePageNavigation();
+  const windowInfo = usePageWindowInfo();
+  const { isDesktop: pageIsWide } = useViewport();
+  const { viewport: pageViewport } = usePageScope();
+  const isDesktop = pageIsWide && !pageViewport.isWindowsClient;
   const [refreshTime, setRefreshTime] = useState<number>(() => Date.now());
   const [isCommenting, setIsCommenting] = useState(false);
   const [sending, setSending] = useState(false);
@@ -93,8 +97,8 @@ const Index = () => {
   const navbarCanvasSV = useRef<any>(null);
   const { theme } = useTheme();
   const pullDownRef = useRef<PullDownRefreshRef>(null);
-  const router = useRouter();
-  const skyline = isSkyline();
+  const router = usePageRouter();
+  const skyline = usePageRenderer() === "skyline";
 
   const tid = router.params.tid;
   const submissionScope = JSON.stringify([tid, router.params.p, router.params.replyId]);
@@ -148,15 +152,15 @@ const Index = () => {
 
   useReady(() => {
     setPageReady(true);
-    const { page } = Taro.getCurrentInstance();
-    if (skyline && page && typeof page.applyAnimatedStyle === "function" && (Taro as any).worklet) {
+    const page = owningPage as ReturnType<typeof Taro.getCurrentInstance>["page"];
+    if (skyline && !isDesktop && page && typeof page.applyAnimatedStyle === "function" && (Taro as any).worklet) {
       const sv = (Taro as any).worklet.shared(0);
       page._scrollProgress = sv;
       scrollProgressSV.current = sv;
       const canvas = (Taro as any).worklet.shared(topicCanvasRGB(getThemeSnapshot().theme));
       navbarCanvasSV.current = canvas;
 
-      Taro.nextTick(() => {
+      nextTickForPage(owningPage, () => {
         page.applyAnimatedStyle(".customNavbar", () => {
           "worklet";
           const p = Math.min(Math.max(sv.value, 0), 1);
@@ -182,7 +186,7 @@ const Index = () => {
 
   useEffect(() => {
     if (!tid) {
-      Taro.navigateBack().then();
+      navigation.navigateBack().then();
       return;
     }
     const params = showLatestComments.current ? { tid, latest: true } : { tid, page: p, replyId };
@@ -216,9 +220,9 @@ const Index = () => {
     if (!scrollRequest || !pageReady) return;
     setLocatingComment(true);
     const cancel = startCommentScroll({
-      nextTick: (callback) => Taro.nextTick(callback),
+      nextTick: (callback) => nextTickForPage(owningPage, callback),
       measure: (callback) => {
-        const query = Taro.createSelectorQuery();
+        const query = createPageSelectorQuery(owningPage);
         query.select(`#${scrollRequest.id}`).boundingClientRect();
         query.select(".scrollContent").boundingClientRect();
         query.select(".customNavbar").boundingClientRect();
@@ -243,7 +247,7 @@ const Index = () => {
 
   useDidShow(() => {
     // The entry effect already loads once; keep Skyline's existing return-to-page refresh.
-    if (isSkyline() && tid && submissionPage.current.lifecycle > 0) setRefreshTime(Date.now());
+    if (skyline && tid && submissionPage.current.lifecycle > 0) setRefreshTime(Date.now());
   });
 
   const pageQuery = queryString.stringify(router.params);
@@ -265,12 +269,14 @@ const Index = () => {
 
   if (!topicDetail) {
     return (
-      <View className={skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}>
-        <Navbar back home title='帖子详情' backgroundRGB={topicCanvasRGB(theme)} />
+      <DesktopLayout title='帖子详情' variant='detail' back>
+      <View className={`${skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}${isDesktop ? ' topicDetail--desktop' : ''}`}>
+        {!isDesktop && <Navbar back home title='帖子详情' backgroundRGB={topicCanvasRGB(theme)} />}
         <View className='topicDetailLoading'>
           <Loading />
         </View>
       </View>
+      </DesktopLayout>
     );
   }
 
@@ -310,7 +316,7 @@ const Index = () => {
         retryLogin();
         return;
       }
-      openLoginModal(pageUrl);
+      openLoginModal(pageUrl, owningPage);
       return;
     }
     composerAccount.current = { account: getCachedUsername(), scope: submissionScope, confirmed: true };
@@ -324,8 +330,16 @@ const Index = () => {
 
   return (
     <>
-      <View className={skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}>
-        <Navbar
+      <DesktopLayout title='帖子详情' variant='detail' back sidebar={<View className='topicDesktopRelated'>
+        <Text className='topicDesktopRelatedHeading'>相关主题</Text>
+        <ScrollView type={skyline ? 'custom' : undefined} scrollY enhanced showScrollbar={false} className='topicDesktopRelatedScroll'>
+          <RelatingTopics topicDetail={topicDetail} desktop />
+          {!topicDetail.relatingTopics.length && <Text className='topicDesktopRelatedEmpty'>暂无相关主题</Text>}
+        </ScrollView>
+      </View>}
+      >
+      <View className={`${skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}${isDesktop ? ' topicDetail--desktop' : ''}`}>
+        {!isDesktop && <Navbar
           back
           home
           backgroundRGB={topicCanvasRGB(theme)}
@@ -335,14 +349,14 @@ const Index = () => {
             opacity: Math.min(1, (navScrollProgress - 0.3) / 0.7),
             transform: `translateY(${(1 - Math.min(navScrollProgress, 1)) * 8}px)`,
           }}
-        />
+        />}
         <PullDownRefresh
           ref={pullDownRef}
           className='scrollViewContainer'
           onRefresh={() => setRefreshTime(Date.now())}
         >
           <ScrollView
-            type={getScrollViewType()}
+            type={skyline ? 'custom' : undefined}
             scrollWithAnimation={!locatingComment}
             scrollY
             bounces
@@ -377,7 +391,7 @@ const Index = () => {
                   <View
                     className='authorInfo'
                     onClick={() => {
-                      Taro.navigateTo({
+                      navigation.navigateTo({
                         // Display-name authors are not URL slugs; the display anchor
                         // links by account id, with the legacy username as fallback.
                         url: `/pages/user/index?username=${encodeURIComponent(topicDetail.authorUserId ?? topicDetail.authorUsername ?? topicDetail.author)}`,
@@ -406,7 +420,7 @@ const Index = () => {
                       if (link) {
                         const node = urlPathVaiable(URLS.NODE_HOME_PAGE)(link)
                           ?.params?.node;
-                        Taro.navigateTo({
+                        navigation.navigateTo({
                           url: `/pages/node/topicList/index?node=${node}&nodeName=${topicDetail.category}`,
                         });
                       }
@@ -466,7 +480,7 @@ const Index = () => {
                         className='comment-author-avatar'
                         onClick={(e) => {
                           e.stopPropagation();
-                          Taro.navigateTo({
+                          navigation.navigateTo({
                             url: `/pages/user/index?username=${encodeURIComponent(comment.authorUserId ?? comment.authorUsername ?? comment.author)}`,
                           });
                         }}
@@ -493,8 +507,8 @@ const Index = () => {
                                   const verifiedAuthor = mentionDraft.current.metadataCurrent && submissionPage.current.generation === mentionGeneration
                                     && mentionMetadata?.comments?.some(item => item.id === comment.id && item.author === comment.author && item.authorUserId === comment.authorUserId);
                                   const uid = verifiedAuthor ? verifiedMentionId(comment.authorUserId) : undefined;
-                                  const replyId = verifiedMentionId(getCommentReplyId(comment)) ?? 0;
-                                  showCommentDialog({ content: `${label} `, mention: uid === undefined ? undefined : { uid, reply_id: replyId, start: 0, end: label.length, label } });
+                                  const targetReplyId = verifiedMentionId(getCommentReplyId(comment)) ?? 0;
+                                  showCommentDialog({ content: `${label} `, mention: uid === undefined ? undefined : { uid, reply_id: targetReplyId, start: 0, end: label.length, label } });
                                 } else if (res.tapIndex === 1) {
                                   Taro.setClipboardData({
                                     data: comment.content.trim(),
@@ -537,7 +551,7 @@ const Index = () => {
                               });
                             }}
                           >
-                            <ThemedIcon src={UpvoteIcon} tone='muted' lightColor='#000' style={{ height: rpxToPx(28), width: rpxToPx(28) }} />
+                            <ThemedIcon src={UpvoteIcon} tone='muted' lightColor='#000' style={{ height: isDesktop ? 18 : rpxToPx(28, windowInfo), width: isDesktop ? 18 : rpxToPx(28, windowInfo) }} />
                             <Text>{parseInt(comment.upVoteCount.replace("赞", ""))}</Text>
                           </View>
                         </View>
@@ -557,10 +571,10 @@ const Index = () => {
                   return items;
                 })}
             </View>
-            <View className='relatingTopics section'>
+            {!isDesktop && <View className='relatingTopics section'>
               <View className='header'><Text>相关主题</Text></View>
               <RelatingTopics topicDetail={topicDetail} />
-            </View>
+            </View>}
             </View>
           </ScrollView>
         </PullDownRefresh>
@@ -587,7 +601,9 @@ const Index = () => {
           </View>
         </View>
       </View>
+      </DesktopLayout>
       {isCommenting && <CommentComposer
+        desktop={isDesktop}
         value={commentContent}
         stickers={commentStickers}
         onStickersChange={(stickers) => setCommentAttachments([

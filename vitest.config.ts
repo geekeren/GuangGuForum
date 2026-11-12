@@ -1,6 +1,5 @@
-import { defineConfig } from "vitest/config";
-
-export default defineConfig({
+export default {
+  css: { preprocessorOptions: { scss: { api: "legacy" } } },
   test: {
     globals: true,
     environment: "node",
@@ -16,4 +15,4 @@ export default defineConfig({
       },
     },
   },
-});
+};

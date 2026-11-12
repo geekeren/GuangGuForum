@@ -2,12 +2,13 @@
 
 .createTopic {
   background: $bgColor;
-  height: 100vh;
+  height: 100%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
 
   .createTopicBody {
+    height: 0;
     width: 100%;
     flex: 1;
     min-height: 0;
@@ -359,7 +360,7 @@
     width: 100%;
     background: $surface;
     border-radius: 24rpx 24rpx 0 0;
-    height: 80vh;
+    height: 80%;
     display: flex;
     flex-direction: column;
     animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1);
@@ -537,7 +538,7 @@
   // 发布预览弹窗
   .topicPreviewMask { position: fixed; inset: 0; z-index: 999; display: flex; flex-direction: column; justify-content: flex-end; background: rgba(0, 0, 0, 0.42); animation: fadeIn 0.25s ease; }
   .topicPreviewMask--closing { animation: fadeOut 0.25s ease forwards; }
-  .topicPreviewSheet { width: 100%; height: 75vh; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; border-radius: 40rpx 40rpx 0 0; background: $bgColor; animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
+  .topicPreviewSheet { width: 100%; height: 75%; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; border-radius: 40rpx 40rpx 0 0; background: $bgColor; animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
   .topicPreviewSheet--closing { animation: slideDown 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
   .topicPreviewHandle { width: 80rpx; height: 8rpx; flex-shrink: 0; margin: 24rpx auto 12rpx; border-radius: 8rpx; background: $text-faint; opacity: 0.45; }
   .topicPreviewHeader { display: flex; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 36rpx 30rpx 44rpx; flex-shrink: 0; }
@@ -572,8 +573,8 @@
 
 .createTopic--skyline .repostMask,
 .createTopic .repostMask--skyline {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
   flex-direction: column;
   align-items: stretch;
@@ -606,4 +607,86 @@
 @keyframes slideDown {
   from { transform: translateY(0); }
   to { transform: translateY(100%); }
+}
+
+.createTopic--desktop {
+  height: 100%;
+  min-height: 0;
+  border-radius: 14PX;
+  overflow: hidden;
+  .createTopicBody { height: 0; }
+  .typeConfig, .nodeSection { margin: 12PX 16PX; border-radius: 10PX; }
+  .typeSection { padding: 10PX; }
+  .typeRow { gap: 8PX; }
+  .typeTag { gap: 6PX; padding: 10PX 4PX; border-radius: 8PX; border-width: 1PX; }
+  .typeTagIcon { width: 18PX; height: 18PX; }
+  .typeTag .typeTagText { font-size: 14PX; }
+  .nodeSection { padding: 10PX 12PX; gap: 12PX; }
+  .pickerItem { padding: 4PX; gap: 8PX; }
+  .pickerItem .pickerLabel { font-size: 14PX; }
+  .pickerItem .pickerValue { font-size: 16PX; }
+  .publishNodeIcon { width: 22PX; height: 22PX; }
+  .publishNodeArrow { width: 16PX; height: 16PX; }
+  .previewBtn { gap: 6PX; padding: 8PX 12PX; border-radius: 20PX; }
+  .previewBtnIcon { width: 18PX; height: 18PX; }
+  .previewBtnText { font-size: 14PX; }
+  .editorSection { padding: 18PX 22PX 0; margin: 0 16PX 16PX; border-radius: 12PX; }
+  .topicTitleSection { gap: 12PX; padding: 4PX 0 16PX; margin-bottom: 16PX; }
+  .topicTitleCount { line-height: 32PX; font-size: 12PX; }
+  .titleInput { min-height: 32PX; font-size: 22PX; }
+  .fieldGroup { margin-bottom: 10PX; }
+  .fieldRow { margin-bottom: 10PX; gap: 12PX; }
+  .fieldLabel { margin-bottom: 6PX; font-size: 13PX; }
+  .fieldInput, .fieldTextarea { padding: 10PX 12PX; border-radius: 8PX; }
+  .topicNativeEditor { min-height: 220PX; font-size: 16PX; }
+  .topicEditorBodyContent { padding-right: 2PX; padding-bottom: 16PX; }
+  .topicEditorBodyScrollbar { top: 6PX; bottom: 6PX; right: -6PX; width: 4PX; }
+  .topicEditorBodyScrollThumb { width: 3PX; border-radius: 2PX; }
+}
+
+.desktopLayout--wide .createTopicPreviewColumn {
+  height: 100%;
+  min-height: 0;
+  border-radius: 14PX;
+  .topicPreviewMask--desktop { position: relative; inset: auto; width: 100%; height: 100%; background: transparent; justify-content: flex-start; z-index: auto; animation: none; }
+  .topicPreviewMask--desktop.topicPreviewMask--closing { animation: fadeOut .25s ease forwards; }
+  .topicPreviewSheet { height: 100%; min-height: 0; border-radius: 14PX; animation: none; }
+  .topicPreviewSheet--closing { animation: none; }
+  .topicPreviewHandle { display: none; }
+  .topicPreviewHeader { padding: 16PX; }
+  .topicPreviewHeading { font-size: 17PX; }
+  .topicPreviewClose { width: 30PX; height: 30PX; font-size: 20PX; }
+  .topicPreviewScroll { padding: 0 12PX; }
+  .topicPreviewCard { padding: 16PX; border-radius: 10PX; }
+  .topicPreviewNode { gap: 6PX; padding: 5PX 9PX; border-radius: 6PX; font-size: 12PX; margin-bottom: 14PX; }
+  .topicPreviewNodeIcon { width: 17PX; height: 17PX; }
+  .topicPreviewTitle { font-size: 20PX; margin-bottom: 16PX; }
+  .topicPreviewActions { gap: 8PX; padding: 12PX; }
+  .topicPreviewCancel, .topicPreviewPublish { height: 40PX; border-radius: 8PX; font-size: 14PX; }
+  .topicPreviewCancel { border-width: 1PX; }
+  .topicPreviewPublish { gap: 6PX; }
+  .topicPreviewSendIcon { width: 18PX; height: 18PX; }
+  .topicDesktopPreviewPlaceholder { display: flex; flex-direction: column; padding: 22PX; gap: 12PX; color: var(--theme-text-muted, #656c7e); font-size: 14PX; line-height: 1.7; }
+  .topicDesktopPreviewPlaceholderTitle { font-size: 17PX; color: var(--theme-text-primary, #080d18); font-weight: 600; }
+}
+.createTopic--desktop {
+  .fieldInput { height: 44PX; min-height: 44PX; padding: 0 12PX; font-size: 15PX; }
+  .fieldTextarea { min-height: 90PX; max-height: 280PX; font-size: 15PX; }
+  .fieldGroup--inline { gap: 10PX; }
+  .fieldGroup--inline .fieldLabel { margin-bottom: 0; }
+  .clearableWrap:not(.clearableWrap--hasValue) .fieldTextarea { padding-right: 12PX; }
+  .locationRow { gap: 10PX; }
+  .locationBtn { height: 44PX; padding: 0 12PX; border-radius: 8PX; }
+  .locationBtnText, .fieldPickerText { font-size: 14PX; }
+  .thumbnailPreview { width: 120PX; height: 84PX; border-radius: 8PX; }
+  .thumbnailRemove { width: 24PX; height: 24PX; }
+  .repostTip { padding: 10PX 12PX; margin-bottom: 12PX; border-radius: 8PX; }
+  .repostSheet { width: 100%; max-width: 780PX; margin: 0 auto; border-radius: 16PX 16PX 0 0; }
+  .repostSheetHeader { padding: 16PX; }
+  .repostSheetClose { width: 30PX; height: 30PX; }
+  .repostSheetHint, .repostSheetOptions { padding-left: 16PX; padding-right: 16PX; }
+  .repostSheetContent { padding-left: 16PX; padding-right: 16PX; }
+  .repostSheetActions { padding: 12PX 16PX; gap: 12PX; }
+  .repostSheetCancel, .repostSheetConfirm { height: 42PX; border-radius: 8PX; }
+
 }

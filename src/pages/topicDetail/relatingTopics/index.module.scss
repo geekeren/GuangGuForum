@@ -42,3 +42,9 @@
     }
   }
 }
+.desktop {
+  .relatingTopicItem { padding: 12PX 0; border-bottom-width: 1PX; }
+  .relatingTopicItem .left { width: 28PX; margin-right: 10PX; }
+  .relatingTopicItem .left .avatar { width: 28PX; height: 28PX; border-radius: 14PX; }
+  .relatingTopicItem .right { font-size: 14PX; line-height: 1.5; }
+}

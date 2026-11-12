@@ -11,7 +11,7 @@ describe("homepage reference geometry", () => {
     expect(home).toContain('this.state.selectedTabIndex === 0 ? "root root--topics"');
     expect(css).toMatch(/&--topics\s*\{\s*background: linear-gradient\(180deg, var\(--theme-brand-soft, #e7efff\)/);
     expect(css).toContain("background: rgba(var(--theme-surface-rgb, 255, 255, 255), 0.78);");
-    expect(home).toContain('height: getNavInfo().capsuleHeight + "px"');
+    expect(home).toContain('height: getNavInfo(this.viewport.getWindowInfo()).capsuleHeight + "px"');
     expect(source("components/SearchEntry/index.tsx")).toContain("useSearchPlaceholder(!node)");
   });
 
@@ -32,13 +32,13 @@ describe("homepage reference geometry", () => {
     expect(header).toContain("padding-bottom: 12rpx;");
     expect(scroll).toContain("height: 54rpx;");
     const controls = source("pages/home/topics/index.tsx");
-    expect(controls).toContain('lineHeight: theme === "dark" ? "52rpx" : "54rpx",');
+    expect(controls).toContain('lineHeight: isDesktop ? "34px" : theme === "dark" ? "52rpx" : "54rpx",');
     expect(css).toContain("border-radius: 30rpx;");
     expect(css).toContain("&--active {\n    font-weight: 700;");
     expect(controls).toContain('const color = selected ? "#fff" : palette["text-primary"];');
     expect(controls).toContain('"linear-gradient(150deg, #4b8cff, #0754ee)"');
     expect(css).not.toContain("&::after");
-    expect(source("pages/home/topics/index.tsx")).toContain("Math.max(0, res.height - rpxToPx(76))");
+    expect(source("pages/home/topics/index.tsx")).toContain("Math.max(0, containerHeight - headerHeight)");
   });
 
   it("splits the former gap into fixed header spacing and smaller scroll spacing in both renderers", () => {
@@ -121,7 +121,7 @@ describe("homepage reference geometry", () => {
     expect(announcement).toContain("{topic.title}</Text>");
     expect(announcement).toContain('{topic.category} · {topic.lastUpdated}更新 · {topic.commentCount === "" ? 0 : topic.commentCount} 评论');
     expect(announcement).toContain("urlPathVaiable(URLS.TOPIC_DETAIL)(topic.link)");
-    expect(announcement).toContain("if (tid) Taro.navigateTo");
+    expect(announcement).toContain("if (tid) pageNavigation.navigateTo");
     expect(announcement).toContain("<Image src={AnnouncementScene} svg mode='aspectFit'");
     expect(announcement).toContain("<Image src={AnnouncementArtworkIcon} svg mode='aspectFit'");
     const scroll = list.split("<ScrollView")[1].split("</ScrollView>")[0];
@@ -197,14 +197,14 @@ describe("homepage reference geometry", () => {
     expect(css).not.toContain("height: 5rpx;");
     expect(css).not.toMatch(/\.tabItem[\s\S]{0,220}?&::after\s*\{/);
     expect(css).toContain("env(safe-area-inset-bottom)");
-    expect(source("pages/home/index.tsx")).toContain("Math.max(rpxToPx(16), getBottomSafeAreaInset())");
+    expect(source("pages/home/index.tsx")).toContain("16 * this.viewport.getSnapshot().width / 750");
   });
 
   it("centers the compose image independently of text baselines and the share-element wrapper", () => {
     const home = source("pages/home/index.tsx");
     const css = source("pages/home/index.scss");
-    expect(home).toContain('mapkey="create_topic_btn" className="composeShareElement"');
-    expect(home).toContain('<ThemedIcon src={ComposePlusIcon} color=\'#fff\' mode="aspectFit" className="composePlusIcon" />');
+    expect(home).toMatch(/mapkey=['"]create_topic_btn['"] className=['"]composeShareElement['"]/);
+    expect(home).toMatch(/<ThemedIcon src=\{ComposePlusIcon\} color=['"]#fff['"] mode=['"]aspectFit['"] className=['"]composePlusIcon['"] \/>/);
     expect(home).not.toContain("<Text>+</Text>");
     const add = css.split("&--add {")[1];
     expect(add).toContain("align-self: stretch;");

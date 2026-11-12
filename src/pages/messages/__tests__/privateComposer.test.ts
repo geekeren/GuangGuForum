@@ -5,6 +5,11 @@ import { compileString } from 'sass';
 import PrivateMessageComposer from '../PrivateMessageComposer';
 
 const runtime = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], cursor: 0, refCursor: 0, effects: [] as any[], mounted: false, viewport: 800, resize: null as any, hide: null as any }));
+vi.mock("../../../hooks/usePageScope", async () => {
+  const module = await import("@tarojs/taro");
+  const { legacyPageScopeMock } = await import("../../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
+});
 vi.mock('react', () => ({
   useState: (initial: any) => { const i = runtime.cursor++; if (!(i in runtime.state)) runtime.state[i] = initial; return [runtime.state[i], (next: any) => { runtime.state[i] = typeof next === 'function' ? next(runtime.state[i]) : next; }]; },
   useRef: (initial: any) => { const i = runtime.refCursor++; if (!(i in runtime.refs)) runtime.refs[i] = { current: initial }; return runtime.refs[i]; },

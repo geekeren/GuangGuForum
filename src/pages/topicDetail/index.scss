@@ -4,7 +4,7 @@
 
 .topicDetail {
   background: var(--theme-bg, #f4f5fa);
-  height: 100vh;
+  height: 100%;
   flex-direction: column;
   display: flex;
 
@@ -597,7 +597,7 @@
     background: $surface;
     border-radius: 24rpx 24rpx 0 0;
     flex: none;
-    max-height: 60vh;
+    max-height: 60%;
     box-sizing: border-box;
     overflow: visible;
     padding: 24rpx;
@@ -743,4 +743,79 @@
   to {
     transform: translateY(0);
   }
+}
+
+.topicDetail.topicDetail--desktop {
+  height: 100%; min-height: 0; border-radius: 14PX; overflow: hidden;
+  .scrollViewContainer { flex: 1; height: 0; min-height: 0; }
+  .topicDetailFlow { max-width: 800PX; margin: 0 auto; }
+  .main { margin: 0 0 12PX; padding: 22PX 24PX 16PX; border-radius: 14PX; }
+  .main .header .title { font-size: 24PX; margin-bottom: 16PX; }
+  .main .header .metaRow { gap: 10PX; }
+  .main .header .metaRow .authorInfo { gap: 10PX; }
+  .main .header .metaRow .authorInfo .avatar, .main .header .metaRow .authorInfo .avatar image { width: 34PX; height: 34PX; border-radius: 17PX; }
+  .main .header .metaRow .authorInfo .avatar .userAvatar { width: 34PX !important; height: 34PX !important; }
+  .main .content { padding: 18PX 0 4PX; }
+  .main .extra { padding-top: 10PX; font-size: 12PX; }
+  .main .extra .right { gap: 12PX; }
+  .main .topicCategory { max-width: 160PX; padding: 5PX 8PX; border-radius: 6PX; font-size: 12PX; }
+  .main .tagIcon { width: 15PX; height: 15PX; margin-right: 4PX; }
+  .section { margin: 0 0 12PX; padding: 18PX 24PX; border-radius: 14PX; }
+  .section .header { min-height: 28PX; margin-bottom: 10PX; font-size: 18PX; }
+  .section .header::before { width: 3PX; height: 18PX; margin-right: 8PX; }
+  .comments .comment-item { padding: 14PX 0; gap: 12PX; }
+  .comments .comment-author-avatar { width: 30PX; height: 30PX; margin-right: 12PX; }
+  .comments .comment-author-avatar .userAvatar { width: 30PX !important; height: 30PX !important; }
+  .comments .comment-right { min-width: 0; padding-bottom: 12PX; }
+  .comments .comment-right .line1 { margin-bottom: 8PX; }
+  .comments .comment-content { padding: 6PX 0; }
+  .comments .sortBtn { width: 30PX; height: 30PX; border-radius: 8PX; }
+  .comments .sortIcon { width: 18PX; height: 18PX; }
+  .comments .emptyComments { padding: 32PX 0; }
+  .comments .emptyComments .emptyIcon { margin-bottom: 12PX; }
+  .comments .emptyComments .emptyDesc { margin-bottom: 18PX; }
+  .comments .emptyComments .emptyBtn { padding: 10PX 32PX; border-radius: 20PX; }
+  .actions { min-height: 62PX; height: 62PX; padding: 10PX 16PX; width: 100%; max-width: 800PX; margin: 0 auto; }
+  .actions .left { height: 38PX; padding: 8PX 14PX; border-radius: 20PX; font-size: 14PX; }
+  .actions .right { margin-left: 12PX; }
+  .actions .right .commentIcon { width: 22PX; height: 22PX; }
+  .actions .right .badgeWrap { margin-right: 16PX; }
+  .actions .right .badgeWrap .badgeValue { top: -8PX; right: -8PX; min-width: 16PX; height: 16PX; line-height: 16PX; padding: 0 3PX; border-radius: 8PX; font-size: 10PX; }
+  .actions .right .share { padding: 8PX 12PX !important; border-radius: 8PX; font-size: 13PX; }
+  .actions .right .share .icon { width: 18PX; height: 18PX; margin-right: 6PX; }
+}
+.topicDesktopRelated { height: 100%; min-height: 0; display: flex; flex-direction: column; padding: 18PX 16PX; border-radius: 14PX; background: var(--theme-surface, #fff); border: 1PX solid var(--theme-border-subtle, #e3e9f5); box-sizing: border-box; }
+.topicDesktopRelatedHeading { font-size: 17PX; font-weight: 600; margin-bottom: 12PX; }
+.topicDesktopRelatedScroll { flex: 1; height: 0; min-height: 0; }
+.topicDesktopRelatedEmpty { font-size: 13PX; color: var(--theme-text-muted, #656c7e); }
+
+// The comment overlay remains the page's fixed sibling, not a clipped center child.
+.commentPopup--desktop {
+  .commentPopupBody { width: 100%; max-width: 800PX; margin: 0 auto; padding: 16PX; border-radius: 14PX 14PX 0 0; }
+  &.commentPopup--skyline .commentPopupBody { left: 0; right: 0; max-width: 800PX; margin: 0 auto; }
+  .commentPopupHandle { width: 42PX; height: 4PX; margin: -4PX auto 12PX; border-radius: 4PX; }
+  .commentPopupTextarea { min-height: 96PX; border-radius: 10PX; }
+  .commentPopupTextarea .mentionEditorInput { height: 72PX; min-height: 72PX; }
+  .commentPopupTextarea .mentionEditorSurface { padding: 10PX 12PX; border-radius: 10PX; }
+  .commentPopupToolbar { min-height: 48PX; margin-top: 8PX; }
+  .commentPopupTool { width: 44PX; height: 44PX; border-radius: 8PX; }
+  .commentPopupToolIcon { width: 22PX; height: 22PX; }
+  .commentPopupMore:not(.commentPopupTool--active) .commentPopupToolIcon { width: 24PX; height: 24PX; padding: 2PX; border-width: 1PX; }
+  .commentPopupMinimum { margin-right: 12PX; font-size: 12PX; }
+  .commentPopupSend { min-width: 78PX; height: 38PX; padding: 0 18PX; border-radius: 8PX; font-size: 14PX; }
+  .commentPopupSend text { height: 24PX; line-height: 24PX; }
+  .commentPopupEmojiPanel { max-width: 800PX; margin: 0 auto; }
+  .commentPopupMoreActions { padding: 20PX 16PX; }
+  .commentPopupMoreSquare { width: 64PX; height: 64PX; margin-bottom: 10PX; border-radius: 10PX; }
+  .commentPopupMoreIcon { width: 28PX; height: 28PX; }
+  .commentStickerPreviews, .commentStickerPreviewTrack { height: 92PX; }
+  .commentStickerPreview { width: 92PX; height: 92PX; padding: 6PX; }
+  .commentStickerPreviewImage { width: 80PX; height: 80PX; }
+  .commentStickerRemove { width: 22PX; height: 22PX; border-radius: 11PX; font-size: 16PX; }
+  .commentPopupPhotoNotice { height: 20PX; line-height: 20PX; }
+  .composerEmojiTabs, .composerEmojiGrid { padding: 10PX; }
+  .composerEmojiCell { height: 44PX; }
+  .composerEmojiText { font-size: 22PX; }
+  .composerEmojiSticker { height: 72PX; }
+  .composerEmojiStickerImage { width: 62PX; height: 62PX; }
 }

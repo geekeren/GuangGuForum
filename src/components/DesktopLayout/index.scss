@@ -1,0 +1,142 @@
+.desktopLayout { height: 100%; min-height: 0; }
+.desktopMain, .desktopContent { height: 100%; min-height: 0; }
+
+.desktopLayout--wide {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-width: 1500PX;
+  margin: 0 auto;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 24PX;
+  gap: 20PX;
+  overflow: hidden;
+  background: var(--theme-bg, #edf3ff);
+  color: var(--theme-text-primary, #080d18);
+
+  .desktopRail {
+    display: flex;
+    flex-direction: column;
+    width: 170PX;
+    flex-shrink: 0;
+    padding: 8PX 0;
+    min-height: 0;
+  }
+  .desktopBrand {
+    display: flex;
+    align-items: center;
+    gap: 10PX;
+    padding: 6PX 12PX 28PX;
+    font-size: 24PX;
+    font-weight: 700;
+  }
+  .desktopBrandIcon { width: 28PX; height: 28PX; flex-shrink: 0; }
+  .desktopNav { display: flex; flex-direction: column; gap: 8PX; }
+  .desktopNavItem {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    position: relative;
+    gap: 14PX;
+    height: 46PX;
+    padding: 0 14PX;
+    border-radius: 10PX;
+    font-size: 15PX;
+    color: var(--theme-text-sub, #50576a);
+    cursor: pointer;
+    &:hover, &:active { background: var(--theme-surface-hover, #f9fbff); }
+    &--active { background: var(--theme-accent-muted, #e8efff); color: var(--theme-accent-text, #0754d7); font-weight: 600; }
+  }
+  .desktopNavIcon { width: 21PX; height: 21PX; flex-shrink: 0; }
+  .desktopUnreadDot { width: 7PX; height: 7PX; border-radius: 50%; background: #ef4444; margin-left: auto; }
+  .desktopNavDivider { height: 1PX; background: var(--theme-border-subtle, #e3e9f5); margin: 20PX 12PX; flex-shrink: 0; }
+  .desktopNavCaption { font-size: 12PX; color: var(--theme-text-muted, #656c7e); padding: 0 14PX 8PX; }
+  .desktopCompose {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10PX;
+    height: 44PX;
+    margin-top: auto;
+    border-radius: 10PX;
+    background: var(--theme-brand, #1f69ff);
+    color: #fff;
+    font-size: 15PX;
+    font-weight: 600;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .desktopMain { display: flex; flex: 1; flex-direction: column; min-width: 0; height: 100%; overflow: hidden; }
+  .desktopTopbar { display: flex; align-items: center; gap: 20PX; flex-shrink: 0; min-height: 44PX; margin-bottom: 20PX; }
+  .desktopSearch.searchEntry {
+    flex: 1;
+    min-width: 0;
+    height: 40PX;
+    padding: 0 16PX;
+    background: var(--theme-surface, #fff);
+    border: 1PX solid var(--theme-border-subtle, #e3e9f5);
+    border-radius: 24PX;
+    box-sizing: border-box;
+    .searchIcon { width: 18PX; height: 18PX; }
+    .searchText { margin-left: 10PX; font-size: 14PX; }
+  }
+  .desktopPageTitle { font-size: 13PX; color: var(--theme-text-muted, #656c7e); flex-shrink: 0; }
+  .desktopContent { flex: 1; min-height: 0; min-width: 0; height: auto; overflow: hidden; }
+  .desktopSidebar { width: 264PX; flex-shrink: 0; min-height: 0; padding-top: 64PX; }
+}
+
+ .desktopLayout--wide.desktopLayout--compact { padding: 16PX; gap: 16PX; }
+.desktopLayout--wide.desktopLayout--compact .desktopRail { width: 150PX; }
+.desktopLayout--wide.desktopLayout--compact .desktopSidebar { width: 240PX; }
+.desktopLayout--wide.desktopLayout--compose:not(.desktopLayout--compact) .desktopSidebar { width: 320PX; }
+.desktopLayout--wide.desktopLayout--detail:not(.desktopLayout--compact) .desktopSidebar { width: 280PX; }
+.desktopLayout--wide .desktopBack { display: flex; align-items: center; justify-content: center; width: 32PX; height: 32PX; flex-shrink: 0; border-radius: 8PX; background: var(--theme-surface, #fff); cursor: pointer; }
+.desktopLayout--wide .desktopBackIcon { width: 20PX; height: 20PX; }
+
+// Native desktop frames can be narrower than 1024px; keep Home's tab controls
+// on one compact rail, without forcing the right-hand topic/editor pane to copy it.
+.desktopLayout--rail {
+  display: flex; flex-direction: row; width: 100%; height: 100%; min-height: 0; overflow: hidden;
+  background: var(--theme-bg, #edf3ff);
+  .desktopRail { display: flex; flex-direction: column; width: 60PX; padding: 14PX 6PX; box-sizing: border-box; flex-shrink: 0; border-right: 1PX solid var(--theme-border-subtle, #e3e9f5); }
+  .desktopBrand { display: flex; justify-content: center; padding: 6PX 0 22PX; }
+  .desktopBrand text, .desktopNavItem text, .desktopCompose text, .desktopNavCaption { display: none; }
+  .desktopBrandIcon { width: 25PX; height: 25PX; }
+  .desktopNav { display: flex; flex-direction: column; gap: 10PX; }
+  .desktopNavItem { height: 44PX; width: 44PX; margin: 0 auto; position: relative; display: flex; align-items: center; justify-content: center; border-radius: 10PX; cursor: pointer; }
+  .desktopNavItem--active { background: var(--theme-accent-muted, #e8efff); }
+  .desktopNavIcon { width: 23PX; height: 23PX; }
+  .desktopUnreadDot { position: absolute; right: 7PX; top: 6PX; width: 7PX; height: 7PX; border-radius: 50%; background: #ef4444; }
+  .desktopNavDivider { height: 1PX; margin: 18PX 6PX; background: var(--theme-border-subtle, #e3e9f5); }
+  .desktopCompose { display: flex; align-items: center; justify-content: center; width: 44PX; height: 44PX; margin: auto auto 0; border-radius: 10PX; background: var(--theme-brand, #1f69ff); cursor: pointer; }
+  .desktopMain { display: flex; flex: 1; flex-direction: column; height: 100%; min-width: 0; min-height: 0; }
+  .desktopContent { flex: 1; height: 100%; min-width: 0; min-height: 0; overflow: hidden; }
+  .root .bottomTab { display: none; }
+}
+
+// Scroll navigation and the optional community slot, not the bottom publish action.
+.desktopRailScroll { flex: 1; height: 0; min-height: 0; width: 100%; }
+.desktopLayout--wide .desktopCompose { margin-top: 12PX; }
+.desktopLayout--rail .desktopCompose { margin-top: 12PX; flex-shrink: 0; }
+
+// Home's density follows page width on every desktop client, not screen size.
+.desktopLayout--home {
+  .desktopRail { min-height: 0; box-sizing: border-box; }
+  .desktopRailScroll { overflow: hidden; }
+  .desktopNavItem, .desktopBrand, .desktopCompose { box-sizing: border-box; }
+  .desktopCompose { flex-shrink: 0; }
+}
+.desktopLayout--home-labels, .desktopLayout--home-community {
+  .desktopRail { padding: 14PX 10PX; }
+  .desktopBrand { flex-direction: row; justify-content: flex-start; align-items: center; gap: 8PX; padding: 6PX 8PX 22PX; font-size: 20PX; font-weight: 700; }
+  .desktopBrand text, .desktopNavItem text, .desktopCompose text { display: block; }
+  .desktopNav { gap: 8PX; }
+  .desktopNavItem { width: 100%; height: 44PX; display: flex; flex-direction: row; justify-content: flex-start; align-items: center; gap: 10PX; padding: 0 8PX; font-size: 14PX; color: var(--theme-text-sub, #50576a); }
+  .desktopNavItem--active { color: var(--theme-accent-text, #0754d7); }
+  .desktopNavIcon { width: 21PX; height: 21PX; flex-shrink: 0; }
+  .desktopUnreadDot { position: static; margin-left: auto; }
+  .desktopNavDivider { margin: 18PX 6PX; }
+  .desktopNavCaption { display: block; padding: 0 8PX 8PX; font-size: 12PX; color: var(--theme-text-muted, #656c7e); }
+  .desktopCompose { flex-direction: row; width: 100%; height: 44PX; gap: 8PX; font-size: 14PX; color: #fff; }
+}

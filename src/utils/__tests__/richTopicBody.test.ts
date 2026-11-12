@@ -7,6 +7,13 @@ import { sanitizeTopicDelta } from '../topicDocumentSanitizer';
 import { serializeTopicDocumentHtml } from '../topicDocument';
 
 const h = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], effects: [] as any[], cursor: 0, refCursor: 0, context: null as any, theme: 'light' as 'light' | 'dark', account: 'tester' }));
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, true);
+});
 vi.mock('react', () => ({
   useState(initial: any) { const i = h.cursor++; const state = h.state; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial; return [state[i], (v: any) => { state[i] = typeof v === 'function' ? v(state[i]) : v; }]; },
   useRef(initial: any) { return h.refs[h.refCursor++] ??= { current: initial }; },

@@ -10,6 +10,11 @@ import Me from '../../me';
 import UserProfilePage from '../../user';
 import { THEME_PALETTES } from '../../../utils/themePreferences';
 const runtime = vi.hoisted(() => ({ account: 'fixture', routeUsername: 'other', theme: 'light' as 'light' | 'dark', refs: [] as any[], cursor: 0, effects: [] as any[], hide: undefined as (() => void) | undefined, profile: null as any, fresh: vi.fn() }));
+vi.mock("../../../hooks/usePageScope", async () => {
+  const module = await import("@tarojs/taro");
+  const { legacyPageScopeMock } = await import("../../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
+});
 vi.mock('react', () => ({ useMemo: (compute: () => unknown) => compute(), useRef: (value: any) => { const i = runtime.cursor++; if (!(i in runtime.refs)) runtime.refs[i] = { current: value }; return runtime.refs[i]; }, useEffect: (fn: any) => runtime.effects.push(fn), useSyncExternalStore: (_: any, snapshot: any) => snapshot() }));
 vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', ScrollView: 'ScrollView', Picker: 'Picker', Image: 'Image' }));
 vi.mock('@tarojs/taro', () => ({ default: { navigateTo: vi.fn(), enableAlertBeforeUnload: vi.fn(), disableAlertBeforeUnload: vi.fn(), showModal: vi.fn(), showToast: vi.fn(), eventCenter: { trigger: vi.fn(), on: vi.fn(), off: vi.fn() } }, useRouter: () => ({ params: { username: runtime.routeUsername } }), useDidShow: () => {}, useDidHide: (callback: () => void) => { runtime.hide = callback; } }));

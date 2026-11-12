@@ -4,6 +4,13 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Navbar from '../../components/Navbar';
 
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, false);
+});
 vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', ShareElement: 'ShareElement' }));
 vi.mock('@tarojs/taro', () => ({ default: { useRouter: () => ({ params: {} }) } }));
 vi.mock('../../hooks/useTheme', () => ({ useTheme: () => ({ theme: 'dark' }) }));

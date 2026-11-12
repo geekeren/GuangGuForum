@@ -43,6 +43,19 @@ function seedHtml(key: string, html: string) {
 const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 afterEach(() => vi.useRealTimers());
 
+describe("request query ownership", () => {
+  it("filters empty query values without mutating a frozen caller object", async () => {
+    const query = Object.freeze({ p: "2", tab: "", missing: undefined });
+    await rawRequest("/node/city", { query });
+    expect(query).toEqual({ p: "2", tab: "", missing: undefined });
+    expect(Taro.request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: `${URLS.ROOT_URL.replace(/\/$/, "")}/node/city?p=2`,
+      }),
+    );
+  });
+});
+
 describe("HTML cache authentication", () => {
   it("ignores old-account background responses after account switching", async () => {
     seedHtml(htmlKey("/node/city"), loggedIn);

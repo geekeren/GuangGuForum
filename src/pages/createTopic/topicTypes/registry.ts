@@ -25,6 +25,7 @@ export interface TopicTypeDefinition {
 }
 
 export interface RenderFormContext {
+  renderer?: "skyline" | "webview";
   fields: Record<string, any>;
   setField: (key: string, value: any) => void;
   title: string;

@@ -1,6 +1,6 @@
 import { Text, View } from '@tarojs/components';
-import Taro from '@tarojs/taro';
 import { useEffect, useState } from 'react';
+import { usePageNavigation } from "../../hooks/usePageScope";
 import UserAvatar from '../UserAvatar';
 import { getCachedUsername } from '../../utils/currentUser';
 import { getLocalRecentlyViewedTopics, subscribeRecentlyViewedTopics } from '../../utils/recentlyViewedTopics';
@@ -8,6 +8,7 @@ import { usePageRenderer } from '../../hooks/usePageRenderer';
 import './index.scss';
 
 export default function RecentlyViewedTopics({ username, active }: { username: string; active: boolean }) {
+  const pageNavigation = usePageNavigation();
   const [snapshot, setSnapshot] = useState(() => ({ account: username, topics: getLocalRecentlyViewedTopics(username) }));
   useEffect(() => {
     const update = () => {
@@ -27,8 +28,9 @@ export default function RecentlyViewedTopics({ username, active }: { username: s
       <Text className='recentViewedSummary'>{topics.length ? `${topics.length} 条 · 最多保留 200 条` : '最多保留 200 条浏览记录'}</Text>
     </View>
     {topics.length ? topics.map(topic => <View className='recentViewedItem' key={topic.tid} onClick={() => {
-      if (getCachedUsername() === username) void Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${topic.tid}` });
-    }}>
+      if (getCachedUsername() === username) void pageNavigation.navigateTo({ url: `/pages/topicDetail/index?tid=${topic.tid}` });
+    }}
+    >
       <UserAvatar src={topic.avatarUrl} username={topic.author} size={54} />
       <View className='recentViewedItemBody'>
         <Text className='recentViewedTitle' {...(skyline ? { maxLines: 2, overflow: 'ellipsis' } as const : {})}>{topic.title}</Text>

@@ -11,6 +11,18 @@ import { photoAttachment, stickerAttachment, type CommentAttachment } from "../c
 import { isImageCompressionEnabled } from '../imageCompressionPreferences';
 
 const harness = vi.hoisted(() => ({ state: [] as any[], cursor: 0, refs: [] as any[], refCursor: 0, bound: true }));
+vi.mock("../../hooks/usePageRenderer", async () => {
+  const renderer = await import("../renderer");
+  const usePageRenderer = () => "isSkyline" in renderer && renderer.isSkyline() ? "skyline" : "webview";
+  return { PageRendererContext: undefined, usePageRenderer, usePageScrollViewType: () => usePageRenderer() === "skyline" ? "custom" : undefined };
+});
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, false);
+});
 vi.mock("react", () => ({
   useEffect: () => {},
   useRef: (initial: any) => { const i = harness.refCursor++; if (!(i in harness.refs)) harness.refs[i] = { current: initial }; return harness.refs[i]; },
@@ -358,18 +370,18 @@ describe("Skyline comment sheet with WebView fallback", () => {
     find(render(), "MentionTextarea").onKeyboardHeightChange({ detail: { height: -1 } });
     expect(find(render(), "commentPopupBody").style.bottom).toBe("0px");
   });
-  it("keeps WebView's native adjust-position and CSS sheet layout", () => {
+  it("keeps WebView's native adjust-position with page-scoped sheet geometry", () => {
     vi.mocked(isSkyline).mockReturnValue(false);
     const tree = render();
     expect(tree.props.className).not.toContain("--skyline");
-    expect(tree.props.style).toBeUndefined();
-    expect(find(tree, "commentPopupBody").style).toBeUndefined();
+    expect(tree.props.style).toEqual({ width: "390px", height: "844px" });
+    expect(find(tree, "commentPopupBody").style).toEqual({ bottom: "0px", paddingBottom: "calc(24rpx + 34px)", maxHeight: "844px" });
     const input = find(tree, "MentionTextarea");
     expect(input.adjustPosition).toBe(true);
     expect(input.cursorSpacing).toBe(100);
     input.onKeyboardHeightChange({ detail: { height: 336 } });
-    expect(find(render(), "commentPopupBody").style).toBeUndefined();
-    expect(Taro.getWindowInfo).not.toHaveBeenCalled();
+    expect(find(render(), "commentPopupBody").style).toEqual({ bottom: "336px", paddingBottom: "calc(24rpx + 0px)", maxHeight: "508px" });
+    expect(Taro.getWindowInfo).toHaveBeenCalled();
   });
   it("passes draft and whole-mention changes through without changing backend format", () => {
     const input = find(render(), "MentionTextarea");

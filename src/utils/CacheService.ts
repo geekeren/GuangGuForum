@@ -1,68 +1,29 @@
 import Taro from "@tarojs/taro";
 import type { ICacheService } from "guanggu-forum-api";
 import TopicFileCache, { isTopicFileKey } from "./TopicFileCache";
-import { expirationFor, evictionComparator, STORAGE_HIGH_WATER, STORAGE_LOW_WATER, utf8Size } from "./cachePolicy";
+import {
+  expirationFor,
+  evictionComparator,
+  isLegacyBusinessKey,
+  isSystemKey,
+  STORAGE_HIGH_WATER,
+  STORAGE_LOW_WATER,
+  utf8Size,
+} from "./cachePolicy";
 import { invalidateCurrentAccount } from "./currentAccountEvents";
+import { CacheCategory, CATEGORY_LABELS } from "./cacheMetadata";
+import type { CachePriority, CacheMeta, CategoryStats } from "./cacheMetadata";
+
+export { CacheCategory } from "./cacheMetadata";
+export type { CacheMeta, CategoryStats } from "./cacheMetadata";
 
 const META_PREFIX = "__cache_meta_";
 const INDEX_KEY = "__cache_index__";
 const LAST_CLEANUP_KEY = "__cache_cleanup_date__";
 const DEFAULT_MAX_ENTRIES = 1000;
 
-type CachePriority = "low" | "normal" | "high";
-
-export enum CacheCategory {
-  Topic = "topic",
-  Node = "node",
-  User = "user",
-  Link = "link",
-  System = "system",
-  Other = "other",
-}
-
-const CATEGORY_LABELS: Record<CacheCategory, string> = {
-  [CacheCategory.Topic]: "帖子缓存",
-  [CacheCategory.Node]: "节点缓存",
-  [CacheCategory.User]: "用户主页缓存",
-  [CacheCategory.Link]: "链接预览",
-  [CacheCategory.System]: "系统数据",
-  [CacheCategory.Other]: "其他",
-};
-
 const NON_CLEARABLE_CATEGORIES = new Set<CacheCategory>([CacheCategory.System]);
 export const CACHE_UPGRADE_VERSION = "2026-11-01-v3";
-
-const SYSTEM_STORAGE_KEYS = new Set([
-  "cookies", "current_username", "saved_accounts", "search_preferences", "search_history",
-  "add_to_desktop_already_added", "theme_preference", "comment_emoji_usage", "image_compression_enabled",
-  "commentSortAsc",
-]);
-const AUTH_STORAGE_KEY = /(?:^|[_-])(?:cookies?|password|passwd|pwd|tokens?|session|credentials?|secret|private[_-]?key)(?:$|[_-])/i;
-const LEGACY_BUSINESS_KEYS = new Set(["node_navigation", "legacy_node_navigation", "topic_index"]);
-
-function isSystemKey(key: string): boolean {
-  return SYSTEM_STORAGE_KEYS.has(key) || key.startsWith("cache_upgrade_") || key.startsWith("recent_viewed_topics_v1_") || AUTH_STORAGE_KEY.test(key);
-}
-
-function isLegacyBusinessKey(key: string): boolean {
-  return key.startsWith("html_") || key.startsWith("link_html_") || LEGACY_BUSINESS_KEYS.has(key);
-}
-
-export interface CacheMeta {
-  key: string;
-  size: number;
-  createdAt: number;
-  expiresAt: number;
-  priority: CachePriority;
-  category: CacheCategory;
-}
-
-export interface CategoryStats {
-  category: CacheCategory;
-  label: string;
-  count: number;
-  size: number;
-}
 
 interface CacheIndex {
   keys: string[];

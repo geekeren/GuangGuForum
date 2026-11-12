@@ -5,6 +5,13 @@ import Home from "../../pages/home";
 import TopicList from "../../pages/home/topics/topicList";
 import { getBottomSafeAreaInset } from "../dimension";
 
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, false);
+});
 vi.mock("@tarojs/taro", () => ({
   default: {
     getWindowInfo: vi.fn(() => ({ screenHeight: 844, windowWidth: 390, safeArea: { bottom: 810 } })),

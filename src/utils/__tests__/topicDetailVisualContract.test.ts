@@ -5,6 +5,13 @@ import TopicDetail from "../../pages/topicDetail";
 import CommentComposer from "../../pages/topicDetail/CommentComposer";
 
 const harness = vi.hoisted(() => ({ state: [] as any[], cleanups: [] as any[], cursor: 0, skyline: true, sortAsc: false, level: undefined as string | undefined }));
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, false);
+});
 vi.mock("react", () => ({
   useState: (initial: any) => {
     const index = harness.cursor++;
@@ -24,6 +31,8 @@ vi.mock("guanggu-forum-api", () => ({
   getTopicDetail: vi.fn(), commentUpvote: vi.fn(), createNewComment: vi.fn(), URLS: {},
   urlPathVaiable: () => () => ({ params: { node: "tech" } }),
 }));
+vi.mock("../../hooks/usePageRenderer", () => ({ usePageRenderer: () => harness.skyline ? "skyline" : "webview" }));
+vi.mock("../../hooks/useViewport", () => ({ useViewport: () => ({ width: 375, height: 667, isDesktop: false }) }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
 vi.mock("../renderer", () => ({ isSkyline: () => harness.skyline, getScrollViewType: () => 'custom' }));
 vi.mock("../../hooks/useDataWithCache", () => ({

@@ -1,6 +1,7 @@
 import { Editor, Text, View } from '@tarojs/components';
-import Taro from '@tarojs/taro';
 import { useEffect, useImperativeHandle, useRef, useState, type RefObject } from 'react';
+import { usePageOwner } from "../../hooks/usePageScope";
+import { createPageSelectorQuery } from "../../utils/pageScope";
 import MentionTextarea from '../../components/MentionTextarea';
 import { getCachedUsername } from '../../utils/currentUser';
 import { useTheme } from '../../hooks/useTheme';
@@ -43,6 +44,7 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 
 export default function RichTopicBody(props: Props) {
+  const owner = usePageOwner();
   const { theme } = useTheme();
   const id = useRef(`topic-native-editor-${++nextEditorId}`);
   const initial = useRef(importTopicMarkdown(props.value));
@@ -287,7 +289,7 @@ export default function RichTopicBody(props: Props) {
   const onReady = () => {
     readyRef.current = false;
     publishFormatStatus(EMPTY_FORMAT_STATUS);
-    Taro.createSelectorQuery().select(`#${id.current}`).context(result => {
+    createPageSelectorQuery(owner).select(`#${id.current}`).context(result => {
       if (!active.current || !result.context) return;
       const ctx = createNativeEditorAdapter(result.context as NativeEditorContext, () => active.current);
       const version = boundary.current;
@@ -348,7 +350,8 @@ export default function RichTopicBody(props: Props) {
       onInput={event => { lastValue.current = event.detail.value; lastDocument.current = undefined; setNotice(importTopicMarkdown(event.detail.value).lossless ? '' : SOURCE_NOTICE); props.onChange(event.detail.value, undefined); }}
     />
       : <View className='topicNativeBodyTarget' onTouchStart={handleBodyTouchStart}
-          onTouchMove={() => cancelBodyTap()} onTouchCancel={() => cancelBodyTap(true)} onClick={handleBodyTap}>
+          onTouchMove={() => cancelBodyTap()} onTouchCancel={() => cancelBodyTap(true)} onClick={handleBodyTap}
+      >
         {/* WeChat's Editor template binds tap, but no touch start/move/cancel.
             Observe the bubbling gesture on View; never capture it from Editor. */}
         <Editor id={id.current} className='topicNativeEditor' style={{ color: THEME_PALETTES[theme]['text-primary'] }} placeholder={props.placeholder} readOnly={props.disabled || !ready}

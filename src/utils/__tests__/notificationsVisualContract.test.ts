@@ -12,6 +12,16 @@ const harness = vi.hoisted(() => ({
   notifications: undefined as any, loading: false, unread: 0,
   groups: [] as any[], request: vi.fn(), retry: vi.fn(),
 }));
+vi.mock("../../hooks/usePageRenderer", async () => {
+  const renderer = await import("../renderer");
+  const usePageRenderer = () => "isSkyline" in renderer && renderer.isSkyline() ? "skyline" : "webview";
+  return { PageRendererContext: undefined, usePageRenderer, usePageScrollViewType: () => usePageRenderer() === "skyline" ? "custom" : undefined };
+});
+vi.mock("../../hooks/usePageScope", async () => {
+  const module = await import("@tarojs/taro");
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
+});
 vi.mock("react", async (original) => ({
   ...await original<any>(),
   useState: (initial: any) => {

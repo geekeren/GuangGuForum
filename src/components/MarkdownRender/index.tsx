@@ -1,6 +1,7 @@
 import { View, Text, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useMemo } from "react";
+import { usePageOwner } from "../../hooks/usePageScope";
 import { linkHandler } from "../../utils/linkHandler";
 import "./index.scss";
 
@@ -222,6 +223,7 @@ function parseMarkdown(md: string): MdNode[] {
 }
 
 function RenderInlineNodes({ nodes }: { nodes: MdNode[] }) {
+  const owner = usePageOwner();
   return (
     <>
       {nodes.map((node, i) => {
@@ -230,29 +232,29 @@ function RenderInlineNodes({ nodes }: { nodes: MdNode[] }) {
             return <Text key={i}>{node.value}</Text>;
           case "bold":
             return (
-              <Text key={i} className="md-bold">
+              <Text key={i} className='md-bold'>
                 <RenderInlineNodes nodes={node.children} />
               </Text>
             );
           case "italic":
             return (
-              <Text key={i} className="md-italic">
+              <Text key={i} className='md-italic'>
                 <RenderInlineNodes nodes={node.children} />
               </Text>
             );
           case "strikethrough":
             return (
-              <Text key={i} className="md-strikethrough">
+              <Text key={i} className='md-strikethrough'>
                 <RenderInlineNodes nodes={node.children} />
               </Text>
             );
           case "code":
-            return <Text key={i} className="md-inline-code">{node.value}</Text>;
+            return <Text key={i} className='md-inline-code'>{node.value}</Text>;
           case "link": {
             const hasImage = node.children.some((c) => c.type === "image");
             if (hasImage) {
               return (
-                <View key={i} className="md-linked-image" onClick={() => linkHandler(node.href)}>
+                <View key={i} className='md-linked-image' onClick={() => linkHandler(node.href, owner)}>
                   <RenderInlineNodes nodes={node.children} />
                 </View>
               );
@@ -260,8 +262,8 @@ function RenderInlineNodes({ nodes }: { nodes: MdNode[] }) {
             return (
               <Text
                 key={i}
-                className="md-link"
-                onClick={() => linkHandler(node.href)}
+                className='md-link'
+                onClick={() => linkHandler(node.href, owner)}
               >
                 <RenderInlineNodes nodes={node.children} />
               </Text>
@@ -271,9 +273,9 @@ function RenderInlineNodes({ nodes }: { nodes: MdNode[] }) {
             return (
               <Image
                 key={i}
-                className="md-image"
+                className='md-image'
                 src={node.src}
-                mode="widthFix"
+                mode='widthFix'
                 onClick={() => Taro.previewImage({ urls: [node.src] })}
               />
             );
@@ -298,33 +300,33 @@ function RenderNodes({ nodes }: { nodes: MdNode[] }) {
             );
           case "paragraph":
             return (
-              <View key={i} className="md-paragraph">
+              <View key={i} className='md-paragraph'>
                 <RenderInlineNodes nodes={node.children} />
               </View>
             );
           case "hr":
-            return <View key={i} className="md-hr" />;
+            return <View key={i} className='md-hr' />;
           case "blockquote":
             return (
-              <View key={i} className="md-blockquote">
+              <View key={i} className='md-blockquote'>
                 <RenderNodes nodes={node.children} />
               </View>
             );
           case "codeBlock":
             return (
-              <View key={i} className="md-code-block">
-                <Text className="md-code-text">{node.value}</Text>
+              <View key={i} className='md-code-block'>
+                <Text className='md-code-text'>{node.value}</Text>
               </View>
             );
           case "list":
             return (
-              <View key={i} className="md-list">
+              <View key={i} className='md-list'>
                 {node.items.map((item, j) => (
-                  <View key={j} className="md-list-item">
-                    <Text className="md-list-bullet">
+                  <View key={j} className='md-list-item'>
+                    <Text className='md-list-bullet'>
                       {node.ordered ? `${j + 1}.` : "•"}
                     </Text>
-                    <View className="md-list-content">
+                    <View className='md-list-content'>
                       <RenderInlineNodes nodes={item} />
                     </View>
                   </View>
@@ -333,16 +335,16 @@ function RenderNodes({ nodes }: { nodes: MdNode[] }) {
             );
           case "table":
             return (
-              <View key={i} className="md-table">
-                <View className="md-table-header">
+              <View key={i} className='md-table'>
+                <View className='md-table-header'>
                   {node.headers.map((h, j) => (
-                    <Text key={j} className="md-table-cell md-table-header-cell">{h}</Text>
+                    <Text key={j} className='md-table-cell md-table-header-cell'>{h}</Text>
                   ))}
                 </View>
                 {node.rows.map((row, j) => (
-                  <View key={j} className="md-table-row">
+                  <View key={j} className='md-table-row'>
                     {row.map((cell, k) => (
-                      <Text key={k} className="md-table-cell">{cell}</Text>
+                      <Text key={k} className='md-table-cell'>{cell}</Text>
                     ))}
                   </View>
                 ))}
@@ -360,7 +362,7 @@ const MarkdownRender = ({ content }: MarkdownRenderProps) => {
   const nodes = useMemo(() => parseMarkdown(content), [content]);
 
   return (
-    <View className="markdown-body">
+    <View className='markdown-body'>
       <RenderNodes nodes={nodes} />
     </View>
   );

@@ -1,21 +1,18 @@
-import { usePageScrollViewType } from "../../../hooks/usePageRenderer";
 import { useEffect, useRef, useState } from "react";
-import {
-  getHotNodes,
-  getNodeTopics,
-  getRecentTopics,
-  GetTopicsParam,
-} from "guanggu-forum-api";
-import "./index.scss";
-
-import TopicList from "./topicList";
 import Taro from "@tarojs/taro";
 import { ScrollView, Text, View } from "@tarojs/components";
-import { rpxToPx } from "../../../utils/dimension";
+import { getHotNodes, getNodeTopics, getRecentTopics, GetTopicsParam } from "guanggu-forum-api";
+import { usePageScrollViewType } from "../../../hooks/usePageRenderer";
+import { usePageScope } from "../../../hooks/usePageScope";
+import { createPageSelectorQuery, nextTickForPage } from "../../../utils/pageScope";
 import { fetchAndCacheNodeNavigation } from "../../../utils/nodeNavigation";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
+import { useViewport } from "../../../hooks/useViewport";
+import { getHomeRailMode } from "../../../components/DesktopLayout/homeRailLayout";
 import { useTheme } from "../../../hooks/useTheme";
 import { THEME_PALETTES } from "../../../utils/themePreferences";
+import TopicList from "./topicList";
+import "./index.scss";
 
 interface TabConfig {
   title: string;
@@ -30,8 +27,12 @@ const defaultTabs: TabConfig[] = [
   { title: "我的关注", type: "interest" },
 ];
 
-export default function Topics({ initialTab, active = true }: { initialTab?: string; active?: boolean }) {
+export default function Topics({ initialTab, selectionRequest = 0, active = true }: { initialTab?: string; selectionRequest?: number; active?: boolean }) {
+  const pageScope = usePageScope();
+  const owner = pageScope.owner;
   const scrollViewType = usePageScrollViewType();
+  const { width, height, isDesktop } = useViewport();
+  const homeRailMode = getHomeRailMode(pageScope.viewport.isDesktopClient, width);
   const { theme } = useTheme();
   const palette = THEME_PALETTES[theme];
   const initialTabIndex = initialTab === "interest" ? 3 : 0;
@@ -64,23 +65,29 @@ export default function Topics({ initialTab, active = true }: { initialTab?: str
     if (hotNodesData) setTabs(toTabs(hotNodesData));
   }, [hotNodesData]);
 
-  // A lazy-mounted tab can miss page Ready; measure only after it becomes visible.
-  useEffect(() => {
+  // A lazy-mounted tab can miss page Ready. Rail density changes can resize/wrap
+  // this container even when device identity changes without a new page width.
+  useEffect(function measureTopicPane() {
     if (!active) return;
     let cancelled = false;
-    Taro.nextTick(() => {
+    nextTickForPage(owner, () => {
       if (cancelled) return;
-      Taro.createSelectorQuery()
-        .select(`#list_container`)
-        .boundingClientRect((res) => {
-          if (!cancelled && res?.height) setTabPaneHeight(Math.max(0, res.height - rpxToPx(76)));
-        })
-        .exec();
+      let containerHeight = 0;
+      const query = createPageSelectorQuery(owner);
+      query.select('#list_container').boundingClientRect((res) => { const rect = Array.isArray(res) ? res[0] : res; containerHeight = rect?.height || 0; });
+      query.select('#topics_layout_header').boundingClientRect((res) => {
+        if (!cancelled && containerHeight) {
+          const rect = Array.isArray(res) ? res[0] : res;
+          const headerHeight = rect?.height || (isDesktop ? 54 : 76 * width / 750);
+          setTabPaneHeight(Math.max(0, containerHeight - headerHeight));
+        }
+      });
+      query.exec();
     });
     return () => { cancelled = true; };
-  }, [active]);
+  }, [active, width, height, isDesktop, homeRailMode, owner]);
 
-  useEffect(() => {
+  useEffect(function subscribeToPublishedTopics() {
     const handler = () => {
       setPublishGeneration((generation) => generation + 1);
       setRefreshKey((k) => k + 1);
@@ -98,14 +105,14 @@ export default function Topics({ initialTab, active = true }: { initialTab?: str
     }
     lastTapTime.current = now;
 
-    Taro.nextTick(() => {
-      Taro.createSelectorQuery()
+    nextTickForPage(owner, () => {
+      createPageSelectorQuery(owner)
         .select(`#tab_${value}`)
         .boundingClientRect();
-      Taro.createSelectorQuery()
+      createPageSelectorQuery(owner)
         .select(".tab-scroll")
         .boundingClientRect((scrollRect: any) => {
-          Taro.createSelectorQuery()
+          createPageSelectorQuery(owner)
             .select(`#tab_${value}`)
             .boundingClientRect((tabRect: any) => {
               if (scrollRect && tabRect) {
@@ -128,53 +135,55 @@ export default function Topics({ initialTab, active = true }: { initialTab?: str
     }
   };
 
-  useEffect(() => {
+  useEffect(function syncTopicSelection() {
     if (initialTab !== "interest") return;
     handleClick(3);
-  }, [initialTab]);
+  }, [initialTab, selectionRequest]);
 
   const activeTabs = tabs ?? defaultTabs;
 
   return (
     <View
-      id="list_container"
-      className="topicsContainer"
+      id='list_container'
+      className='topicsContainer'
     >
-      <View className="tab-header">
-        <ScrollView
-          type={scrollViewType}
-          scrollX
-          enableFlex
-          style={{ flexDirection: 'row' }}
-          className="tab-scroll"
-          scrollWithAnimation
-          scrollIntoView={scrollIntoView}
-        >
-          {/* Keep pill colors together inside ScrollView instead of inheriting a mixed theme cascade. */}
-          {activeTabs.map((tab, index) => {
-            const selected = index === currentTabIndex;
-            const color = selected ? "#fff" : palette["text-primary"];
-            return (
-              <View
-                id={`tab_${index}`}
-                key={`${tab.type}_${tab.node || ''}_${index}`}
-                className={`tab-item ${selected ? 'tab-item--active' : ''}`}
-                style={{
-                  color,
-                  background: selected
-                    ? theme === "dark" ? palette["tab-active-background"] : "linear-gradient(150deg, #4b8cff, #0754ee)"
-                    : theme === "dark" ? palette["tab-inactive-background"] : "rgba(255, 255, 255, 0.78)",
-                  border: theme === "dark" ? `1rpx solid ${selected ? "transparent" : palette["border-subtle"]}` : "none",
-                  lineHeight: theme === "dark" ? "52rpx" : "54rpx",
-                  boxShadow: theme === "dark" ? "none" : selected ? "0 4rpx 12rpx rgba(31, 105, 255, 0.15)" : palette["shadow-sm"],
-                }}
-                onClick={() => handleClick(index)}
-              >
-                <Text style={{ color }}>{tab.title}</Text>
-              </View>
-            );
-          })}
-        </ScrollView>
+      <View id='topics_layout_header' className='topicsLayoutHeader'>
+        <View className='tab-header'>
+          <ScrollView
+            type={scrollViewType}
+            scrollX
+            enableFlex
+            style={{ flexDirection: 'row' }}
+            className='tab-scroll'
+            scrollWithAnimation
+            scrollIntoView={scrollIntoView}
+          >
+            {/* Keep pill colors together inside ScrollView instead of inheriting a mixed theme cascade. */}
+            {activeTabs.map((tab, index) => {
+              const selected = index === currentTabIndex;
+              const color = selected ? "#fff" : palette["text-primary"];
+              return (
+                <View
+                  id={`tab_${index}`}
+                  key={`${tab.type}_${tab.node || ''}_${index}`}
+                  className={`tab-item ${selected ? 'tab-item--active' : ''}`}
+                  style={{
+                    color,
+                    background: selected
+                      ? theme === "dark" ? palette["tab-active-background"] : "linear-gradient(150deg, #4b8cff, #0754ee)"
+                      : theme === "dark" ? palette["tab-inactive-background"] : "rgba(255, 255, 255, 0.78)",
+                    border: theme === "dark" ? `1rpx solid ${selected ? "transparent" : palette["border-subtle"]}` : "none",
+                    lineHeight: isDesktop ? "34px" : theme === "dark" ? "52rpx" : "54rpx",
+                    boxShadow: theme === "dark" ? "none" : selected ? "0 4rpx 12rpx rgba(31, 105, 255, 0.15)" : palette["shadow-sm"],
+                  }}
+                  onClick={() => handleClick(index)}
+                >
+                  <Text style={{ color }}>{tab.title}</Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
       </View>
       {activeTabs.map((tab, index) => (
         <View
@@ -184,6 +193,7 @@ export default function Topics({ initialTab, active = true }: { initialTab?: str
         >
           {loadedTabs[index] && (
             <TopicList
+              pageScope={pageScope}
               key={`${tab.type}_${tab.node || ''}_${index}_${refreshKey}`}
               ref={(el) => { if (el) listRefs.current[index] = el; }}
               cacheKey={

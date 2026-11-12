@@ -1,4 +1,5 @@
 import Taro from "@tarojs/taro";
+import { createPageNavigation, type PageOwner } from "./pageScope";
 
 const GUOZAOKE_HOSTS = ["www.guozaoke.com", "guozaoke.com"];
 
@@ -31,7 +32,8 @@ function resolveGuozaokeLink(pathname: string): string | null {
   return null;
 }
 
-export function linkHandler(href: string) {
+export function linkHandler(href: string, owner?: PageOwner) {
+  const navigation = createPageNavigation(owner);
   if (!href) return;
 
   try {
@@ -40,10 +42,10 @@ export function linkHandler(href: string) {
     if (GUOZAOKE_HOSTS.includes(parsed.hostname)) {
       const miniPath = resolveGuozaokeLink(parsed.pathname);
       if (miniPath) {
-        Taro.navigateTo({ url: miniPath });
+        navigation.navigateTo({ url: miniPath });
         return;
       } else {
-        Taro.navigateTo({
+        navigation.navigateTo({
           url: `/pages/webview/index?url=${encodeURIComponent(href)}`,
         });
       }
@@ -52,20 +54,22 @@ export function linkHandler(href: string) {
     const entry = DOMAIN_WHITELIST[parsed.hostname];
     const isSummary = entry?.mode === "summary";
     if (entry?.mode === "webview") {
-      Taro.navigateTo({
+      navigation.navigateTo({
         url: `/pages/webview/index?url=${encodeURIComponent(href)}`,
       });
     } else {
-      wx.navigateTo({
+      const options = {
         url: `/pages/linkPreview/index?url=${encodeURIComponent(href)}`,
         routeType: "wx://bottom-sheet",
         routeOptions: { height: isSummary ? "75%" : "40%" },
-      });
+      };
+      if (owner) void navigation.navigateTo(options);
+      else wx.navigateTo(options);
     }
   } catch {
     const miniPath = resolveGuozaokeLink(href);
     if (miniPath) {
-      Taro.navigateTo({ url: miniPath });
+      navigation.navigateTo({ url: miniPath });
     } else {
       Taro.setClipboardData({ data: href });
     }

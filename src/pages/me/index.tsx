@@ -1,22 +1,23 @@
-import { usePageScrollViewType } from "../../hooks/usePageRenderer";
 import { View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useRef } from "react";
 import { getUserProfile } from "guanggu-forum-api";
+import { ChevronRight as ArrowRightIcon , Settings as SettingsIcon } from "gzk-ui/icons";
+import { usePageNavigation } from "../../hooks/usePageScope";
+import { usePageScrollViewType } from "../../hooks/usePageRenderer";
 import Loading from "../../components/Loading";
 import "./index.scss";
 import UserProfileDetail from "../../components/UserProfileDetail";
 import LoginPrompt from "../../components/LoginPrompt";
 import Navbar from "../../components/Navbar";
 import { useCurrentUsername } from "../../hooks/useCurrentUsername";
-import { ChevronRight as ArrowRightIcon } from "gzk-ui/icons";
 import { getCachedUsername } from '../../utils/currentUser';
-import { Settings as SettingsIcon } from "gzk-ui/icons";
 import ThemedIcon from "../../components/ThemedIcon";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
 import { APP_ROUTES } from '../../utils/appRoutes';
 
 const Me = ({ active }: { active?: boolean }) => {
+  const pageNavigation = usePageNavigation();
   const scrollViewType = usePageScrollViewType();
   const { username, loading: checkingLogin, error: loginError, retry } = useCurrentUsername(active);
   const { data: profile, request: fetchProfile, requestFresh: fetchFreshProfile } = useDataWithCache(getUserProfile);
@@ -55,7 +56,7 @@ const Me = ({ active }: { active?: boolean }) => {
       src={SettingsIcon}
       tone='secondary'
       lightColor='#000000'
-      onClick={() => Taro.navigateTo({ url: APP_ROUTES.settings })}
+      onClick={() => pageNavigation.navigateTo({ url: APP_ROUTES.settings })}
     />
   );
 
@@ -84,8 +85,9 @@ const Me = ({ active }: { active?: boolean }) => {
 
   const editAction = <ThemedIcon className='meProfileEditIcon' src={ArrowRightIcon} tone='secondary' lightColor='#000000'
     onClick={() => {
-      if (getCachedUsername() === username && ownProfile) void Taro.navigateTo({ url: APP_ROUTES.editProfile });
-    }} />;
+      if (getCachedUsername() === username && ownProfile) void pageNavigation.navigateTo({ url: APP_ROUTES.editProfile });
+    }}
+  />;
 
   return (
     <View className='meProfile meProfile--ready' style={{ height: '100%' }}>

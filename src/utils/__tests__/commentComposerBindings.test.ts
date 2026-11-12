@@ -1,6 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import CommentComposer from '../../pages/topicDetail/CommentComposer';
+vi.mock("../../hooks/usePageRenderer", async () => {
+  const renderer = await import("../renderer");
+  const usePageRenderer = () => "isSkyline" in renderer && renderer.isSkyline() ? "skyline" : "webview";
+  return { PageRendererContext: undefined, usePageRenderer, usePageScrollViewType: () => usePageRenderer() === "skyline" ? "custom" : undefined };
+});
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, false);
+});
 vi.mock('react', () => ({ useState: (initial: any) => [typeof initial === 'function' ? initial() : initial, () => {}], useRef: (initial: any) => ({ current: initial }), useEffect: () => {} }));
 vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', Image: 'Image', ScrollView: 'ScrollView', Button: 'Button' }));
 vi.mock('@tarojs/taro', () => ({ default: { getWindowInfo: () => ({ windowWidth: 375, windowHeight: 800, screenHeight: 800 }) } }));

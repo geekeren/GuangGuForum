@@ -1,0 +1,70 @@
+.desktopLayout--wide {
+  .root { height: 100%; border-radius: 16PX; background: var(--theme-surface, #fff); }
+  .root .customNavbar, .root .bottomTab { display: none; }
+  .topicsLayoutHeader { flex-shrink: 0; }
+  .topicsContainer { padding: 0 16PX; box-sizing: border-box; }
+  .topicsContainer .tab-header { height: 54PX; padding: 8PX 0 12PX; }
+  .topicsContainer .tab-scroll { height: 34PX; padding: 0; }
+  .topicsContainer .tab-item { height: 34PX; padding: 0 14PX; margin-right: 8PX; font-size: 14PX; border-radius: 8PX; }
+  .topicsContainer .topicListTopSpacer { height: 4PX; }
+  .root.root--topics .topicsContainer .topicItem {
+    margin: 0;
+    padding: 20PX 6PX;
+    min-height: 96PX;
+    border: none;
+    border-bottom: 1PX solid var(--theme-border-subtle, #e3e9f5);
+    border-radius: 0;
+    .title { font-size: 17PX; }
+    .meta { margin-top: 12PX; }
+    .meta .left { gap: 10PX; margin-right: 10PX; }
+    .meta .categoryTag { max-width: 120PX; font-size: 12PX; padding: 3PX 8PX; border-radius: 6PX; }
+    .meta .categoryIcon { width: 14PX; height: 14PX; margin-right: 4PX; }
+    .meta .user { max-width: 180PX; }
+    .meta .user .avatar, .meta .user .avatar image { width: 20PX; height: 20PX; }
+    .meta .user .userAvatar { width: 20PX !important; height: 20PX !important; }
+    .meta .user .userName { margin-left: 6PX; font-size: 13PX; }
+    .meta .lastUpdateTime { font-size: 12PX; }
+    .meta .right { font-size: 13PX; }
+    .meta .commentIcon { width: 16PX; height: 16PX; margin-right: 6PX; }
+  }
+  .topicsContainer .homeAnnouncement {
+    margin: 4PX 0 12PX; padding: 14PX; border-radius: 10PX; min-height: 86PX;
+    .homeAnnouncementIllustration { width: 190PX; height: 78PX; }
+    .homeAnnouncementIconWrap, .homeAnnouncementIcon { width: 28PX; height: 28PX; }
+    .homeAnnouncementIconWrap { margin-right: 10PX; }
+    .homeAnnouncementTitle { font-size: 17PX; }
+    .homeAnnouncementSubtitle { font-size: 12PX; margin-top: 8PX; }
+  }
+  .homeDesktopSidebarScroll { height: 100%; }
+  .homeDesktopSidebarCard {
+    background: var(--theme-surface, #fff);
+    border: 1PX solid var(--theme-border-subtle, #e3e9f5);
+    border-radius: 14PX;
+    padding: 18PX 16PX;
+    margin-bottom: 16PX;
+  }
+  .homeDesktopSidebarHeader { display: flex; align-items: center; gap: 8PX; font-size: 16PX; font-weight: 600; margin-bottom: 16PX; }
+  .homeDesktopSidebarIcon { width: 20PX; height: 20PX; flex-shrink: 0; }
+  .homeDesktopSidebarMore { display: flex; align-items: center; margin-left: auto; font-size: 12PX; font-weight: 400; color: var(--theme-text-muted, #656c7e); cursor: pointer; }
+  .homeDesktopChevron { width: 14PX; height: 14PX; }
+  .homeDesktopHotTopic { display: flex; gap: 10PX; padding: 10PX 0; cursor: pointer; }
+  .homeDesktopRank { flex-shrink: 0; width: 20PX; height: 20PX; border-radius: 5PX; text-align: center; line-height: 20PX; font-size: 12PX; color: var(--theme-text-sub, #50576a); background: var(--theme-surface-soft, #f4f7ff); }
+  .homeDesktopRank--top { color: #fff; background: #f67b45; }
+  .homeDesktopHotTopicCopy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6PX; }
+  .homeDesktopHotTopicTitle { font-size: 14PX; line-height: 1.5; }
+  .homeDesktopHotTopicMeta { font-size: 12PX; color: var(--theme-text-muted, #656c7e); }
+  .homeDesktopSidebarStatus, .homeDesktopCommunityNote { display: block; font-size: 12PX; line-height: 1.6; color: var(--theme-text-muted, #656c7e); }
+  .homeDesktopSidebarStatus { padding-top: 8PX; }
+  .homeDesktopCommunityNote { padding: 0 4PX; }
+}
+
+.desktopLayout--home-community {
+  .homeRailNodes { margin-top: 20PX; padding-top: 16PX; border-top: 1PX solid var(--theme-border-subtle, #e3e9f5); }
+  .homeRailNodesHeader { display: flex; flex-direction: row; align-items: center; gap: 8PX; padding: 0 8PX 10PX; font-size: 13PX; font-weight: 600; color: var(--theme-text-sub, #50576a); }
+  .homeRailNodeIcon { width: 18PX; height: 18PX; flex-shrink: 0; }
+  .homeRailNode { display: flex; flex-direction: row; align-items: center; gap: 8PX; padding: 10PX 8PX; border-radius: 8PX; cursor: pointer; color: var(--theme-text-sub, #50576a); }
+  .homeRailNode:active { background: var(--theme-accent-muted, #e8efff); }
+  .homeRailNodeName { flex: 1; min-width: 0; font-size: 13PX; }
+  .homeRailNodeChevron { width: 14PX; height: 14PX; flex-shrink: 0; }
+  .homeRailNodesStatus { display: block; padding: 8PX; font-size: 12PX; line-height: 1.6; color: var(--theme-text-muted, #656c7e); }
+}

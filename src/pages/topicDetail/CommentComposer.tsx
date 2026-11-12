@@ -2,19 +2,13 @@ import { Image, ScrollView, Text, View } from "@tarojs/components";
 import { GzkButton as Button } from "gzk-ui/native-form";
 import Taro from "@tarojs/taro";
 import { useEffect, useRef, useState } from "react";
+import { Mention as MentionIcon , Emoji as EmojiIcon , Keyboard as KeyboardIcon , Collapse as CollapseIcon , Plus as AddIcon , Camera as CameraIcon , Photo as PhotoIcon , Star as FavoriteIcon } from "gzk-ui/icons";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
+import { usePageOwner, usePageWindowInfo } from "../../hooks/usePageScope";
 import MentionTextarea, { type MentionEditorHandle } from "../../components/MentionTextarea";
 import ThemedIcon from "../../components/ThemedIcon";
-import { isSkyline } from "../../utils/renderer";
 import { getCommentBody } from "../../utils/mentions";
 import type { CommentMentionBinding, CommentMentionTarget } from '../../utils/commentMentionBindings';
-import { Mention as MentionIcon } from "gzk-ui/icons";
-import { Emoji as EmojiIcon } from "gzk-ui/icons";
-import { Keyboard as KeyboardIcon } from "gzk-ui/icons";
-import { Collapse as CollapseIcon } from "gzk-ui/icons";
-import { Plus as AddIcon } from "gzk-ui/icons";
-import { Camera as CameraIcon } from "gzk-ui/icons";
-import { Photo as PhotoIcon } from "gzk-ui/icons";
-import { Star as FavoriteIcon } from "gzk-ui/icons";
 import { MAX_COMMENT_ATTACHMENTS, type Sticker } from "../../utils/stickers";
 import { getCommonEmojiUsage, recordCommentEmojiUsage } from "../../utils/emojiUsage";
 import ComposerEmojiPanel from '../../components/ComposerEmojiPanel';
@@ -24,6 +18,7 @@ import { ensureImageHostBound } from '../../utils/imageUploadGuard';
 
 interface Props {
   value: string;
+  desktop?: boolean;
   mentionUsers?: string[];
   mentionAvatars?: Record<string, string>;
   mentionTargets?: CommentMentionTarget[];
@@ -41,8 +36,10 @@ interface Props {
   onSend: () => void;
 }
 
-export default function CommentComposer({ value, mentionUsers, mentionAvatars, mentionTargets, onMentionInsert, topicAuthor, stickers = [], onStickersChange, photos = [], onPhotosChange, previewAttachments, onAttachmentsChange, sending, onChange, onClose, onSend }: Props) {
-  const skyline = isSkyline();
+export default function CommentComposer({ value, desktop = false, mentionUsers, mentionAvatars, mentionTargets, onMentionInsert, topicAuthor, stickers = [], onStickersChange, photos = [], onPhotosChange, previewAttachments, onAttachmentsChange, sending, onChange, onClose, onSend }: Props) {
+  const owner = usePageOwner();
+  const scopedWindowInfo = usePageWindowInfo();
+  const skyline = usePageRenderer() === "skyline";
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [activePanel, setActivePanel] = useState<'emoji' | 'more' | null>(null);
   const showEmojis = activePanel === 'emoji';
@@ -70,7 +67,7 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, m
   const previewCount = stickers.length + photos.length;
   const previewHeight = photos.length > 0 ? 200 : stickers.length > 0 ? 156 : 0;
   const canSend = !sending && previews.every(item => item.kind !== 'photo' || item.status === 'complete') && (bodyLength >= 3 || previewCount > 0);
-  const windowInfo = skyline ? Taro.getWindowInfo() : undefined;
+  const windowInfo = scopedWindowInfo;
   const safeBottom = windowInfo?.safeArea
     ? Math.max(0, windowInfo.screenHeight - windowInfo.safeArea.bottom) : 0;
 
@@ -94,7 +91,7 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, m
   const inputHeight = panelVisible ? lastKeyboardHeight.current : keyboardHeight;
   const bodyStyle = windowInfo ? {
     bottom: inputHeight + "px",
-    paddingBottom: `calc(24rpx + ${inputHeight > 0 ? 0 : safeBottom}px)`,
+    paddingBottom: `calc(${desktop ? "16px" : "24rpx"} + ${inputHeight > 0 ? 0 : safeBottom}px)`,
     maxHeight: Math.max(0, windowInfo.windowHeight - inputHeight) + "px",
   } : panelVisible ? { bottom: inputHeight + "px" } : undefined;
 
@@ -130,7 +127,7 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, m
     choosingPhoto.current = true;
     const compressionEnabled = isImageCompressionEnabled();
     try {
-      if (!await ensureImageHostBound(() => mounted.current)) return;
+      if (!await ensureImageHostBound(() => mounted.current, owner)) return;
       const result = await Taro.chooseMedia({ count: source === 'camera' ? 1 : remaining, mediaType: ['image'], sourceType: [source], sizeType: ['original'] });
       if (!mounted.current) return;
       const paths = result.tempFiles.map(file => file.tempFilePath).filter(Boolean);
@@ -186,20 +183,21 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, m
   };
 
   return (
-    <View className={`commentPopup commentPopup--visible${skyline ? " commentPopup--skyline" : ""}`} style={popupStyle}>
+    <View className={`commentPopup commentPopup--visible${skyline ? " commentPopup--skyline" : ""}${desktop ? " commentPopup--desktop" : ""}`} style={popupStyle}>
       <View className='commentPopupMask' onClick={onClose} />
       <View className='commentPopupBody' style={bodyStyle}>
         <View className='commentPopupHandle' />
-        <View className='commentPopupAttachmentRegion' style={{ height: previewHeight + 'rpx' }}>
+        <View className='commentPopupAttachmentRegion' style={{ height: (desktop ? Math.min(previewHeight, 112) + 'px' : previewHeight + 'rpx') }}>
           {previewCount > 0 && <ScrollView type={skyline ? 'custom' : undefined} scrollX scrollIntoView={`comment-preview-${previews[previews.length - 1].id}`} scrollWithAnimation className='commentStickerPreviews' {...{ 'keyboard-dismiss-mode': 'none' }}>
-            <View className='commentStickerPreviewTrack' style={{ width: previewCount * 144 + 'rpx' }}>
+            <View className='commentStickerPreviewTrack' style={{ width: previewCount * (desktop ? 92 : 144) + (desktop ? 'px' : 'rpx') }}>
               {previews.map((item, index) => <View className={`commentStickerPreview${item.kind === 'photo' ? ' commentPopupPhotoPreview' : ''}`} id={`comment-preview-${item.id}`} key={item.id}>
                 <Image src={item.kind === 'photo' ? item.path : item.sticker.url} mode='aspectFit' className='commentStickerPreviewImage' />
                 {item.kind === 'photo' && item.status !== 'complete' && <View className='commentPhotoUploadOverlay'
                   onClick={() => {
                     if (item.status !== 'failed' || !onAttachmentsChange) return;
                     onAttachmentsChange(previews.map(entry => entry.id === item.id && entry.kind === 'photo' ? { ...entry, status: 'queued', error: undefined } : entry));
-                  }}>
+                  }}
+                >
                   {item.status !== 'failed' && <View className='commentPhotoUploadSpinner' />}
                   <Text className='commentPhotoUploadLabel'>{item.status === 'failed' ? '失败 · 点击重试'
                     : item.phase === 'uploading' ? '上传中…' : item.phase === 'processing' ? '图床处理中…' : '处理图片…'}</Text>
@@ -242,7 +240,8 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, m
               if (sending) return;
               showKeyboard();
               editorRef.current?.openMentions();
-            }}>
+            }}
+            >
               <ThemedIcon src={MentionIcon} tone='secondary' className='commentPopupToolIcon' />
             </View>
             <View className={`commentPopupTool commentPopupEmoji${showEmojis ? " commentPopupTool--active" : ""}`} ariaRole='button' ariaLabel={showEmojis ? '切换到键盘' : '更多表情'} onClick={() => togglePanel('emoji')}>
@@ -281,7 +280,8 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, m
       {showEmojis && (
         <View className='commentPopupEmojiPanel' style={{ height: inputHeight + "px", paddingBottom: safeBottom + "px" }}>
           <ComposerEmojiPanel tab={panelTab} common={commonUsage} disabled={sending} scrollViewType={skyline ? 'custom' : undefined}
-            onTabChange={setPanelTab} onEmoji={insertEmoji} onSticker={selectSticker} />
+            onTabChange={setPanelTab} onEmoji={insertEmoji} onSticker={selectSticker}
+          />
         </View>
       )}
     </View>

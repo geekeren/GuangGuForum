@@ -13,6 +13,11 @@ const runtime = vi.hoisted(() => ({
   account: 'fixture-user', profile: null as any, notifications: [] as any[] | null,
   checkingLogin: false, loginError: false, loading: false,
 }));
+vi.mock("../../../hooks/usePageScope", async () => {
+  const module = await import("@tarojs/taro");
+  const { legacyPageScopeMock } = await import("../../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
+});
 vi.mock('react', () => ({
   useState: (initial: any) => { const i = runtime.cursor++; if (!(i in runtime.state)) runtime.state[i] = typeof initial === 'function' ? initial() : initial; return [runtime.state[i], (next: any) => { runtime.state[i] = typeof next === 'function' ? next(runtime.state[i]) : next; }]; },
   useRef: (value: any) => { const i = runtime.refCursor++; if (!(i in runtime.refs)) runtime.refs[i] = { current: value }; return runtime.refs[i]; },

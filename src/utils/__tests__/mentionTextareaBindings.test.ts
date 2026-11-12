@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MentionTextarea from '../../components/MentionTextarea';
 import type { CommentMentionBinding } from '../commentMentionBindings';
 const runtime = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], cursor: 0, refCursor: 0 }));
+vi.mock("../../hooks/usePageScope", async () => {
+  const module = await import("@tarojs/taro");
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
+});
 vi.mock('react', () => ({
   useState: (initial: any) => { const i = runtime.cursor++; if (!(i in runtime.state)) runtime.state[i] = initial; return [runtime.state[i], (next: any) => runtime.state[i] = typeof next === 'function' ? next(runtime.state[i]) : next]; },
   useRef: (initial: any) => { const i = runtime.refCursor++; return runtime.refs[i] ??= { current: initial }; },

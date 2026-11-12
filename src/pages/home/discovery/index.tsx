@@ -1,8 +1,10 @@
-import { usePageRenderer } from "../../../hooks/usePageRenderer";
 import { View, Text, Image, ScrollView } from "@tarojs/components";
-import Taro from "@tarojs/taro";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDiscoveryData, HotTopic } from "guanggu-forum-api";
+import { DiscoveryTrendUrl as TrendIcon , DiscoveryFlameUrl as FlameIcon , DiscoveryHeartUrl as HeartIcon , DiscoveryNodeWaterUrl as WaterIcon , DiscoveryNodeWorkUrl as WorkIcon , DiscoveryNodeCodeUrl as CodeIcon , DiscoveryNodeHouseUrl as HouseIcon , DiscoveryNodeCarUrl as CarIcon , DiscoveryNodeChatUrl as ChatIcon , DiscoveryNodeFoodUrl as FoodIcon , DiscoveryNodeCityUrl as CityIcon } from "gzk-ui/icon-urls";
+import { usePageNavigation } from "../../../hooks/usePageScope";
+import { useViewport } from "../../../hooks/useViewport";
+import { usePageRenderer } from "../../../hooks/usePageRenderer";
 import { getCachedUsername } from "../../../utils/currentUser";
 import UserAvatar from '../../../components/UserAvatar';
 import { getHotTopicPage, loadDiscoveryTopicMetadata, startHotTopicRotation } from "../../../utils/discoveryTopics";
@@ -15,17 +17,6 @@ import TopicTag from "../../../components/TopicTag";
 import Scene from "../../../assets/discovery-scene.svg?raw";
 import { useTheme } from "../../../hooks/useTheme";
 import { discoverySceneSource } from "../../../utils/discoveryScene";
-import { DiscoveryTrendUrl as TrendIcon } from "gzk-ui/icon-urls";
-import { DiscoveryFlameUrl as FlameIcon } from "gzk-ui/icon-urls";
-import { DiscoveryHeartUrl as HeartIcon } from "gzk-ui/icon-urls";
-import { DiscoveryNodeWaterUrl as WaterIcon } from "gzk-ui/icon-urls";
-import { DiscoveryNodeWorkUrl as WorkIcon } from "gzk-ui/icon-urls";
-import { DiscoveryNodeCodeUrl as CodeIcon } from "gzk-ui/icon-urls";
-import { DiscoveryNodeHouseUrl as HouseIcon } from "gzk-ui/icon-urls";
-import { DiscoveryNodeCarUrl as CarIcon } from "gzk-ui/icon-urls";
-import { DiscoveryNodeChatUrl as ChatIcon } from "gzk-ui/icon-urls";
-import { DiscoveryNodeFoodUrl as FoodIcon } from "gzk-ui/icon-urls";
-import { DiscoveryNodeCityUrl as CityIcon } from "gzk-ui/icon-urls";
 import "./index.scss";
 
 interface DiscoveryProps {
@@ -36,16 +27,18 @@ const nodeIcons: Record<string, string> = {
   "汤逊湖": WaterIcon, "找工作": WorkIcon, "IT技术": CodeIcon, "楼市房产": HouseIcon,
   "汽车": CarIcon, "生活杂谈": ChatIcon, "美食": FoodIcon, "城市建设": CityIcon,
 };
-const openTopic = (link: string) => {
-  const tid = link.match(/^\/t\/(\d+)(?:[?#].*)?$/)?.[1];
-  if (tid) Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
-};
-const openNode = (slug: string, name: string) => Taro.navigateTo({
-  url: `/pages/node/topicList/index?node=${encodeURIComponent(slug)}&nodeName=${encodeURIComponent(name)}`,
-});
 
 const Discovery = ({ active = false }: DiscoveryProps) => {
+  const navigation = usePageNavigation();
+  const openTopic = (link: string) => {
+    const tid = link.match(/^\/t\/(\d+)(?:[?#].*)?$/)?.[1];
+    if (tid) navigation.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
+  };
+  const openNode = (slug: string, name: string) => navigation.navigateTo({
+    url: `/pages/node/topicList/index?node=${encodeURIComponent(slug)}&nodeName=${encodeURIComponent(name)}`,
+  });
   const skyline = usePageRenderer() === "skyline";
+  const { isDesktop } = useViewport();
   const { theme } = useTheme();
   const scene = useMemo(() => discoverySceneSource(Scene, theme), [theme]);
   const { data: discoveryData, loading, request: fetchDiscovery } = useDataWithCache(getDiscoveryData);
@@ -177,14 +170,14 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
               );
             })}
           </View>
-          {!hotNodes.length && <Text className='discoveryStatus'>{loading ? "正在加载板块…" : "暂无热门板块"}</Text>}
+          {!hotNodes.length && <Text className='discoveryStatus' >{loading ? "正在加载板块…" : "暂无热门板块"}</Text>}
         </View>
 
         <View className='section section-interest'>
           <View className='sectionHeader'>
             <Image src={HeartIcon} svg mode='aspectFit' className='sectionIcon' />
             <Text className='sectionTitle'>我的关注</Text>
-            {isLoggedIn && <View className='sectionMore' onClick={() => Taro.navigateTo({ url: "/pages/home/index?tab=0&topicTab=interest" })}>
+            {isLoggedIn && <View className='sectionMore' onClick={() => navigation.navigateTo({ url: "/pages/home/index?tab=0&topicTab=interest" })}>
               <Text>查看更多</Text><View className='sectionChevron sectionChevron--purple' />
             </View>}
           </View>
@@ -200,7 +193,8 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
                         event.stopPropagation();
                         const slug = topic.categoryLink?.match(/^\/node\/([^?#/]+)/)?.[1];
                         if (slug) openNode(slug, topic.category);
-                      }} />
+                      }}
+                      />
                       <Text className='interestTime' overflow='ellipsis' maxLines={1}>{topic.lastTouched} · {topic.commentCount || "0"} 评论</Text>
                     </View>
                   </View>
@@ -212,12 +206,13 @@ const Discovery = ({ active = false }: DiscoveryProps) => {
         </View>
         <View className='sectionBottomSpace' />
       </ScrollView>
-      <NodePicker visible={showNodes} groups={groups} selectedSlug='' loading={nodesLoading} error={nodesError}
+      <NodePicker desktop={isDesktop} visible={showNodes} groups={groups} selectedSlug='' loading={nodesLoading} error={nodesError}
         onRetry={loadNodes} onClose={() => setShowNodes(false)} onSelect={slug => {
           setShowNodes(false);
           const node = groups.flatMap(group => group.nodes).find(item => item.slug === slug);
           if (node) openNode(slug, node.name);
-        }} />
+        }}
+      />
     </View>
   );
 };

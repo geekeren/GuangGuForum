@@ -3,28 +3,27 @@ import Taro from "@tarojs/taro";
 import { useEffect, useRef, useState } from "react";
 import { parse, Node } from "node-html-parser";
 import { getNotifications, resolveSearchResult } from "guanggu-forum-api";
+import { BellActive as NotificationIcon , NotificationReplies as ReplyIcon , AnnouncementOutline as AnnouncementIcon , Envelope as PrivateMessageIcon } from "gzk-ui/icons";
+import { usePageNavigation } from "../../../hooks/usePageScope";
 import { usePageScrollViewType } from "../../../hooks/usePageRenderer";
 import { useCurrentUsername } from "../../../hooks/useCurrentUsername";
 import HtmlRender from "../../../components/HtmlRender";
 import Loading from "../../../components/Loading";
 import LoginPrompt from "../../../components/LoginPrompt";
 import UserAvatar from '../../../components/UserAvatar';
-import { BellActive as NotificationIcon } from "gzk-ui/icons";
 import ThemedIcon from "../../../components/ThemedIcon";
 import { useTheme } from "../../../hooks/useTheme";
 import { THEME_PALETTES } from "../../../utils/themePreferences";
 import { svgIconSource } from "../../../utils/svgIcon";
-import { NotificationReplies as ReplyIcon } from "gzk-ui/icons";
-import { AnnouncementOutline as AnnouncementIcon } from "gzk-ui/icons";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
 import { buildTopicReplyRoute, parseTopicReplyLink, replyPlainText } from "../../../utils/topicReplyRoute";
 import { getUnreadNotificationCount, subscribeUnreadNotifications } from "../../../utils/unreadNotifications";
 import { fetchAndCacheNodeNavigation, getCachedNodeNavigation } from "../../../utils/nodeNavigation";
-import { Envelope as PrivateMessageIcon } from "gzk-ui/icons";
 import { APP_ROUTES } from '../../../utils/appRoutes';
 import "./index.scss";
 
 const Notifications = ({ active = true }: { active?: boolean }) => {
+  const navigation = usePageNavigation();
   const scrollViewType = usePageScrollViewType();
   const { theme } = useTheme();
   const notificationSource = svgIconSource(NotificationIcon, THEME_PALETTES[theme]["accent-text"]);
@@ -63,7 +62,7 @@ const Notifications = ({ active = true }: { active?: boolean }) => {
         Taro.showToast({ title: "暂未找到公告板块", icon: "none" });
         return;
       }
-      await Taro.navigateTo({
+      await navigation.navigateTo({
         url: `/pages/node/topicList/index?node=${encodeURIComponent(node.slug)}&nodeName=${encodeURIComponent(node.name)}`,
       });
     } catch {
@@ -78,7 +77,7 @@ const Notifications = ({ active = true }: { active?: boolean }) => {
       <View className='messageHubCategoryIcon messageHubCategoryIcon--replies'><ThemedIcon src={ReplyIcon} tone='accent-text' className='messageHubIcon' />{unread > 0 && <View className='messageHubUnreadDot' />}</View>
       <Text className='messageHubCategoryLabel'>评论回复</Text>
     </View>
-    <View className='messageHubCategory' onClick={() => { void Taro.navigateTo({ url: APP_ROUTES.messages }); }}>
+    <View className='messageHubCategory' onClick={() => { void navigation.navigateTo({ url: APP_ROUTES.messages }); }}>
       <View className='messageHubCategoryIcon messageHubCategoryIcon--private'><ThemedIcon src={PrivateMessageIcon} tone='accent-text' className='messageHubIcon' /></View>
       <Text className='messageHubCategoryLabel'>私信</Text>
     </View>
@@ -123,13 +122,13 @@ const Notifications = ({ active = true }: { active?: boolean }) => {
               className='notificationItem'
               onClick={() => {
                 if (item.topicLink) {
-                  navigateToTopic(item.topicLink, item.content);
+                  navigateToTopic(navigation, item.topicLink, item.content);
                 }
               }}
             >
               <View className='notificationAvatar' onClick={(e) => {
                 e.stopPropagation();
-                Taro.navigateTo({ url: `/pages/user/index?username=${encodeURIComponent(item.username)}` });
+                navigation.navigateTo({ url: `/pages/user/index?username=${encodeURIComponent(item.username)}` });
               }}
               >
                 <UserAvatar username={item.username} src={item.userAvatarUrl} size={70} className='avatarImg' />
@@ -142,7 +141,7 @@ const Notifications = ({ active = true }: { active?: boolean }) => {
                     maxLines={1}
                     onClick={(e) => {
                       e.stopPropagation();
-                      Taro.navigateTo({
+                      navigation.navigateTo({
                         url: `/pages/user/index?username=${encodeURIComponent(item.username)}`,
                       });
                     }}
@@ -159,7 +158,7 @@ const Notifications = ({ active = true }: { active?: boolean }) => {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (item.topicLink) {
-                          navigateToTopic(item.topicLink, item.content);
+                          navigateToTopic(navigation, item.topicLink, item.content);
                         }
                       }}
                     >
@@ -184,7 +183,7 @@ const Notifications = ({ active = true }: { active?: boolean }) => {
   );
 };
 
-async function navigateToTopic(topicLink: string, content?: string) {  const target = parseTopicReplyLink(topicLink);
+async function navigateToTopic(navigation: ReturnType<typeof usePageNavigation>, topicLink: string, content?: string) {  const target = parseTopicReplyLink(topicLink);
   if (!target) {
     Taro.showToast({ title: "无法打开这条消息", icon: "none" });
     return;
@@ -193,7 +192,7 @@ async function navigateToTopic(topicLink: string, content?: string) {  const tar
     const resolved = target.tid
       ? target
       : await resolveSearchResult({ link: `/search/reply/${target.replyId}` }, { notifyLoginRequired: false });
-    Taro.navigateTo({
+    navigation.navigateTo({
       url: buildTopicReplyRoute({
         ...resolved,
         // Text is a legacy fallback only; preserve the whole notification excerpt, not ten characters.

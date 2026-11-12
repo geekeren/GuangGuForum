@@ -1,13 +1,14 @@
 import { View, Text, ScrollView } from "@tarojs/components";
 import { GzkNativeInput as Input } from "gzk-ui/native-form";
-import "./index.scss";
 import { useState, useEffect, useRef } from "react";
 import { login } from "guanggu-forum-api";
-import Taro, { useRouter } from "@tarojs/taro";
+import Taro from "@tarojs/taro";
+import { usePageRenderer } from "../../hooks/usePageRenderer";
+import { usePageOwner, usePageNavigation, usePageRouter } from "../../hooks/usePageScope";
+import "./index.scss";
 import Navbar from "../../components/Navbar";
 import { BRAND_COLOR } from "../../utils/theme";
 import { linkHandler } from "../../utils/linkHandler";
-import { isSkyline } from "../../utils/renderer";
 import { cacheService, CacheCategory } from "../../utils/CacheService";
 
 const SAVED_ACCOUNTS_KEY = "saved_accounts";
@@ -29,7 +30,9 @@ interface LoginParams {
 }
 
 export default function Login() {
-  const skyline = isSkyline();
+  const owner = usePageOwner();
+  const navigation = usePageNavigation();
+  const skyline = usePageRenderer() === "skyline";
   const LoginBody = skyline ? ScrollView : View;
   const [input, setInput] = useState<LoginParams>({});
   const [loading, setLoading] = useState(false);
@@ -37,14 +40,14 @@ export default function Login() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const allAccounts = useRef<string[]>([]);
-  const router = useRouter();
+  const router = usePageRouter();
 
   useEffect(() => {
     allAccounts.current = getSavedAccounts();
   }, []);
 
-  const validate = (input: LoginParams) => {
-    return input?.user && (input?.password?.length || 0) >= 6;
+  const validate = (draft: LoginParams) => {
+    return draft?.user && (draft?.password?.length || 0) >= 6;
   };
 
   const handleSubmit = () => {
@@ -78,7 +81,7 @@ export default function Login() {
         const redirectUrl = redirect
           ? (decodeURIComponent(redirect).startsWith("/") ? decodeURIComponent(redirect) : "/" + decodeURIComponent(redirect))
           : "/pages/home/index";
-        Taro.reLaunch({ url: redirectUrl });
+        navigation.reLaunch({ url: redirectUrl });
       }, 1000);
     }).catch(() => {
       Taro.showToast({ title: "登录失败，请检查账号和网络", icon: "none" });
@@ -176,7 +179,8 @@ export default function Login() {
           <Text className='agreementLink' onClick={(e) => {
             e.stopPropagation();
             wx.openPrivacyContract();
-          }}>《用户隐私保护指引》</Text>
+          }}
+          >《用户隐私保护指引》</Text>
           ，承诺遵守法律法规，文明发言，尊重他人
         </Text>
       </View>
@@ -188,7 +192,7 @@ export default function Login() {
       </View>
 
       <View className='loginFooter'>
-        <Text className='webTip'>更多操作如注册，请前往网页端 <Text className='webLink' onClick={() => linkHandler("https://www.guozaoke.com/")}>https://www.guozaoke.com/</Text> 进行</Text>
+        <Text className='webTip'>更多操作如注册，请前往网页端 <Text className='webLink' onClick={() => linkHandler("https://www.guozaoke.com/", owner)}>https://www.guozaoke.com/</Text> 进行</Text>
       </View>
       </LoginBody>
     </View>

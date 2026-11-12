@@ -18,6 +18,18 @@ const harness = vi.hoisted(() => ({
   state: [] as any[], cursor: 0, refs: [] as any[], refCursor: 0,
   profile: undefined as any, username: "tester", loginError: undefined as any, checkingLogin: false,
 }));
+vi.mock("../../hooks/usePageRenderer", async () => {
+  const renderer = await import("../renderer");
+  const usePageRenderer = () => "isSkyline" in renderer && renderer.isSkyline() ? "skyline" : "webview";
+  return { PageRendererContext: undefined, usePageRenderer, usePageScrollViewType: () => usePageRenderer() === "skyline" ? "custom" : undefined };
+});
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, false);
+});
 vi.mock("react", async (importOriginal) => ({
   ...await importOriginal<any>(),
   useState: (initial: any) => {

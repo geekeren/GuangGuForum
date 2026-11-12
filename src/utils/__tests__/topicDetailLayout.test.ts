@@ -10,9 +10,16 @@ import { cacheService } from '../CacheService';
 import { photoAttachment, stickerAttachment } from "../commentAttachments";
 
 const harness = vi.hoisted(() => ({
-  theme: 'light' as 'light' | 'dark', themeListeners: [] as (() => void)[], state: [] as any[], refs: [] as any[], refCursor: 0, cursor: 0, effects: [] as any[], accountListeners: [] as any[], hide: null as any,
+  desktop: false, theme: 'light' as 'light' | 'dark', themeListeners: [] as (() => void)[], state: [] as any[], refs: [] as any[], refCursor: 0, cursor: 0, effects: [] as any[], accountListeners: [] as any[], hide: null as any,
   request: vi.fn(), requestFresh: vi.fn(), params: { tid: '1' } as Record<string, string>, loadedDisplay: undefined as any, status: undefined as string | undefined, detailTid: '1', detailWrites: vi.fn(), authorUserId: undefined as string | undefined, replyUserId: undefined as string | undefined, replyAuthor: 'recipient', replyId: 'r1', replyVoteUrl: '/replyVote?reply_id=1', skyline: true, xsrf: "fixture", username: "tester", account: 'tester', checkingLogin: false, loginError: false, retryLogin: vi.fn(),
 }));
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, false);
+});
 vi.mock("react", () => ({
   useState: (initial: any) => {
     const index = harness.cursor++;
@@ -30,6 +37,8 @@ vi.mock("@tarojs/taro", () => ({
   useReady: vi.fn(), useDidShow: vi.fn(), useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(),
 }));
 vi.mock("guanggu-forum-api", () => ({ CommentSubmissionError: class extends Error {}, LoginRequiredError: class extends Error {}, getTopicDetail: vi.fn(), commentUpvote: vi.fn(), createNewComment: vi.fn(), URLS: {}, urlPathVaiable: vi.fn() }));
+vi.mock("../../hooks/usePageRenderer", () => ({ usePageRenderer: () => harness.skyline ? "skyline" : "webview" }));
+vi.mock("../../hooks/useViewport", () => ({ useViewport: () => ({ width: harness.desktop ? 1280 : 375, height: 800, isDesktop: harness.desktop }) }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: harness.theme, preference: 'system' }) }));
 vi.mock('../themePreferences', async original => ({ ...await original<any>(), getThemeSnapshot: () => ({ theme: harness.theme, preference: 'system' }), subscribeTheme: (listener: () => void) => { harness.themeListeners.push(listener); return () => {}; } }));
 vi.mock("../renderer", () => ({ isSkyline: () => harness.skyline, getScrollViewType: () => 'custom' }));
@@ -82,7 +91,7 @@ function all(tree: any): any[] {
 function render() { harness.cursor = harness.refCursor = 0; return TopicDetail(); }
 function find(tree: any, className: string) { return all(tree).find(e => e.props?.className === className)!.props; }
 beforeEach(() => {
-  harness.theme = 'light'; harness.themeListeners = []; harness.state = []; harness.refs = []; harness.effects = []; harness.accountListeners = []; harness.hide = null;
+  harness.desktop = false; harness.theme = 'light'; harness.themeListeners = []; harness.state = []; harness.refs = []; harness.effects = []; harness.accountListeners = []; harness.hide = null;
   harness.params = { tid: '1' }; harness.loadedDisplay = undefined; harness.status = undefined; harness.detailTid = '1'; harness.detailWrites.mockClear();
   harness.authorUserId = undefined; harness.replyUserId = undefined; harness.replyAuthor = 'recipient'; harness.replyId = 'r1'; harness.replyVoteUrl = '/replyVote?reply_id=1';
   harness.skyline = true; harness.xsrf = "fixture"; harness.username = "tester"; harness.account = 'tester'; harness.checkingLogin = false; harness.loginError = false;
@@ -94,6 +103,27 @@ beforeEach(() => {
   vi.stubGlobal("getCurrentPages", () => [{ renderer: "skyline" }]);
 });
 afterEach(() => vi.unstubAllGlobals());
+
+describe('desktop detail native flow', () => {
+  it('keeps the only body-image viewport/scroll target in center and the comment composer outside the desktop shell', async () => {
+    await enter(); harness.desktop = true; vi.mocked(getTopicDetail).mockClear();
+    let tree = render();
+    const frame = all(tree).find(node => node.props?.variant === 'detail')!;
+    const related = all(frame.props.sidebar).find(node => node.type === 'RelatingTopics')!;
+    expect(related.props.desktop).toBe(true);
+    expect(related.props.topicDetail.relatingTopics).toEqual([]);
+    expect(all(frame.props.children).filter(node => node.props?.className === 'scrollContent')).toHaveLength(1);
+    expect(all(frame.props.children).filter(node => node.props?.className?.includes('topicBodyImageViewport'))).toHaveLength(1);
+    expect(all(frame.props.sidebar).some(node => node.props?.className?.includes('topicBodyImageViewport'))).toBe(false);
+    expect(all(tree).some(node => node.props?.id === 'comments-section')).toBe(true);
+    all(tree).find(node => node.props?.className === 'left' && node.props?.onClick)!.props.onClick();
+    tree = render();
+    expect(all(tree).find(node => node.type === CommentComposer)!.props.desktop).toBe(true);
+    expect(all(tree).find(node => node.props?.variant === 'detail')!.props.children.type).not.toBe(CommentComposer);
+    expect(all(all(tree).find(node => node.props?.variant === 'detail')!.props.children).some(node => node.type === CommentComposer)).toBe(false);
+    expect(getTopicDetail).not.toHaveBeenCalled();
+  });
+});
 
 describe('explicit comment mentions on the guarded submission boundary', () => {
   function composer() { return all(render()).find(node => node.type === CommentComposer)!; }

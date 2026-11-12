@@ -3,6 +3,13 @@ import Taro from "@tarojs/taro";
 import { createElement } from "react";
 import Navbar from "../../components/Navbar";
 
+vi.mock("../../hooks/usePageScope", async () => {
+  const taroModule = await import("@tarojs/taro");
+  const taro = taroModule.default;
+  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
+  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
+  return legacyPageScopeMock(taro, useRouter, false);
+});
 vi.mock("@tarojs/components", () => Object.fromEntries(
   ["View", "Text", "Image", "ShareElement"].map(name => [name, name]),
 ));
