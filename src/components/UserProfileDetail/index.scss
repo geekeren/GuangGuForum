@@ -44,9 +44,13 @@
         flex-direction: row;
         align-items: center;
         gap: 12rpx;
+        min-width: 0;
+        flex-wrap: wrap;
       }
 
       .username {
+        flex: 0 1 auto;
+        max-width: 100%;
         min-width: 0;
         font-size: 21.79PX;
         font-weight: 700;
@@ -172,6 +176,7 @@
 
       .detailValue {
         flex: 1;
+        min-width: 0;
         word-break: break-all;
         color: $text-sub;
       }

@@ -89,3 +89,13 @@
     transition: opacity 0.1s linear, transform 0.1s linear;
   }
 }
+
+.themePageHost--desktop .customNavbar {
+  width: 100%; min-width: 0;
+  .navBar { width: 100%; box-sizing: border-box; padding-bottom: 4PX; }
+  .navCapsule { border-width: 0.5PX; }
+  .navCapsuleIcon { width: 20PX; height: 20PX; }
+  .navCapsuleDivider { width: 0.5PX; height: 18PX; }
+  .navContent { gap: 8PX; }
+  .navTitle { letter-spacing: -0.15PX; padding: 0 4PX; }
+}

@@ -4,6 +4,7 @@ import Taro from "@tarojs/taro";
 import { ReactNode, useEffect, useState } from "react";
 import { useTheme } from "../../hooks/useTheme";
 import { themeVariables } from "../../utils/themePreferences";
+import { isDesktopClient, uiRpxLength, uiRpxToPx } from "../../utils/desktopLayout";
 import "./index.scss";
 
 interface BottomSheetProps {
@@ -22,6 +23,7 @@ export default function BottomSheet({ visible, title, onClose, children, footer,
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [viewport, setViewport] = useState<ReturnType<typeof Taro.getWindowInfo>>();
   const skyline = usePageRenderer() === "skyline";
+  const desktop = isDesktopClient();
 
   useEffect(() => {
     if (visible) {
@@ -46,20 +48,21 @@ export default function BottomSheet({ visible, title, onClose, children, footer,
   const windowInfo = viewport || Taro.getWindowInfo();
   const safeBottom = keyboardHeight ? 0 : windowInfo.safeArea ? Math.max(0, windowInfo.screenHeight - windowInfo.safeArea.bottom) : 0;
   const availableHeight = Math.max(0, windowInfo.windowHeight - keyboardHeight);
-  const height = Math.min(Math.round(heightRpx * windowInfo.windowWidth / 750) + safeBottom, Math.floor(availableHeight * 0.85));
+  const designHeight = Math.round(desktop ? uiRpxToPx(heightRpx) : heightRpx * windowInfo.windowWidth / 750) + safeBottom;
+  const height = Math.min(designHeight, Math.floor(availableHeight * 0.85));
   const overlay = (
-    <View className={`bottomSheetMask themeOverlay--${theme}${skyline ? " bottomSheetMask--skyline" : ""}${visible ? "" : " bottomSheetMask--closing"} ${className}`}
-      style={{ ...themeVariables(theme), ...(skyline ? { width: `${windowInfo.windowWidth}px`, height: `${windowInfo.windowHeight}px` } : {}) }}
+    <View className={`bottomSheetMask themeOverlay--${theme}${desktop ? " themePageHost--desktop" : ""}${skyline ? " bottomSheetMask--skyline" : ""}${visible ? "" : " bottomSheetMask--closing"} ${className}`}
+      style={{ ...themeVariables(theme), ...(desktop ? { width: "100%", height: "100%" } : skyline ? { width: `${windowInfo.windowWidth}px`, height: `${windowInfo.windowHeight}px` } : {}) }}
       onClick={() => { if (visible) onClose(); }}>
       <View className={`bottomSheetPanel${visible ? "" : " bottomSheetPanel--closing"}`}
-        style={{ height: `${height}px`, ...(skyline ? { top: `${availableHeight - height}px`, width: `${windowInfo.windowWidth}px` } : { bottom: `${keyboardHeight}px` }) }}
+        style={desktop ? { height: `${designHeight}px`, maxHeight: `calc((100% - ${keyboardHeight}px) * 0.85)`, bottom: `${keyboardHeight}px`, top: "auto", width: "100%" } : { height: `${height}px`, ...(skyline ? { top: `${availableHeight - height}px`, width: `${windowInfo.windowWidth}px` } : { bottom: `${keyboardHeight}px` }) }}
         onClick={(e) => e.stopPropagation()}>
         <View className='bottomSheetHeader'>
           <Text className='bottomSheetTitle'>{title}</Text>
           <View className='bottomSheetClose' onClick={onClose}><Text>✕</Text></View>
         </View>
         <ScrollView type={skyline ? 'custom' : undefined} scrollY enhanced className='bottomSheetBody'>{children}</ScrollView>
-        {footer && <View className='bottomSheetFooter' style={{ paddingBottom: `calc(20rpx + ${safeBottom}px)` }}>{footer}</View>}
+        {footer && <View className='bottomSheetFooter' style={{ paddingBottom: `calc(${uiRpxLength(20)} + ${safeBottom}px)` }}>{footer}</View>}
       </View>
     </View>
   );

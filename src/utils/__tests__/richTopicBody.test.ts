@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import RichTopicBody from '../../pages/createTopic/RichTopicBody';
-import TopicEditor from '../../pages/createTopic/TopicEditor';
 import { createRequire } from 'node:module';
 import { document as runtimeDocument, hydrate, TaroEvent } from '@tarojs/runtime';
+import RichTopicBody from '../../pages/createTopic/RichTopicBody';
+import TopicEditor from '../../pages/createTopic/TopicEditor';
 import { sanitizeTopicDelta } from '../topicDocumentSanitizer';
 import { serializeTopicDocumentHtml } from '../topicDocument';
 
-const h = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], effects: [] as any[], cursor: 0, refCursor: 0, context: null as any, theme: 'light' as 'light' | 'dark', account: 'tester' }));
+const h = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], effects: [] as any[], cursor: 0, refCursor: 0, context: null as any, theme: 'light' as 'light' | 'dark', account: 'tester', owner: {}, queryOwners: [] as any[], accountListeners: [] as (() => void)[] }));
 vi.mock('react', () => ({
   useState(initial: any) { const i = h.cursor++; const state = h.state; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial; return [state[i], (v: any) => { state[i] = typeof v === 'function' ? v(state[i]) : v; }]; },
   useRef(initial: any) { return h.refs[h.refCursor++] ??= { current: initial }; },
@@ -15,9 +15,10 @@ vi.mock('react', () => ({
 }));
 vi.mock('@tarojs/components', () => ({ Editor: 'Editor', Text: 'Text', View: 'View', Image: 'Image', ScrollView: 'ScrollView', RootPortal: 'RootPortal' }));
 vi.mock('@tarojs/taro', () => ({ default: {
+  getCurrentInstance: () => ({ page: h.owner }),
   getWindowInfo: () => ({ windowWidth: 430, windowHeight: 900, screenHeight: 932, safeArea: { bottom: 898 } }),
   hideKeyboard: vi.fn().mockResolvedValue({ errMsg: 'hideKeyboard:ok' }), onKeyboardHeightChange: vi.fn(), offKeyboardHeightChange: vi.fn(), onWindowResize: vi.fn(), offWindowResize: vi.fn(), nextTick: (cb: () => void) => cb(),
-  createSelectorQuery: () => { const query = { select: () => query, context: (cb: any) => { cb({ context: h.context }); return query; }, boundingClientRect: () => query, exec: () => {} }; return query; },
+  createSelectorQuery: () => { const query = { in: (owner: any) => { h.queryOwners.push(owner); return query; }, select: () => query, context: (cb: any) => { cb({ context: h.context }); return query; }, boundingClientRect: () => query, exec: () => {} }; return query; },
 }, useDidHide: vi.fn(), useDidShow: vi.fn(), useReady: vi.fn() }));
 vi.mock('guanggu-forum-api', () => ({ createImageUploadController: vi.fn(), ImageUploadError: class extends Error {}, uploadImage: vi.fn() }));
 vi.mock('../../hooks/usePageRenderer', () => ({ usePageScrollViewType: () => undefined }));
@@ -25,7 +26,7 @@ vi.mock('../emojiUsage', () => ({ getCommonEmojiUsage: () => ({ emojis: [], stic
 vi.mock('../imageUploadGuard', () => ({ ensureImageHostBound: vi.fn(), openImageHostSettings: vi.fn() }));
 vi.mock('../keyboardAccessory', () => ({ tryHideKeyboardAccessoryView: vi.fn() }));
 vi.mock('../../components/MentionTextarea', () => ({ default: 'MentionTextarea' }));
-vi.mock('../currentUser', () => ({ getCachedUsername: () => h.account }));
+vi.mock('../currentUser', () => ({ getCachedUsername: () => h.account, subscribeCurrentAccount: (listener: () => void) => { h.accountListeners.push(listener); return () => {}; } }));
 vi.mock('../../hooks/useTheme', () => ({ useTheme: () => ({ theme: h.theme }) }));
 function elements(tree: any): any[] { return Array.isArray(tree) ? tree.flatMap(elements) : tree && typeof tree === 'object' ? [tree, ...elements(tree.props?.children)] : []; }
 let props: Parameters<typeof RichTopicBody>[0];
@@ -61,7 +62,7 @@ function boundBodyView() {
   } };
 }
 beforeEach(() => {
-  h.state = []; h.refs = []; h.effects = []; h.theme = 'light'; h.account = 'tester'; vi.clearAllMocks();
+  h.state = []; h.refs = []; h.effects = []; h.theme = 'light'; h.account = 'tester'; h.owner = {}; h.queryOwners = []; h.accountListeners = []; vi.clearAllMocks();
   h.context = { setContents: vi.fn((cb: any) => cb.success({})), getContents: vi.fn((cb: any) => cb.success({ delta: { ops: [{ insert: '正文\n' }] } })),
     insertText: vi.fn((cb: any) => cb.success({})), insertImage: vi.fn((cb: any) => cb.success({})), format: vi.fn() };
   props = { value: '正文', attachments: [], disabled: false, focus: false, placeholder: 'body', handleRef: { current: null }, onChange: vi.fn(), onFocus: vi.fn(), onBlur: vi.fn() };
@@ -116,6 +117,49 @@ describe('rich topic body native rich-paste normalization', () => {
 });
 
 describe('rich topic body native lifecycle', () => {
+  const activateEffect = () => h.effects.at(-3)();
+  it('keeps the captured native owner and restores a retained ready Editor without rewriting on ordinary tab switches', async () => {
+    const owner = h.owner; editor().onReady(); await flush(); render();
+    const editorId = editor().id; const writes = h.context.setContents.mock.calls.length;
+    props = { ...props, active: false, disabled: true }; render(); activateEffect();
+    await expect(props.handleRef.current!.snapshot()).rejects.toThrow('inactive');
+    props = { ...props, active: true, disabled: false }; h.owner = {}; render(); activateEffect(); await flush();
+    expect(editor().id).toBe(editorId); expect(editor().readOnly).toBe(false);
+    expect(h.context.setContents).toHaveBeenCalledTimes(writes); expect(h.queryOwners).toEqual([owner]);
+  });
+  it('recovers an initialization interrupted by hiding while rejecting its old callback', async () => {
+    let complete!: () => void;
+    h.context.setContents.mockImplementationOnce((options: any) => { complete = () => options.success({}); });
+    editor().onReady(); await flush(); const id = editor().id;
+    props = { ...props, active: false, disabled: true }; render(); activateEffect();
+    props = { ...props, active: true, disabled: false }; render(); activateEffect();
+    complete(); await flush(); await flush();
+    expect(editor().id).toBe(id); expect(editor().readOnly).toBe(false); expect(h.context.setContents).toHaveBeenCalledTimes(2);
+  });
+  it.each(['tab', 'A-B-A'] as const)('rejects old queued native operations and snapshots after %s without resurrecting format or images', async reason => {
+    editor().onReady(); await flush(); render(); h.effects.at(-2)();
+    let complete!: (value: any) => void; h.context.getContents.mockImplementationOnce((options: any) => { complete = options.success; });
+    const snapshot = props.handleRef.current!.snapshot(); const rejection = expect(snapshot).rejects.toThrow(); await flush();
+    const insertion = props.handleRef.current!.insertText('old text');
+    props.handleRef.current!.format('bold'); const image = props.handleRef.current!.insertImage('https://img.test/old.jpg', 'old', 'old');
+    if (reason === 'tab') {
+      props = { ...props, active: false, disabled: true }; render(); activateEffect();
+      props = { ...props, active: true, disabled: false }; render(); activateEffect(); await flush();
+      expect(editor().readOnly).toBe(true); // Do not enable the new adapter until submitted old native calls drain.
+    } else {
+      h.account = 'B'; h.accountListeners.forEach(listener => listener()); h.account = 'tester'; h.accountListeners.forEach(listener => listener());
+      props = { ...props, value: '', document: undefined }; render(); h.effects.at(-1)();
+    }
+    complete({ delta: { ops: [{ insert: 'old snapshot\n' }] } }); await rejection; await insertion; await image; await flush();
+    expect(h.context.insertText).not.toHaveBeenCalled(); expect(h.context.format).not.toHaveBeenCalled(); expect(h.context.insertImage).not.toHaveBeenCalled();
+    expect(props.onChange).not.toHaveBeenCalled(); expect(editor().readOnly).toBe(false);
+    expect(render().some(node => node.props?.className === 'topicEditorNotice')).toBe(false); // Old failed work cannot overwrite the new visit's notice.
+    expect(h.context.setContents).toHaveBeenCalledTimes(reason === 'tab' ? 1 : 2);
+  });
+  it('fails closed when no captured native owner exists', async () => {
+    h.owner = undefined as any; editor().onReady(); await flush();
+    expect(h.queryOwners).toEqual([]); expect(h.context.setContents).not.toHaveBeenCalled(); expect(editor().readOnly).toBe(true);
+  });
   it('uses actual ordinary View touch bindings rather than absent Editor bindings or catch-view', async () => {
     const templates = nativeTemplates();
     expect(templates.editor).toContain('bindtap="eh"');

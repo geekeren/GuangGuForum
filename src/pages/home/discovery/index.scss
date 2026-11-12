@@ -268,3 +268,49 @@
   .interestList,
   .interestMain { display: block; }
 }
+
+// Fixed desktop controls stay dense even in a narrow native split pane.
+.themePageHost--desktop .discoveryPage {
+  width: 100%; min-height: 0;
+  .discoveryScroll { height: 0; flex-basis: 0; flex-grow: 1; flex-shrink: 1; }
+  .discoveryHero { height: 89PX; margin: 8PX 9PX 15PX; border-radius: 15PX; }
+  .discoveryHeroScene { width: 223PX; height: 89PX; }
+  .discoveryHeroBlend { width: 223PX; }
+  .discoveryHeroCopy { padding: 20PX 20PX 0; }
+  .discoveryHeroSubtitle { margin-top: 5PX; }
+  .section { margin: 0 9PX 13PX; padding: 14PX 14PX 11PX; border-radius: 15PX; }
+  .sectionHeader { margin-bottom: 9PX; }
+  .sectionIcon { width: 18PX; height: 18PX; margin-right: 7PX; }
+  .sectionMore { gap: 5PX; }
+  .sectionChevron { width: 4.5PX; height: 4.5PX; border-top-width: 1PX; border-right-width: 1PX; }
+  .hotTopicItem { height: 48PX; border-bottom-width: 0.5PX; }
+  .hotTopicItem--enter { animation-name: discoveryTopicEnterDesktop; }
+  .discoveryRank { width: 25PX; height: 20PX; margin-right: 12PX; border-radius: 7PX; }
+  .hotTopicMeta { margin-top: 3PX; }
+  .section-hotNodes { padding-bottom: 15PX; }
+  .hotNodesGrid { row-gap: 9PX; }
+  .hotNodeTag { height: 58PX; border-radius: 11PX; }
+  .hotNodeIcon { width: 36PX; height: 34PX; }
+  .interestItem { height: 59PX; border-bottom-width: 0.5PX; }
+  .interestAvatar { width: 36PX !important; height: 36PX !important; margin-right: 10PX; }
+  .interestAvatar .aiUserTag { height: 10PX; line-height: 10PX; padding: 0 2PX; border-radius: 3PX; }
+  .interestMeta {
+    gap: 10PX; margin-top: 4PX;
+    .topicTag { max-width: 79PX; padding: 2PX 5PX; border-radius: 12PX; }
+    .topicTagIcon { width: 10PX; height: 10PX; margin-right: 3PX; }
+  }
+  .discoveryStatus { padding: 14PX 0; }
+  .sectionBottomSpace { height: 24PX; }
+  .loginPrompt { min-height: 200PX; padding: 24PX 16PX; }
+  .loginPromptIcon { margin-bottom: 14PX; }
+  .loginPromptBadge { width: 56PX; height: 56PX; border-radius: 18PX; border-width: 0.5PX; margin-bottom: 16PX; }
+  .loginPromptBadgeIcon { width: 26PX; height: 26PX; }
+  .loginPromptTitle { margin-bottom: 6PX; }
+  .loginPromptDesc { margin-bottom: 18PX; }
+  .loginPromptBtn { min-height: 44PX; min-width: 120PX; padding: 11PX 32PX; border-radius: 6PX; box-shadow: 0 4PX 12PX rgba(31, 105, 255, 0.2); }
+}
+.themePageHost--desktop.themePageHost--dark .discoveryPage .discoveryHero { border-width: 0.5PX; }
+@keyframes discoveryTopicEnterDesktop {
+  from { opacity: 0; transform: translateY(2PX); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -215,7 +215,7 @@ export default class TopicList extends Component<TopicListProps, State> {
             showScrollbar
             scrollbarFadingEnabled={false}
             bounces
-            style={scrollViewHeight ? { height: scrollViewHeight + "px" } : undefined}
+            style={scrollViewHeight !== undefined ? { height: scrollViewHeight } : undefined}
             onScrollToLower={() => this.listReachBottom()}
             lowerThreshold={300}
             onScroll={(e: any) => {
@@ -247,7 +247,11 @@ export default class TopicList extends Component<TopicListProps, State> {
             )}
           </View>
         )}
-        {this.state.loading && topics.length > 0 && <Loading size={40} />}
+        {/* Keep pagination mutations below a permanent host: removing a direct
+            sibling makes Taro serialize the parent's entire ScrollView subtree. */}
+        <View className='topicListLoadingHost'>
+          {this.state.loading && topics.length > 0 && <Loading size={40} />}
+        </View>
       </PullDownRefresh>
     );
   }

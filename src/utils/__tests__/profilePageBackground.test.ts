@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createRequire } from 'node:module';
+
+const requireProject = createRequire(`${process.cwd()}/package.json`);
+function declarations(file: string, selector: string) {
+  const result: Record<string, string> = {};
+  requireProject('postcss').parse(requireProject('sass').compile(file).css).walkRules((rule: any) => {
+    if (rule.selectors.includes(selector)) rule.walkDecls((decl: any) => { result[decl.prop] = decl.value; });
+  });
+  return result;
+}
 import { compileString } from 'sass';
 import UserProfileDetail from '../../components/UserProfileDetail';
 
@@ -25,6 +35,17 @@ const profile = { username: 'fixture', city: 'fixture-city', topics: [], replies
 beforeEach(() => { runtime.renderer = 'skyline'; runtime.tab = 'topics'; });
 
 describe('explicit page-owned profile hero paint', () => {
+  it('keeps name rows shrinkable, moves badges to a new line when necessary and gives detail values remaining width', () => {
+    const file = 'src/components/UserProfileDetail/index.scss';
+    expect(declarations(file, '.userProfileDetail .profileCard .nameBlock')).toMatchObject({ flex: '1', 'min-width': '0' });
+    expect(declarations(file, '.userProfileDetail .profileCard .nameBlock .nameRow')).toMatchObject({ 'min-width': '0', 'flex-wrap': 'wrap' });
+    expect(declarations(file, '.userProfileDetail .profileCard .nameBlock .username')).toMatchObject({ flex: '0 1 auto', 'max-width': '100%' });
+    expect(declarations(file, '.userProfileDetail .detailCard .detailRow .detailValue')).toMatchObject({ flex: '1', 'min-width': '0' });
+    expect(declarations(file, '.userProfileDetail .profileCard .nameBlock .memberInfo')).not.toHaveProperty('white-space', 'nowrap');
+    expect(declarations('src/pages/messages/index.scss', '.privateConversationMeta')).toMatchObject({ 'flex-shrink': '0', 'min-width': '76rpx', 'max-width': '160rpx' });
+    expect(declarations('src/pages/messages/index.scss', '.privateConversationBody')).toMatchObject({ flex: '1', 'min-width': '0' });
+    expect(declarations('src/pages/me/index.scss', '.meProfileScroll')).toMatchObject({ height: '0', 'min-height': '0', width: '100%' });
+  });
   it.each([
     ['  昵称 🧑‍💻  ', '备用名', '昵称 🧑‍💻'],
     ['  ', '  新显示名 😀  ', '新显示名 😀'],

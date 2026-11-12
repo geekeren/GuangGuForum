@@ -21,7 +21,7 @@ import { MAX_COMMENT_ATTACHMENTS, STICKERS, type Sticker } from '../../utils/sti
 import ComposerEmojiPanel from '../../components/ComposerEmojiPanel';
 import { compressCommentPhoto } from '../../utils/commentPhotos';
 import { isImageCompressionEnabled } from '../../utils/imageCompressionPreferences';
-import { getCachedUsername } from '../../utils/currentUser';
+import { getCachedUsername, subscribeCurrentAccount } from '../../utils/currentUser';
 import { usePageScrollViewType } from '../../hooks/usePageRenderer';
 import { ensureImageHostBound, openImageHostSettings } from '../../utils/imageUploadGuard';
 import { useTheme } from '../../hooks/useTheme';
@@ -30,6 +30,7 @@ import { svgIconSource } from '../../utils/svgIcon';
 import { resolveViewportInset } from '../../utils/keyboardDockPosition';
 import { tryHideKeyboardAccessoryView } from '../../utils/keyboardAccessory';
 import { EMPTY_FORMAT_STATUS, type TopicFormatStatus } from './nativeEditorStatus';
+import { isDesktopClient, uiRpxLength, uiRpxToPx } from '../../utils/desktopLayout';
 import './TopicEditor.scss';
 
 type Photo = {
@@ -69,6 +70,8 @@ interface Props {
   inputRef: RefObject<any>;
   previousRef: RefObject<any>;
   disabled: boolean;
+  visible?: boolean;
+  embedded?: boolean;
   onClear?: () => void;
   attachments: TopicAttachment[];
   onAttachmentsChange: (update: (current: TopicAttachment[]) => TopicAttachment[]) => void;
@@ -86,8 +89,18 @@ const FORMAT_TOOLS: FormatTool[] = [
   { label: '无序列表', name: 'list', value: 'bullet', icon: ListIcon },
 ];
 
-export default function TopicEditor({ value, document, placeholder, inputRef, disabled, onClear, attachments, onAttachmentsChange, onChange }: Props) {
+export default function TopicEditor({ value, document, placeholder, inputRef, disabled, visible = true, embedded = false, onClear, attachments, onAttachmentsChange, onChange }: Props) {
+  const visibleRef = useRef(visible); visibleRef.current = visible;
+  const ownerPage = useRef(Taro.getCurrentInstance().page);
+  const rootId = useRef(`topic-editor-root-${++nextDockViewportId}`);
+  const [contentBounds, setContentBounds] = useState<{ left: number; width: number }>();
+  const scopedQuery = () => {
+    const query = Taro.createSelectorQuery();
+    if (!ownerPage.current || typeof query.in !== 'function') return undefined;
+    return query.in(ownerPage.current);
+  };
   const { theme } = useTheme();
+  const desktop = isDesktopClient();
   const scrollViewType = usePageScrollViewType();
   const [panel, setPanel] = useState<'emoji' | 'more' | null>(null);
   const [tab, setTab] = useState<'common' | 'emoji' | 'sticker'>('common');
@@ -128,16 +141,21 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     const measuredWidth = measuredViewport.current.width;
     const measuredBaselineTop = measuredViewport.current.baselineTop;
     const measuredAccount = getCachedUsername();
-    Taro.createSelectorQuery()
-      .select('.topicEditorBody').boundingClientRect()
+    if (!visibleRef.current) return;
+    scopedQuery()?.select('.topicEditorBody').boundingClientRect()
       .select('.topicEditorBodyScroll').boundingClientRect()
       .select('.topicEditorBodyContent').boundingClientRect()
       .select('.topicEditorDock').boundingClientRect()
       .select(`#${viewportProbeId.current}`).boundingClientRect()
+      .select(`#${rootId.current}`).boundingClientRect()
       .exec(result => {
-        if (!active.current || !pageVisible.current || request !== bodyMeasureRequest.current || disabledRef.current
+        if (!visibleRef.current || !active.current || !pageVisible.current || request !== bodyMeasureRequest.current || disabledRef.current
           || measuredAccount !== account.current || measuredAccount !== getCachedUsername()
           || measuredWidth !== measuredViewport.current.width || measuredBaselineTop !== measuredViewport.current.baselineTop) return;
+        const bounds = result?.[5];
+        if (bounds && Number.isFinite(bounds.left) && Number.isFinite(bounds.width) && bounds.width > 0) {
+          setContentBounds(previous => previous?.left === bounds.left && previous?.width === bounds.width ? previous : { left: bounds.left, width: bounds.width });
+        }
         const top = Number(result?.[0]?.top);
         const probeTop = Number(result?.[4]?.top);
         const baselineTop = measuredViewport.current.baselineTop;
@@ -191,8 +209,8 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     scheduleBodyMeasure();
     setKeyboardHeight(nextHeight);
   };
-  const dockVisible = (bodyFocused || bodyTapped || !!panel) && !disabled && !toolsHidden;
-  const panelVisible = !!panel && !disabled && !toolsHidden;
+  const dockVisible = visible && (!embedded || !!contentBounds) && (bodyFocused || bodyTapped || !!panel) && !disabled && !toolsHidden;
+  const panelVisible = visible && (!embedded || !!contentBounds) && !!panel && !disabled && !toolsHidden;
   const overlayVisible = dockVisible || panelVisible;
   // Native Editor has no programmatic keyboard-open API. The sheet replaces
   // the keyboard region, but a hide request never fabricates a zero keyboard height.
@@ -202,7 +220,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   // The card's single outside bottom margin separates its background/viewport
   // from the dock. Last-line breathing room is scrollable body-content padding.
   // Overlay panels/docks already own their safe-area inset; reserve it only at rest.
-  const bodyBottomGap = 24 * windowInfo.windowWidth / 750 + (!overlayVisible && keyboardHeight === 0 ? safeBottom : 0);
+  const bodyBottomGap = (desktop ? uiRpxToPx(24) : 24 * windowInfo.windowWidth / 750) + (!overlayVisible && keyboardHeight === 0 ? safeBottom : 0);
   // Leave roughly two editable lines where space permits. On extreme viewports
   // the sheet shrinks to zero rather than forcing content outside the viewport.
   // Body and probe tops are sampled together in client coordinates. Normalize
@@ -240,18 +258,19 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   const disabledRef = useRef(disabled); disabledRef.current = disabled;
   const runFormat = ({ name, value: formatValue }: FormatTool) => {
     const status = formatStatusRef.current;
-    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername() || !(bodyFocusedRef.current || bodyTappedRef.current) || !status.available || !editor.current) return;
+    if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername() || !(bodyFocusedRef.current || bodyTappedRef.current) || !status.available || !editor.current) return;
     closeHeading();
     // A single native tap formats the current selection. Do not rewrite contents,
     // hide/reopen the keyboard, or emulate textarea-only focus/holdKeyboard props.
     editor.current.format(name, name === 'list' && status.list === formatValue ? '' : formatValue);
   };
   const measureViewport = () => {
+    if (!visibleRef.current) return;
     const request = ++viewportRequest.current;
     Taro.nextTick(() => {
-      if (!active.current || !pageVisible.current || request !== viewportRequest.current) return;
-      Taro.createSelectorQuery().select(`#${viewportProbeId.current}`).boundingClientRect(rect => {
-        if (!active.current || !pageVisible.current || request !== viewportRequest.current || !rect || Array.isArray(rect)
+      if (!visibleRef.current || !active.current || !pageVisible.current || request !== viewportRequest.current) return;
+      scopedQuery()?.select(`#${viewportProbeId.current}`).boundingClientRect(rect => {
+        if (!visibleRef.current || !active.current || !pageVisible.current || request !== viewportRequest.current || !rect || Array.isArray(rect)
           || !Number.isFinite(rect.height) || rect.height <= 0 || !Number.isFinite(rect.width) || rect.width <= 0) return;
         const measured = measuredViewport.current;
         if (measured.width !== rect.width) {
@@ -299,7 +318,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     onAttachmentsChange(change);
   };
   const closePanel = () => {
-    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
     closeHeading();
     panelGeneration.current++;
     panelOpen.current = false;
@@ -308,7 +327,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     measureViewport(); scheduleBodyMeasure();
   };
   const showKeyboard = () => {
-    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
     closePanel();
     // Only the source textarea supports a focus request. Native body taps remain
     // the actual focus target; panel controls never change the existing focus.
@@ -326,33 +345,47 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     viewportRequest.current++; bodyMeasureRequest.current++;
   };
   const collapseTools = () => {
-    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
     dismissTools();
     // A rejected hide request must neither clear drafts nor reopen dismissed UI.
     try { void Taro.hideKeyboard().catch(() => undefined); } catch { /* Native API unavailable. */ }
   };
+  const contentLifecycle = useRef({ dismissTools, measureViewport, measureBodyScroll });
+  contentLifecycle.current = { dismissTools, measureViewport, measureBodyScroll };
+  const currentAccount = getCachedUsername();
   useEffect(() => {
-    if (disabled || account.current !== getCachedUsername()) dismissTools();
-  }, [disabled, getCachedUsername()]);
+    const lifecycle = contentLifecycle.current;
+    if (disabled || !visible || account.current !== currentAccount) lifecycle.dismissTools();
+    if (!visible) { jobs.current.forEach(job => job.abort()); jobs.current.clear(); }
+    if (visible) { lifecycle.measureViewport(); lifecycle.measureBodyScroll(); }
+    else { viewportRequest.current++; bodyMeasureRequest.current++; setContentBounds(undefined); }
+  }, [disabled, visible, currentAccount]);
+  useEffect(() => subscribeCurrentAccount(() => {
+    panelGeneration.current++; viewportRequest.current++; bodyMeasureRequest.current++;
+    jobs.current.forEach(job => job.abort()); jobs.current.clear();
+    account.current = getCachedUsername(); dismissTools();
+  }), []);
   useImperativeHandle(inputRef, () => ({
     focus: showKeyboard,
     dismissTools,
     insertText: (text: string) => editor.current?.insertText(text),
     snapshot: () => editor.current?.snapshot() ?? Promise.reject(new Error('Editor unavailable')),
   }));
+  const nativeLifecycle = useRef({ update, updateKeyboardHeight, measureViewport, scheduleBodyMeasure });
+  nativeLifecycle.current = { update, updateKeyboardHeight, measureViewport, scheduleBodyMeasure };
   useEffect(() => {
     active.current = true;
     if (currentAttachments.current.some(item => item.kind === 'photo' && item.phase !== 'complete' && item.phase !== 'failed')) {
-      update(current => restoreTopicAttachments(current));
+      nativeLifecycle.current.update(current => restoreTopicAttachments(current));
     }
-    const keyboardListener = (event: { height: number }) => { if (active.current && pageVisible.current) updateKeyboardHeight(event.height); };
+    const keyboardListener = (event: { height: number }) => { if (visibleRef.current && active.current && pageVisible.current) nativeLifecycle.current.updateKeyboardHeight(event.height); };
     const resizeListener = () => {
-      if (!active.current || !pageVisible.current) return;
-      measureViewport(); scheduleBodyMeasure();
+      if (!visibleRef.current || !active.current || !pageVisible.current) return;
+      nativeLifecycle.current.measureViewport(); nativeLifecycle.current.scheduleBodyMeasure();
     };
     Taro.onKeyboardHeightChange?.(keyboardListener);
     Taro.onWindowResize?.(resizeListener);
-    measureViewport();
+    nativeLifecycle.current.measureViewport();
     return () => {
       active.current = false;
       bodyTapStarted.current = false; bodyTappedRef.current = false;
@@ -368,14 +401,14 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   }, []);
 
   const runUpload = async (photo: Photo) => {
-    if (jobs.current.has(photo.id) || disabled) return;
+    if (!visibleRef.current || !pageVisible.current || jobs.current.has(photo.id) || disabled) return;
     if (photo.owner !== getCachedUsername()) {
       Taro.showToast({ title: '图片所属账号已变化，请移除后重新上传', icon: 'none' });
       return;
     }
     const controller = createImageUploadController();
     jobs.current.set(photo.id, controller);
-    const current = () => active.current && account.current === getCachedUsername()
+    const current = () => active.current && visibleRef.current && pageVisible.current && account.current === getCachedUsername()
       && jobs.current.get(photo.id) === controller && currentAttachments.current.some(item => item.id === photo.id);
     const patch = (changes: Partial<Photo>) => {
       if (current()) update(items => items.map(item => item.id === photo.id && item.kind === 'photo' ? { ...item, ...changes } : item));
@@ -408,14 +441,16 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   };
 
   const choosePhoto = async (source: 'camera' | 'album') => {
-    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername() || selecting.current) return;
+    if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername() || selecting.current) return;
     const remaining = MAX_COMMENT_ATTACHMENTS - currentAttachments.current.length;
     if (remaining <= 0) { Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' }); return; }
     selecting.current = true;
+    const generation = panelGeneration.current, owner = account.current;
+    const current = () => visibleRef.current && active.current && pageVisible.current && generation === panelGeneration.current && owner === account.current && owner === getCachedUsername();
     try {
-      if (!await ensureImageHostBound(() => active.current && account.current === getCachedUsername())) return;
+      if (!await ensureImageHostBound(current) || !current()) return;
       const selected = await Taro.chooseMedia({ count: source === 'camera' ? 1 : remaining, mediaType: ['image'], sourceType: [source], sizeType: ['original'] });
-      if (!active.current || account.current !== getCachedUsername()) return;
+      if (!current()) return;
       const available = Math.max(0, MAX_COMMENT_ATTACHMENTS - currentAttachments.current.length);
       const photos: Photo[] = selected.tempFiles.filter(file => !!file.tempFilePath).slice(0, available).map(file => ({
         id: attachmentId(), kind: 'photo', path: file.tempFilePath, owner: account.current,
@@ -424,7 +459,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
       if (selected.tempFiles.length > available) Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' });
       update(items => [...items, ...photos]);
       for (const photo of photos) {
-        if (!active.current || account.current !== getCachedUsername()) break;
+        if (!current()) break;
         await runUpload(photo);
       }
     } catch (error) {
@@ -471,7 +506,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     // A completed thumbnail is deliberately inert: no implicit body insertion.
   };
   const remove = async (id: string) => {
-    if (disabledRef.current || !active.current || !pageVisible.current || account.current !== getCachedUsername()) return;
+    if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || account.current !== getCachedUsername()) return;
     if (insertionJobs.current.has(id)) { Taro.showToast({ title: '图片正在插入正文，请稍候', icon: 'none' }); return; }
     if (currentAttachments.current.some(item => item.id === id && (item.richManaged || item.insertionState))) {
       try {
@@ -495,7 +530,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     update(items => items.filter(item => item.id !== id));
   };
   const addSticker = (sticker: Sticker) => {
-    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
     if (currentAttachments.current.length >= MAX_COMMENT_ATTACHMENTS) { Taro.showToast({ title: '图片和表情包最多只能添加5个', icon: 'none' }); return; }
     const selected: TopicAttachment = { id: attachmentId(), kind: 'sticker', sticker };
     update(items => [...items, selected]);
@@ -533,7 +568,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     editor.current!.format('header', formatStatusRef.current.header === level ? '' : `h${level}`);
   };
   const togglePanel = (next: 'emoji' | 'more') => {
-    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
     closeHeading();
     if (panel === next) { closePanel(); return; }
     if (next === 'emoji') setCommon(getCommonEmojiUsage());
@@ -554,7 +589,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   const currentEmojiPanel = () => panelOpen.current && renderedPanelGeneration === panelGeneration.current
     && !disabledRef.current && active.current && pageVisible.current && !toolsDismissed.current && account.current === getCachedUsername();
   const insertEmoji = (emoji: string) => {
-    if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+    if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
     editor.current?.insertText(emoji);
     recordCommentEmojiUsage(emoji, []);
     setCommon(getCommonEmojiUsage());
@@ -562,8 +597,8 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
   const failedPhoto = attachments.find((item): item is Photo => item.kind === 'photo' && item.phase === 'failed');
   const previews = attachments.filter(item => !item.richManaged);
   const failedInsertion = previews.some(item => item.insertionState === 'failed' || item.insertionState === 'uncertain');
-  const overlayStyle = { width: `${windowInfo.windowWidth}px`, height: `${windowInfo.windowHeight}px`, bottom: `${-viewportInset}px`, ...themeVariables(theme) };
-  const dockStyle = { bottom: `${inputHeight}px`, paddingBottom: keyboardHeight > 0 || panelHeight > 0 ? '0px' : `${safeBottom}px`, maxHeight: `${Math.max(0, layoutBottom - inputHeight)}px` };
+  const overlayStyle = { ...(embedded && contentBounds ? { left: `${contentBounds.left}px`, right: 'auto' } : {}), width: embedded && contentBounds ? `${contentBounds.width}px` : desktop ? '100%' : `${windowInfo.windowWidth}px`, height: desktop ? '100%' : `${windowInfo.windowHeight}px`, bottom: `${-viewportInset}px`, ...themeVariables(theme) };
+  const dockStyle = { bottom: `${inputHeight}px`, paddingBottom: keyboardHeight > 0 || panelHeight > 0 ? '0px' : `${safeBottom}px`, maxHeight: desktop ? `calc(100% - ${inputHeight}px)` : `${Math.max(0, layoutBottom - inputHeight)}px` };
   const resumeLabel = '收起表情面板';
   const nativeControls = process.env.TARO_ENV === 'weapp';
   const palette = THEME_PALETTES[theme];
@@ -571,7 +606,7 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     const tone = selected ? 'accent' : secondary ? 'secondary' : 'primary';
     const className = `topicEditorTool${selected ? ' topicEditorTool--active' : ''}${unavailable && !nativeControls ? ' topicEditorTool--disabled' : ''}${extraClass ? ` ${extraClass}` : ''}`;
     return nativeControls
-      ? <View key={label} className={className}><topic-format-button icon={svgIconSource(icon, selected ? palette['accent-primary'] : secondary ? palette['text-secondary'] : palette['text-primary'])}
+      ? <View key={label} className={className}><topic-format-button desktop={desktop} icon={svgIconSource(icon, selected ? palette['accent-primary'] : secondary ? palette['text-secondary'] : palette['text-primary'])}
           label={label} disabled={unavailable} active={selected} background={palette['brand-soft']} onFormatend={action} /></View>
       : <View key={label} className={className} ariaRole='button' ariaLabel={label} onClick={action}>
           <View className='topicEditorToolGlyph'><ThemedIcon src={icon} tone={tone} className='topicEditorToolIcon' /></View>
@@ -585,11 +620,11 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     const caption = uploading
       ? failedUpload ? '点击重试' : item.phase === 'preparing' ? '处理中' : item.phase === 'processing' ? '服务器处理中' : item.progress === null ? '上传中' : `${item.progress}%`
       : item.insertionState === 'uncertain' ? '检查插入状态' : item.insertionState === 'failed' ? '检查旧图片' : inserting ? '检查旧图片' : '';
-    return <topic-format-button icon={item.kind === 'photo' ? item.url || item.path : item.sticker.url}
+    return <topic-format-button desktop={desktop} icon={item.kind === 'photo' ? item.url || item.path : item.sticker.url}
       label={uploading ? item.error || '图片上传中' : item.insertionState ? '检查图片插入状态' : '图片附件'}
       disabled={unavailable} active={false} background='transparent' thumbnail caption={caption} loading={uploading && !failedUpload || inserting}
       onFormatend={() => {
-        if (disabledRef.current || !active.current || !pageVisible.current || account.current !== getCachedUsername()) return;
+        if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || account.current !== getCachedUsername()) return;
         if (failedUpload && item.kind === 'photo') void runUpload(item);
         else if (!unavailable) openAttachment(item.id);
       }} />;
@@ -604,12 +639,12 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     ? Math.max(0, Math.min(bodyThumbTrack, bodyScrollTop / bodyOverflow * bodyThumbTrack))
     : 0;
 
-  return <View className='topicEditor'>
-    <View className='topicAttachmentRegion' style={{ height: previews.length ? '166rpx' : '0rpx' }}>
+  return <View id={rootId.current} className='topicEditor'>
+    <View className='topicAttachmentRegion' style={{ height: uiRpxLength(previews.length ? 166 : 0) }}>
       {previews.length > 0 && <ScrollView type={scrollViewType} scrollX scrollWithAnimation
         scrollIntoView={`topic-preview-${previews[previews.length - 1].id}`} className='topicAttachmentScroll' {...{ 'keyboard-dismiss-mode': 'none' }}
       >
-        <View className='topicAttachmentTrack' style={{ width: previews.length * 144 + 'rpx' }}>
+        <View className='topicAttachmentTrack' style={{ width: uiRpxLength(previews.length * 144) }}>
           {previews.map(item => <View className='topicAttachment' id={`topic-preview-${item.id}`} key={item.id}>
             {nativeControls ? attachmentControl(item) : <>
             <Image src={item.kind === 'photo' ? item.url || item.path : item.sticker.url} mode='aspectFit' className='topicAttachmentImage' onClick={() => openAttachment(item.id)} />
@@ -639,10 +674,10 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
       >
         <View className='topicEditorBodyContent'>
           <RichTopicBody handleRef={editor} value={value} document={document} attachments={attachments} placeholder={placeholder}
-            disabled={disabled} focus={focused} onChange={handleBodyChange}
+            disabled={disabled || !visible} active={visible} focus={focused} onChange={handleBodyChange}
             onFormatStatusChange={setFormatStatus}
             onFocus={() => {
-              if (disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
+              if (!visibleRef.current || disabledRef.current || !active.current || !pageVisible.current || toolsDismissed.current || account.current !== getCachedUsername()) return;
               bodyFocusedRef.current = true; setBodyFocused(true); setToolsHidden(false); setFocused(true);
               panelGeneration.current++; panelOpen.current = false; setPanel(null); measureViewport(); scheduleBodyMeasure();
             }}
@@ -673,8 +708,8 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
     </View>
     {/* Native editor focus can pan the page; keep the dock outside its scroll ancestors. */}
     <RootPortal>
-    <View id={viewportProbeId.current} className='topicEditorViewportProbe' />
-    {overlayVisible && <View className='topicEditorDockHost' style={overlayStyle}>
+    {visible && <View id={viewportProbeId.current} className='topicEditorViewportProbe' />}
+    {overlayVisible && <View className={`topicEditorDockHost${desktop ? ' themePageHost--desktop' : ''}`} style={overlayStyle}>
     {headingOpen && !disabled && account.current === getCachedUsername() && <View className='topicEditorHeadingBackdrop' onTouchStart={closeHeading} />}
     {dockVisible && <View className='topicEditorDock' style={dockStyle}>
     {headingOpen && !disabled && account.current === getCachedUsername() && <View className='topicEditorHeadingMenu'>
@@ -696,11 +731,11 @@ export default function TopicEditor({ value, document, placeholder, inputRef, di
         onTabChange={next => {
           if (currentEmojiPanel()) setTab(next);
         }} onEmoji={emoji => { if (currentEmojiPanel()) insertEmoji(emoji); }} onSticker={sticker => { if (currentEmojiPanel()) addSticker(sticker); }}
-        renderTabControl={nativeControls ? (item, select, content) => <topic-format-button icon='' label={item === 'common' ? '常用' : item === 'emoji' ? '表情' : '过早客'}
+        renderTabControl={nativeControls ? (item, select, content) => <topic-format-button desktop={desktop} icon='' label={item === 'common' ? '常用' : item === 'emoji' ? '表情' : '过早客'}
           disabled={disabled} active={false} background='transparent' captureOnly style={{ height: `${14.91 * 1.4}px` }} onFormatend={select}>{content}</topic-format-button> : undefined}
-        renderStickerControl={nativeControls ? (sticker, select, content) => <topic-format-button icon='' label={`添加表情包${sticker.name}`}
-          disabled={disabled} active={false} background='transparent' captureOnly style={{ height: '112rpx' }} onFormatend={select}>{content}</topic-format-button> : undefined}
-        renderEmojiControl={nativeControls ? (emoji, select, content) => <topic-format-button icon='' label={`插入表情${emoji}`}
+        renderStickerControl={nativeControls ? (sticker, select, content) => <topic-format-button desktop={desktop} icon='' label={`添加表情包${sticker.name}`}
+          disabled={disabled} active={false} background='transparent' captureOnly style={{ height: uiRpxLength(112) }} onFormatend={select}>{content}</topic-format-button> : undefined}
+        renderEmojiControl={nativeControls ? (emoji, select, content) => <topic-format-button desktop={desktop} icon='' label={`插入表情${emoji}`}
           disabled={disabled} active={false} background='transparent' captureOnly style={{ height: '100%' }} onFormatend={select}>{content}</topic-format-button> : undefined} />}
       {panel === 'more' && <View className='topicEditorPanel'><View className='topicMoreActions'>
         <View className='topicMoreAction' ariaRole='button' ariaLabel='拍照' onClick={() => choosePhoto('camera')}><View className='topicMoreSquare'><ThemedIcon src={CameraIcon} tone='secondary' className='topicMoreIcon' /></View><Text>拍照</Text></View>

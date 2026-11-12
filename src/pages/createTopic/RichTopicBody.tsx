@@ -2,7 +2,7 @@ import { Editor, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useEffect, useImperativeHandle, useRef, useState, type RefObject } from 'react';
 import MentionTextarea from '../../components/MentionTextarea';
-import { getCachedUsername } from '../../utils/currentUser';
+import { getCachedUsername, subscribeCurrentAccount } from '../../utils/currentUser';
 import { useTheme } from '../../hooks/useTheme';
 import { THEME_PALETTES } from '../../utils/themePreferences';
 import { AI_MENTION_USERNAME } from '../../utils/mentions';
@@ -27,7 +27,7 @@ export interface RichBodyHandle {
   openMentions(): void;
 }
 interface Props {
-  value: string; document?: TopicDocument; attachments: TopicAttachment[]; disabled: boolean; focus: boolean;
+  value: string; document?: TopicDocument; attachments: TopicAttachment[]; disabled: boolean; focus: boolean; active?: boolean;
   placeholder: string; handleRef: RefObject<RichBodyHandle | null>; onChange: (value: string, document?: TopicDocument) => void;
   onFocus: () => void; onBlur: () => void; onTouchStart?: () => void;
   onBodyTap?: () => void; onTouchMove?: () => void; onTouchCancel?: () => void;
@@ -45,17 +45,25 @@ const FORMAT_LABELS: Record<string, string> = {
 export default function RichTopicBody(props: Props) {
   const { theme } = useTheme();
   const id = useRef(`topic-native-editor-${++nextEditorId}`);
+  const ownerPage = useRef(Taro.getCurrentInstance().page);
   const initial = useRef(importTopicMarkdown(props.value));
   const [sourceMode, setSourceMode] = useState(!props.document && !initial.current.lossless);
   const [notice, setNotice] = useState(initial.current.lossless ? '' : SOURCE_NOTICE);
   const [mentions, setMentions] = useState(false);
   const [ready, setReady] = useState(false);
+  const [accountEpoch, setAccountEpoch] = useState(0);
   const readyRef = useRef(ready); readyRef.current = ready;
   const sourceModeRef = useRef(sourceMode); sourceModeRef.current = sourceMode;
   const active = useRef(true);
   const initialAccount = useRef(getCachedUsername());
   const bodyTapStarted = useRef(false);
   const adapter = useRef<NativeEditorAdapter | null>(null);
+  const nativeContext = useRef<NativeEditorContext | null>(null);
+  const nativeReadySeen = useRef(false);
+  const adapterGeneration = useRef(0);
+  const retiredQueue = useRef(Promise.resolve());
+  const needsHydration = useRef(true);
+  const hydrationTask = useRef<Promise<unknown> | null>(null);
   const delta = useRef<TopicDelta>(normalizeTopicDelta(props.document?.delta || initial.current.delta));
   const latest = useRef(props); latest.current = props;
   const lastValue = useRef(props.value);
@@ -69,8 +77,8 @@ export default function RichTopicBody(props: Props) {
   const imageAttempts = useRef(new Map<string, { src: string; countBefore: number; boundary: number }>());
   const expectedShortcutTexts = useRef<Set<string> | null>(null);
   const sourceHandle = useRef<any>(null);
-  const canInteract = () => active.current && !latest.current.disabled && initialAccount.current === getCachedUsername()
-    && (sourceModeRef.current || readyRef.current);
+  const currentBody = () => active.current && latest.current.active !== false && initialAccount.current === getCachedUsername();
+  const canInteract = () => currentBody() && !latest.current.disabled && (sourceModeRef.current || readyRef.current);
   const handleFocus = () => { tryHideKeyboardAccessoryView(); props.onFocus(); };
   const handleBodyTouchStart = () => {
     bodyTapStarted.current = canInteract();
@@ -133,25 +141,68 @@ export default function RichTopicBody(props: Props) {
   };
   const read = async () => {
     const ctx = adapter.current, version = boundary.current, edit = revision.current;
-    if (!ctx || !ready) throw new Error('Editor unavailable');
+    if (!currentBody() || !ctx || !ready) throw new Error('Editor unavailable');
     const contents = await ctx.snapshot();
-    if (!active.current || version !== boundary.current || ctx !== adapter.current || edit !== revision.current) throw new Error('Editor changed while reading');
+    if (!currentBody() || version !== boundary.current || ctx !== adapter.current || edit !== revision.current) throw new Error('Editor changed while reading');
     publish(contents);
     return snapshotValue();
   };
   const snapshot = async (): Promise<EditorSnapshot> => {
+    const version = boundary.current;
+    if (!currentBody()) throw new Error('Editor inactive');
     await imageQueue.current;
     await operation.current;
+    if (!currentBody() || version !== boundary.current) throw new Error('Editor changed while reading');
     const result = sourceModeRef.current ? { markdown: lastValue.current, errors: [], unsupported: [], referencedAttachmentIds: [] } : await read();
     const references = new Set(result.referencedAttachmentIds);
     const unconfirmed = latest.current.attachments.some(item => item.insertionState && !item.richManaged
       && !insertedImages.current.has(item.id) && !references.has(item.id));
     return unconfirmed ? { ...result, errors: [...result.errors, '图片尚未确认插入正文，请重试插入或移除附件'] } : result;
   };
-  useEffect(() => () => { active.current = false; boundary.current++; adapter.current?.dispose(); }, []);
+  const retireAdapter = () => {
+    adapterGeneration.current++; adapter.current?.dispose(); adapter.current = null;
+    // Drain submitted native calls before a new hydration; queued calls on the
+    // disposed adapter fail closed without mutating the retained Editor.
+    retiredQueue.current = Promise.allSettled([retiredQueue.current, operation.current, imageQueue.current, hydrationTask.current]).then(() => undefined);
+    readyRef.current = false; setReady(false);
+  };
+  const bindContext = (context: NativeEditorContext) => {
+    const generation = ++adapterGeneration.current;
+    const ctx = createNativeEditorAdapter(context, () => currentBody() && generation === adapterGeneration.current);
+    adapter.current = ctx;
+    const version = boundary.current;
+    const task = retiredQueue.current.then(() => {
+      if (!currentBody() || version !== boundary.current || ctx !== adapter.current) return;
+      if (!needsHydration.current) { readyRef.current = true; setReady(true); return; }
+      return ctx.hydrate(delta.current).then(() => {
+        if (currentBody() && version === boundary.current && ctx === adapter.current) {
+          needsHydration.current = false; readyRef.current = true; setReady(true);
+        }
+      });
+    }).catch(() => {
+      if (currentBody() && version === boundary.current && ctx === adapter.current) setNotice('正文恢复失败，可切换源码继续编辑。');
+    });
+    hydrationTask.current = task;
+  };
+  const resumeNative = () => {
+    if (!currentBody() || sourceModeRef.current || adapter.current || !nativeReadySeen.current) return;
+    if (nativeContext.current) bindContext(nativeContext.current); else onReady();
+  };
+  const nativeLifecycle = useRef({ retireAdapter, resumeNative });
+  nativeLifecycle.current = { retireAdapter, resumeNative };
+  useEffect(() => () => { active.current = false; boundary.current++; nativeLifecycle.current.retireAdapter(); }, []);
+  useEffect(() => {
+    if (props.active === false) {
+      boundary.current++; revision.current++; nativeLifecycle.current.retireAdapter(); bodyTapStarted.current = false; setMentions(false); publishFormatStatus(EMPTY_FORMAT_STATUS);
+    } else nativeLifecycle.current.resumeNative();
+  }, [props.active]);
+  useEffect(() => subscribeCurrentAccount(() => {
+    boundary.current++; revision.current++; initialAccount.current = getCachedUsername(); retireAdapter(); needsHydration.current = true; setAccountEpoch(value => value + 1);
+    bodyTapStarted.current = false; insertedImages.current.clear(); imageAttempts.current.clear(); setMentions(false); publishFormatStatus(EMPTY_FORMAT_STATUS);
+  }), []);
   // Hydrate only an external draft/reset. Echoed native typing never invokes setContents.
   useEffect(() => {
-    if (props.value === lastValue.current && props.document === lastDocument.current) return;
+    if (props.value === lastValue.current && props.document === lastDocument.current) { nativeLifecycle.current.resumeNative(); return; }
     publishFormatStatus(EMPTY_FORMAT_STATUS);
     readyRef.current = false; bodyTapStarted.current = false;
     lastValue.current = props.value; lastDocument.current = props.document; boundary.current++; revision.current++;
@@ -162,32 +213,28 @@ export default function RichTopicBody(props: Props) {
     if (!props.document && !imported.lossless) {
       adapter.current?.dispose(); adapter.current = null; setReady(false); setSourceMode(true); setNotice(SOURCE_NOTICE); return;
     }
-    if (!sourceMode && adapter.current) {
-      const version = boundary.current, ctx = adapter.current;
-      setReady(false);
-      void ctx.hydrate(delta.current).then(() => { if (active.current && version === boundary.current) setReady(true); })
-        .catch(() => { if (active.current) setNotice('正文恢复失败，可切换源码继续编辑。'); });
-    }
-  }, [props.value, props.document]);
+    needsHydration.current = true; retireAdapter();
+    if (!sourceModeRef.current) nativeLifecycle.current.resumeNative();
+  }, [props.value, props.document, accountEpoch]);
 
   const write = async (job: (ctx: NativeEditorAdapter) => Promise<unknown>): Promise<boolean> => {
-    if (!adapter.current || !ready || latest.current.disabled || !active.current || operation.current) return false;
+    if (!canInteract() || !adapter.current || !ready || operation.current) return false;
     const ctx = adapter.current, version = boundary.current;
     let inserted = false;
     const task = (async () => {
       try {
-        await job(ctx); inserted = active.current && version === boundary.current && ctx === adapter.current;
-      } catch { if (active.current) setNotice('编辑操作失败，请检查正文后重试。'); }
+        await job(ctx); inserted = currentBody() && version === boundary.current && ctx === adapter.current;
+      } catch { if (currentBody() && version === boundary.current) setNotice('编辑操作失败，请检查正文后重试。'); }
       // Reconcile even a partially applied mutation; never claim the original markers survived.
-      if (active.current && version === boundary.current && ctx === adapter.current) {
+      if (currentBody() && version === boundary.current && ctx === adapter.current) {
         const edit = revision.current;
         try {
           const contents = await ctx.snapshot();
-          if (active.current && version === boundary.current && ctx === adapter.current && edit === revision.current) publish(contents);
-          else if (active.current) setNotice('编辑期间正文已变化，请重新预览以读取最新内容。');
-        } catch { if (active.current) setNotice('正文读取失败，请重新点击正文后预览。'); }
+          if (currentBody() && version === boundary.current && ctx === adapter.current && edit === revision.current) publish(contents);
+          else if (currentBody() && version === boundary.current) setNotice('编辑期间正文已变化，请重新预览以读取最新内容。');
+        } catch { if (currentBody() && version === boundary.current) setNotice('正文读取失败，请重新点击正文后预览。'); }
       }
-      if (!inserted && active.current) setNotice('编辑操作未完成，已同步当前正文，请检查或撤销后重试。');
+      if (!inserted && currentBody() && version === boundary.current && ctx === adapter.current) setNotice('编辑操作未完成，已同步当前正文，请检查或撤销后重试。');
     })();
     operation.current = task;
     try { await task; return inserted; } finally { if (operation.current === task) operation.current = null; }
@@ -198,7 +245,7 @@ export default function RichTopicBody(props: Props) {
   };
   const insertImage = async (src: string, imageId: string, alt: string, current: () => boolean = () => true): Promise<ImageInsertionResult> => {
     const version = boundary.current;
-    const valid = () => active.current && version === boundary.current && current();
+    const valid = () => currentBody() && version === boundary.current && current();
     pendingImages.current++;
     // Uploads can finish during another editor operation; do not drop a busy insertion.
     const queued = imageQueue.current.then(async (): Promise<ImageInsertionResult> => {
@@ -254,10 +301,10 @@ export default function RichTopicBody(props: Props) {
     try { return await queued; } finally { pendingImages.current--; }
   };
   useImperativeHandle(props.handleRef, () => ({
-    canFocus: () => sourceModeRef.current && !latest.current.disabled && active.current,
+    canFocus: () => sourceModeRef.current && canInteract(),
     snapshot,
     async insertText(text) {
-      if (sourceMode) { if (!latest.current.disabled) sourceHandle.current?.insertText(text); return; }
+      if (sourceMode) { if (canInteract()) sourceHandle.current?.insertText(text); return; }
       await write(ctx => ctx.insertText(text));
     },
     insertImage,
@@ -281,28 +328,27 @@ export default function RichTopicBody(props: Props) {
         else await ctx.format(name, value);
       });
     },
-    openMentions() { if (sourceMode) sourceHandle.current?.openMentions(); else setMentions(value => !value); },
+    openMentions() { if (!canInteract()) return; if (sourceMode) sourceHandle.current?.openMentions(); else setMentions(value => !value); },
   }));
 
   const onReady = () => {
+    nativeReadySeen.current = true;
+    if (!currentBody() || adapter.current) return;
     readyRef.current = false;
     publishFormatStatus(EMPTY_FORMAT_STATUS);
-    Taro.createSelectorQuery().select(`#${id.current}`).context(result => {
-      if (!active.current || !result.context) return;
-      const ctx = createNativeEditorAdapter(result.context as NativeEditorContext, () => active.current);
-      const version = boundary.current;
-      adapter.current?.dispose(); adapter.current = ctx;
-      void ctx.hydrate(delta.current).then(() => {
-        if (active.current && version === boundary.current && ctx === adapter.current) setReady(true);
-      }).catch(() => { if (active.current) setNotice('富文本初始化失败，可切换源码继续编辑。'); });
+    const query = Taro.createSelectorQuery(), request = boundary.current, generation = ++adapterGeneration.current;
+    if (!ownerPage.current || typeof query.in !== 'function') return;
+    query.in(ownerPage.current).select(`#${id.current}`).context(result => {
+      if (!currentBody() || request !== boundary.current || generation !== adapterGeneration.current || !result?.context) return;
+      nativeContext.current = result.context as NativeEditorContext; bindContext(nativeContext.current);
     }).exec();
   };
   const onInput = async (next: TopicDelta) => {
-    if (!active.current) return;
+    if (!canInteract()) return;
     const previous = delta.current;
     const ownEvent = expectedShortcutTexts.current?.has(editorDeltaText(next));
     if (!ownEvent) revision.current++;
-    const edit = revision.current;
+    const edit = revision.current, version = boundary.current;
     publish(next);
     if (operation.current || latest.current.disabled || !ready || !adapter.current?.supportsRanges) return;
     const ctx = adapter.current;
@@ -316,11 +362,11 @@ export default function RichTopicBody(props: Props) {
       for (const deletion of plan.deletions) { text = text.slice(0, deletion.index) + text.slice(deletion.index + deletion.length); allowed.add(text); }
       expectedShortcutTexts.current = allowed;
       await write(editor => editor.shortcut(plan, () => active.current && edit === revision.current));
-    } catch { if (active.current) setNotice('自动排版未完成，已保留当前正文，请检查或撤销后重试。'); }
+    } catch { if (currentBody() && version === boundary.current) setNotice('自动排版未完成，已保留当前正文，请检查或撤销后重试。'); }
     finally { expectedShortcutTexts.current = null; }
   };
   const switchMode = async () => {
-    if (latest.current.disabled || operation.current || pendingImages.current) return;
+    if (!currentBody() || latest.current.disabled || operation.current || pendingImages.current) return;
     if (sourceMode) {
       const imported = importTopicMarkdown(lastValue.current);
       if (!imported.lossless) { setNotice(SOURCE_NOTICE); return; }
@@ -345,7 +391,7 @@ export default function RichTopicBody(props: Props) {
       mentionUsers={getCachedUsername() ? [getCachedUsername()] : []} placeholder={props.placeholder} disabled={props.disabled}
       autoHeight focus={props.focus} holdKeyboard={props.focus} showConfirmBar={false} maxlength={50000} onFocus={handleFocus} onBlur={handleBlur}
       onTouchStart={handleBodyTouchStart} onTouchMove={() => cancelBodyTap()} onTouchCancel={() => cancelBodyTap(true)} onClick={handleBodyTap}
-      onInput={event => { lastValue.current = event.detail.value; lastDocument.current = undefined; setNotice(importTopicMarkdown(event.detail.value).lossless ? '' : SOURCE_NOTICE); props.onChange(event.detail.value, undefined); }}
+      onInput={event => { if (!canInteract()) return; lastValue.current = event.detail.value; lastDocument.current = undefined; setNotice(importTopicMarkdown(event.detail.value).lossless ? '' : SOURCE_NOTICE); props.onChange(event.detail.value, undefined); }}
     />
       : <View className='topicNativeBodyTarget' onTouchStart={handleBodyTouchStart}
           onTouchMove={() => cancelBodyTap()} onTouchCancel={() => cancelBodyTap(true)} onClick={handleBodyTap}>
@@ -354,9 +400,9 @@ export default function RichTopicBody(props: Props) {
         <Editor id={id.current} className='topicNativeEditor' style={{ color: THEME_PALETTES[theme]['text-primary'] }} placeholder={props.placeholder} readOnly={props.disabled || !ready}
           showImgToolbar showImgResize onReady={onReady} onFocus={handleFocus}
           onStatusChange={event => {
-            if (active.current && readyRef.current && !sourceModeRef.current && !latest.current.disabled) publishFormatStatus(parseNativeEditorStatus(event.detail));
+            if (canInteract() && !sourceModeRef.current) publishFormatStatus(parseNativeEditorStatus(event.detail));
           }}
-          onBlur={event => { if (event.detail?.delta && active.current) publish(event.detail.delta); handleBlur(); }}
+          onBlur={event => { if (event.detail?.delta && currentBody()) publish(event.detail.delta); handleBlur(); }}
           onInput={event => { void onInput(event.detail.delta); }}
         />
       </View>}

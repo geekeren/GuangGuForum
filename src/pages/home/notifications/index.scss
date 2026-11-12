@@ -196,6 +196,48 @@
   .emptyDesc { display: block; font-size: 14.91PX; line-height: 1.7; color: $text-muted; margin-top: 12rpx; }
 }
 
+// Desktop panes keep the mobile design density, regardless of the outer window.
+.themePageHost--desktop .notificationsPage {
+  width: 100%; height: 100%;
+  .notificationsList { height: 0; flex-basis: 0; flex-grow: 1; flex-shrink: 1; }
+  .messageHubCategories { padding: 13PX 12PX 12PX; }
+  .messageHubCategory { gap: 7PX; }
+  .messageHubCategoryIcon { width: 40PX; height: 40PX; border-radius: 12PX; }
+  .messageHubIcon { width: 20PX; height: 20PX; }
+  .messageHubUnreadDot { right: 2PX; top: 2PX; width: 7PX; height: 7PX; }
+  .notificationItem { margin: 0 11PX 9PX; padding: 13PX 11PX; border-radius: 14PX; box-shadow: 0 3PX 10PX rgba(64, 93, 150, 0.04); }
+  .notificationAvatar {
+    width: 35PX; height: 35PX; margin-right: 9PX;
+    .avatarImg { width: 35PX !important; height: 35PX !important; border-radius: 12PX; }
+    .aiUserTag { height: 10PX; line-height: 10PX; padding: 0 2PX; border-radius: 3PX; }
+  }
+  .notificationHeader { gap: 6PX; margin-bottom: 6PX; }
+  .notificationBadge { padding: 2PX 6PX; border-radius: 5PX; }
+  .notificationContent {
+    margin-top: 8PX; padding: 9PX 10PX; border-radius: 9PX;
+    .htmlWrap .html {
+      .h5-p { margin: 0 0 4PX; }
+      .h5-p:last-child { margin-bottom: 0; }
+      .html-link { padding: 2PX 5PX; gap: 3PX; border-radius: 10PX; }
+      .html-link--mention { padding: 0 6PX; border-radius: 5PX; }
+      .html-linkIcon { width: 11PX; height: 11PX; }
+      .h5-img { margin: 6PX auto; border-radius: 6PX; }
+    }
+  }
+  .notificationStatus { min-height: 180PX; }
+  .emptyState { padding: 24PX 20PX; }
+  .emptyIcon { width: 56PX; height: 56PX; border-radius: 18PX; border-width: 0.5PX; margin-bottom: 16PX; image { width: 26PX; height: 26PX; } }
+  .emptyDesc { margin-top: 6PX; }
+  .loginRetryHint { padding: 6PX 0 12PX; }
+  .loginPrompt { min-height: 200PX; padding: 24PX 16PX; }
+  .loginPromptIcon { margin-bottom: 14PX; }
+  .loginPromptBadge { width: 56PX; height: 56PX; border-radius: 18PX; border-width: 0.5PX; margin-bottom: 16PX; }
+  .loginPromptBadgeIcon { width: 26PX; height: 26PX; }
+  .loginPromptTitle { margin-bottom: 6PX; }
+  .loginPromptDesc { margin-bottom: 18PX; }
+  .loginPromptBtn { min-height: 44PX; min-width: 120PX; padding: 11PX 32PX; border-radius: 6PX; box-shadow: 0 4PX 12PX rgba(31, 105, 255, 0.2); }
+}
+
 @keyframes notificationReveal {
   from { opacity: 0.6; }
   to { opacity: 1; }

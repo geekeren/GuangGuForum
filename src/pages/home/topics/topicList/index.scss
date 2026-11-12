@@ -1,5 +1,13 @@
 @import "../../../../vars.scss";
 
+// An empty host contributes no gap and never participates in viewport sizing.
+.topicListLoadingHost {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  flex: none;
+}
+
 .topicList {
   font-size: 16.05PX;
   box-sizing: border-box;
@@ -227,4 +235,39 @@
     text-align: center;
     color: $text-muted;
   }
+}
+
+.themePageHost--desktop {
+  .topicList {
+    .topicListTopSpacer { height: 14PX; }
+    .listFooter { padding: 16PX 0 20PX; }
+    .topicItem {
+      margin: 0 11PX 7PX; padding: 11PX 13PX 10PX; min-height: 66PX; border-radius: 12PX;
+      .meta {
+        margin-top: 8PX;
+        .left { gap: 6PX; margin-right: 6PX; }
+        .topicTag { max-width: 79PX; padding: 2PX 5PX; border-radius: 12PX; }
+        .topicTagIcon { width: 10PX; height: 10PX; margin-right: 3PX; }
+        .user { max-width: 104PX; }
+        .user .avatar, .user .avatar image { width: 16PX; height: 16PX; }
+        .user .userAvatar { width: 16PX !important; height: 16PX !important; }
+        .user .aiUserTag { height: 8PX; line-height: 8PX; padding: 0 1PX; border-radius: 3PX; }
+        .userName { margin-left: 4PX; }
+        .commentIcon { width: 12PX; height: 12PX; margin-right: 5PX; }
+      }
+    }
+  }
+  .topicListEmpty { min-height: 180PX; padding: 24PX 16PX; .emptyDesc { margin-top: 6PX; } }
+  .topicList .homeAnnouncement {
+    min-height: 57PX; margin: 0 11PX 11PX; padding: 9PX 13PX; border-radius: 12PX;
+    .homeAnnouncementIllustration { width: 138PX; height: 57PX; }
+    .homeAnnouncementIconWrap, .homeAnnouncementIcon { width: 22PX; height: 22PX; }
+    .homeAnnouncementIconWrap { margin-right: 7PX; }
+    .homeAnnouncementSubtitle { margin-top: 3PX; }
+    .homeAnnouncementBlend { width: 138PX; }
+  }
+}
+.themePageHost--desktop.themePageHost--dark {
+  .root.root--topics .topicList .topicItem { padding: 10PX 12PX 9PX; border-width: 1PX; }
+  .topicList .homeAnnouncement { padding: 8PX 12PX; border-width: 1PX; }
 }

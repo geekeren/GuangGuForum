@@ -21,7 +21,7 @@ vi.mock("react", () => ({
   },
 }));
 vi.mock("@tarojs/taro", () => ({
-  default: { chooseMedia: vi.fn(), showToast: vi.fn(), hideKeyboard: vi.fn(), getWindowInfo: vi.fn(() => ({ windowWidth: 390, windowHeight: 844, screenHeight: 844, safeArea: { bottom: 810 } })) },
+  default: { chooseMedia: vi.fn(), showToast: vi.fn(), hideKeyboard: vi.fn(), getDeviceInfo: vi.fn(() => ({ platform: 'ios' })), getWindowInfo: vi.fn(() => ({ windowWidth: 390, windowHeight: 844, screenHeight: 844, safeArea: { bottom: 810 } })) },
 }));
 vi.mock("@tarojs/components", () => ({ View: "View", Text: "Text", Button: "Button", ScrollView: "ScrollView", Image: "Image" }));
 vi.mock("../../components/ThemedIcon", () => ({ default: "ThemedIcon" }));
@@ -53,6 +53,8 @@ function find(tree: any, name: string) {
 }
 beforeEach(() => {
   harness.state = []; harness.refs = []; harness.bound = true;
+  vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform: 'ios' } as any);
+  vi.mocked(Taro.getWindowInfo).mockReturnValue({ windowWidth: 390, windowHeight: 844, screenHeight: 844, safeArea: { bottom: 810 } } as any);
   props.value = "@first 正文内容"; props.sending = false;
   props.stickers = [];
   props.photos = [];
@@ -65,6 +67,25 @@ beforeEach(() => {
   vi.mocked(Taro.chooseMedia).mockResolvedValue({ tempFiles: [{ tempFilePath: '/tmp/photo.jpg' }] } as any);
   vi.mocked(compressCommentPhoto).mockImplementation(async path => path);
   vi.mocked(isImageCompressionEnabled).mockReturnValue(true);
+});
+
+describe('desktop sheet keeps page-local bounds and original draft state', () => {
+  it.each(['windows', 'mac'])('keeps %s preview and popup dimensions stable through native pane resizes', platform => {
+    vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform } as any);
+    props.stickers = [STICKERS[0]];
+    for (const windowWidth of [450, 1400, 750]) {
+      vi.mocked(Taro.getWindowInfo).mockReturnValue({ windowWidth, windowHeight: 700, screenHeight: 700, safeArea: { bottom: 700 } } as any);
+      const tree = render();
+      expect(find(tree, 'commentPopup').style).toEqual({ width: '100%', height: '100%' });
+      expect(find(tree, 'commentPopupBody').style).toEqual({ bottom: '0px', paddingBottom: 'calc(12px + 0px)', maxHeight: 'calc(100% - 0px)' });
+      expect(find(tree, 'commentPopupAttachmentRegion').style.height).toBe('78px');
+      expect(find(tree, 'commentStickerPreviewTrack').style.width).toBe('72px');
+      expect(find(tree, 'MentionTextarea').value).toBe('@first 正文内容');
+    }
+    find(render(), 'MentionTextarea').onKeyboardHeightChange({ detail: { height: 250 } });
+    expect(find(render(), 'commentPopupBody').style).toEqual({ bottom: '250px', paddingBottom: 'calc(12px + 0px)', maxHeight: 'calc(100% - 250px)' });
+    expect(props.onChange).not.toHaveBeenCalled(); expect(props.onSend).not.toHaveBeenCalled();
+  });
 });
 
 describe("Skyline comment sheet with WebView fallback", () => {

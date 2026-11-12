@@ -17,7 +17,7 @@
 .privateMessageMuted { display: block; font-size: 12PX; line-height: 1.6; color: var(--theme-text-muted, #68758d); }
 .privateConversation { display: flex; flex-direction: row; align-items: center; gap: 24rpx; margin: 0 32rpx; padding: 30rpx 0; border-bottom: 1rpx solid var(--theme-border-soft, var(--theme-border, #e8edf5)); background: transparent; }
 .privateMessagesPage--embedded { background: var(--theme-bg, #f5f8ff); }
-.privateConversationMeta { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch; min-width: 76rpx; max-width: 160rpx; padding: 6rpx 0; }
+.privateConversationMeta { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch; flex-shrink: 0; min-width: 76rpx; max-width: 160rpx; padding: 6rpx 0; }
 .privateConversationMeta .privateMessageTime { max-width: 160rpx; white-space: nowrap; overflow: hidden; }
 .privateConversationAvatar .userAvatarImage { border-radius: 50%; }
 .privateConversationAvatar .userAvatarTag { display: none; }

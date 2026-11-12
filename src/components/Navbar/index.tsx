@@ -1,6 +1,7 @@
 import { View, Text, ShareElement } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { getNavInfo } from "../../utils/dimension";
+import { isDesktopClient } from '../../utils/desktopLayout';
 import { useTheme } from "../../hooks/useTheme";
 import { THEME_PALETTES } from "../../utils/themePreferences";
 import { usePageRenderer } from "../../hooks/usePageRenderer";
@@ -32,9 +33,13 @@ const Navbar = (props: Props) => {
   const { theme } = useTheme();
   const skyline = usePageRenderer() === "skyline";
   const surfaceRGB = backgroundRGB ?? THEME_PALETTES[theme]["surface-rgb"];
-  const { capsulePaddingTop, capsuleHeight, capsuleWidth, capsuleLeft, screenWidth, statusBarHeight, marginSides } = getNavInfo();
-  const paddingRight = screenWidth - capsuleLeft + Math.max(marginSides, 12);
-  const singleBtnWidth = (capsuleWidth - 0.5) / 2;
+  const desktop = isDesktopClient();
+  // Native capsule coordinates belong to the whole desktop window, not a split page.
+  const { capsulePaddingTop, capsuleHeight, capsuleWidth, capsuleLeft, screenWidth, statusBarHeight, marginSides } = desktop
+    ? { capsulePaddingTop: 8, capsuleHeight: 32, capsuleWidth: back && home ? 64 : 32, capsuleLeft: 0, screenWidth: 0, statusBarHeight: 0, marginSides: 12 }
+    : getNavInfo();
+  const paddingRight = desktop ? 12 : screenWidth - capsuleLeft + Math.max(marginSides, 12);
+  const singleBtnWidth = desktop ? 32 : (capsuleWidth - 0.5) / 2;
   const hasLeft = back || home || leftAction;
   // navLeft's existing content-box width includes an additional left padding.
   const leftReserved = hasLeft ? capsuleWidth + marginSides * 2 : marginSides;
@@ -62,7 +67,7 @@ const Navbar = (props: Props) => {
 
   const titleStyle = customTitleStyle !== undefined ? customTitleStyle : defaultTitleStyle;
 
-  const navBarPaddingTop = inModal ? 16 : capsulePaddingTop;
+  const navBarPaddingTop = inModal ? desktop ? 8 : 16 : capsulePaddingTop;
 
   const content = (
     <View className="customNavbar" style={navBgStyle}>

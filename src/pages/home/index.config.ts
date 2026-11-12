@@ -8,5 +8,8 @@ export default definePageConfig({
   navigationStyle: "custom",
   disableScroll: true,
   renderer: "skyline",
+  usingComponents: {
+    'topic-format-button': '../../native-components/topic-format-button/index',
+  },
   ...(ENABLE_CUSTOM_NAVBAR ? { componentFramework: "glass-easel" } : {}),
 });

@@ -1,6 +1,8 @@
 @import "../../../vars.scss";
 
 .content {
+  width: 100%;
+  height: auto;
   line-height: 1.5;
 
   .relatingTopicItem {
@@ -41,4 +43,16 @@
       &:active { opacity: 0.7; }
     }
   }
+}
+
+.floating {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+}
+
+:global(.themePageHost--desktop) .content .relatingTopicItem {
+  border-bottom-width: 1PX; padding: 8PX 6PX;
+  .left { width: 27PX; margin-right: 6PX; }
+  .left .avatar { width: 27PX !important; height: 27PX !important; border-radius: 13.5PX; }
 }

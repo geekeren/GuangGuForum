@@ -18,6 +18,19 @@
     width: 276rpx;
     height: 114rpx;
     opacity: 0.65;
+    max-width: 100%;
+    flex-shrink: 0;
+    pointer-events: none;
+  }
+
+  // Both decorative layers stay outside the flex row, even in light theme.
+  .homeAnnouncementBlend {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 276rpx;
+    max-width: 100%;
     pointer-events: none;
   }
 
@@ -35,6 +48,7 @@
   .homeAnnouncementCopy {
     position: relative;
     flex: 1;
+    flex-basis: 0;
     min-width: 0;
     z-index: 1;
   }

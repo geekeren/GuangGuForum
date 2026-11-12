@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { NodeGroup } from "guanggu-forum-api";
 import { useTheme } from "../../hooks/useTheme";
 import { themeVariables } from "../../utils/themePreferences";
+import { isDesktopClient, uiRpxLength } from "../../utils/desktopLayout";
 import "./index.scss";
 
 interface NodePickerProps {
@@ -23,6 +24,7 @@ export default function NodePicker({
   visible, groups, selectedSlug, onSelect, onClose, allLabel, loading, error, onRetry,
 }: NodePickerProps) {
   const skyline = usePageRenderer() === "skyline";
+  const desktop = isDesktopClient();
   const { theme } = useTheme();
   const [present, setPresent] = useState(visible);
   const [closing, setClosing] = useState(false);
@@ -41,21 +43,26 @@ export default function NodePicker({
 
   if (!visible && !present) return null;
 
-  const windowInfo = skyline ? Taro.getWindowInfo() : undefined;
+  const windowInfo = skyline || desktop ? Taro.getWindowInfo() : undefined;
   const safeBottom = windowInfo?.safeArea ? Math.max(0, windowInfo.screenHeight - windowInfo.safeArea.bottom) : 0;
   const sheetHeight = windowInfo ? Math.floor(windowInfo.windowHeight * 0.7) : 0;
-  const maskStyle = windowInfo ? {
+  const maskStyle = desktop ? {
+    position: "fixed" as const, top: 0, left: 0, width: "100%", height: "100%",
+  } : windowInfo ? {
     position: "fixed" as const, top: 0, left: 0,
     width: windowInfo.windowWidth + "px", height: windowInfo.windowHeight + "px",
   } : undefined;
-  const sheetStyle = windowInfo ? {
+  const sheetStyle = desktop ? {
+    position: "absolute" as const, left: 0, bottom: 0, width: "100%", height: "70%", maxHeight: "70%",
+  } : windowInfo ? {
     position: "absolute" as const, left: 0, top: windowInfo.windowHeight - sheetHeight + "px",
     width: windowInfo.windowWidth + "px", height: sheetHeight + "px",
   } : undefined;
-  const scrollStyle = windowInfo ? { paddingBottom: `calc(32rpx + ${safeBottom}px)` } : undefined;
+  const scrollStyle = desktop ? { height: 0, flex: 1, minHeight: 0, paddingBottom: `calc(${uiRpxLength(32)} + ${safeBottom}px)` }
+    : windowInfo ? { paddingBottom: `calc(${uiRpxLength(32)} + ${safeBottom}px)` } : undefined;
 
   const overlay = (
-    <View className={`nodePickerMask themeOverlay--${theme}${skyline ? " nodePickerMask--skyline" : ""}${closing ? " nodePickerMask--closing" : ""}`} style={{ ...themeVariables(theme), ...maskStyle }} onClick={onClose}>
+    <View className={`nodePickerMask themeOverlay--${theme}${desktop ? " themePageHost--desktop" : ""}${skyline ? " nodePickerMask--skyline" : ""}${closing ? " nodePickerMask--closing" : ""}`} style={{ ...themeVariables(theme), ...maskStyle }} onClick={onClose}>
       <View className={`nodePickerSheet${closing ? " nodePickerSheet--closing" : ""}`} style={sheetStyle} onClick={(e) => e.stopPropagation()}>
         <View className='nodePickerHeader'>
           <Text className='nodePickerTitle'>选择板块</Text>

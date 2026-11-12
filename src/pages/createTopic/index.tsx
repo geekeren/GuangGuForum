@@ -8,7 +8,7 @@ import {
   getCachedNodeNavigation,
   fetchAndCacheNodeNavigation,
 } from "../../utils/nodeNavigation";
-import { getCachedUsername } from "../../utils/currentUser";
+import { getCachedUsername, subscribeCurrentAccount } from "../../utils/currentUser";
 import { openLoginModal } from "../../utils/auth";
 import { cacheService, CacheCategory } from "../../utils/CacheService";
 import Navbar from "../../components/Navbar";
@@ -46,7 +46,7 @@ function hasContent(title: string, content: string, typeFields: Record<string, a
 
 const FROM_MINI = '<hr><p><em>本帖发自<a href="https://www.guozaoke.com/t/91893">小程序</a></em></p>';
 
-export default function CreateTopic() {
+export function CreateTopicContent({ active: visible = true, embedded = false, onPublished }: { active?: boolean; embedded?: boolean; onPublished?: () => void } = {}) {
   const skyline = usePageRenderer() === "skyline";
   const [nodeGroups, setNodeGroups] = useState<NodeGroup[]>([]);
   const [selectedNodeSlug, setSelectedNodeSlug] = useState("water");
@@ -66,12 +66,19 @@ export default function CreateTopic() {
   const [editorRevision, setEditorRevision] = useState(0);
   const [document, setDocument] = useState<TopicDocument | undefined>(undefined);
   const active = useRef(true);
+  const visibleRef = useRef(visible); visibleRef.current = visible;
+  const pageVisible = useRef(true);
+  const account = useRef(getCachedUsername());
+  const accountRevision = useRef(0);
+  const canInteract = () => active.current && visibleRef.current && pageVisible.current && account.current === getCachedUsername();
   const snapshotLock = useRef(false);
   const bodySnapshot = useRef<EditorSnapshot>({ markdown: '', errors: [], unsupported: [] });
   const snapshotBoundary = useRef(0);
   useEffect(() => () => { active.current = false; snapshotBoundary.current++; previewGeneration.current++; clearTimeout(previewCloseTimer.current); }, []);
   const submitLock = useRef(false);
   const published = useRef(false);
+  const draftSession = useRef(0);
+  const renderedDraftSession = draftSession.current;
   const previewContext = useRef<{ title: string; node: string; nodeName: string; owner: string; boundary: number } | null>(null);
 
   const refMap = useRef<Record<string, any>>({});
@@ -89,16 +96,19 @@ export default function CreateTopic() {
   };
   const snapshotBody = async (): Promise<EditorSnapshot> => {
     const boundary = snapshotBoundary.current;
+    const owner = account.current, revision = accountRevision.current;
+    if (!canInteract()) throw new Error('Editor inactive');
     const editor = getRef('content').current;
     if (!editor?.snapshot) throw new Error('Editor unavailable');
     const result: EditorSnapshot = await editor.snapshot();
-    if (!active.current || boundary !== snapshotBoundary.current) throw new Error('Editor changed');
+    if (!canInteract() || owner !== getCachedUsername() || revision !== accountRevision.current || boundary !== snapshotBoundary.current) throw new Error('Editor changed');
     bodySnapshot.current = result;
     setContent(result.markdown); setDocument(result.document);
     return result;
   };
 
   const currentDef = TOPIC_TYPE_REGISTRY[topicType];
+  const currentDefRef = useRef(currentDef); currentDefRef.current = currentDef;
   const nodeLocked = topicType !== "normal";
 
   const resolvedNodeSlug = nodeLocked ? currentDef.node! : selectedNodeSlug;
@@ -120,10 +130,12 @@ export default function CreateTopic() {
   })).filter((g) => g.nodes.length > 0);
 
   const setField = (key: string, value: any) => {
+    if (!canInteract()) return;
     setTypeFields((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleTitleInput = (val: string) => {
+    if (!canInteract()) return;
     if (val.includes("\n")) {
       const parts = val.split("\n");
       const newTitle = parts[0];
@@ -131,9 +143,10 @@ export default function CreateTopic() {
       setTitle(newTitle);
       if (document) void getRef('content').current?.insertText?.(restContent + '\n');
       else updateBody(restContent + (bodySnapshot.current.markdown ? "\n" + bodySnapshot.current.markdown : ""));
+      const boundary = snapshotBoundary.current, revision = accountRevision.current;
       setTimeout(() => {
-        const contentRef = getRef("content");
-        contentRef?.current?.focus?.();
+        if (!canInteract() || boundary !== snapshotBoundary.current || revision !== accountRevision.current) return;
+        getRef('content').current?.focus?.();
       }, 50);
     } else {
       setTitle(val);
@@ -142,11 +155,11 @@ export default function CreateTopic() {
 
   // Body height
   useEffect(() => {
-    if (skyline) return;
+    if (skyline || embedded) return;
     const sys = Taro.getSystemInfoSync();
     const navH = 44 + (sys.statusBarHeight || 0);
     setBodyHeight(`calc(100vh - ${navH}px)`);
-  }, []);
+  }, [skyline, embedded]);
 
   // Node navigation
   const restoreNodeSelection = (groups: NodeGroup[], preferSlug?: string) => {
@@ -160,7 +173,7 @@ export default function CreateTopic() {
   };
 
   const router = useRouter();
-  const nodeSlug = router.params.node;
+  const nodeSlug = embedded ? undefined : router.params.node;
 
   useEffect(() => {
     const cached = getCachedNodeNavigation();
@@ -173,7 +186,7 @@ export default function CreateTopic() {
       // A delayed refresh must not undo a node the user or draft selected meanwhile.
       setSelectedNodeSlug(current => !groups.length || groups.some(group => group.nodes.some(node => node.slug === current)) ? current : "water");
     }).catch(() => {});
-    const loginTimer = !getCachedUsername() ? setTimeout(() => openLoginModal(), 500) : undefined;
+    const loginTimer = !getCachedUsername() ? setTimeout(() => { if (canInteract() && !getCachedUsername()) openLoginModal(); }, 500) : undefined;
     return () => {
       active = false;
       clearTimeout(loginTimer);
@@ -223,20 +236,22 @@ export default function CreateTopic() {
   useEffect(() => {
     if (!draftRestored) return;
     if (!hasContent(title, content, typeFields) && !attachments.length) return;
+    const owner = account.current, revision = accountRevision.current;
     const timer = setTimeout(() => {
+      if (!active.current || owner !== getCachedUsername() || revision !== accountRevision.current || published.current || renderedDraftSession !== draftSession.current) return;
       const savedAt = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
       cacheService.set(draftKey, { savedAt, title, content: bodySnapshot.current.markdown, document: bodySnapshot.current.document, typeFields, attachments }, { category: CacheCategory.Topic });
       cacheService.set(LAST_DRAFT_KEY, { topicType, nodeSlug: resolvedNodeSlug || "water" }, { category: CacheCategory.Topic });
     }, 800);
     return () => clearTimeout(timer);
-  }, [draftRestored, topicType, title, content, document, resolvedNodeSlug, typeFields, attachments]);
+  }, [draftRestored, topicType, title, content, document, resolvedNodeSlug, typeFields, attachments, renderedDraftSession]);
 
   const saveOnLeave = () => {
-    if (published.current || !draftRestored || (!hasContent(title, content, typeFields) && !attachments.length)) return;
-    const boundary = snapshotBoundary.current;
+    if (published.current || renderedDraftSession !== draftSession.current || account.current !== getCachedUsername() || !draftRestored || (!hasContent(title, content, typeFields) && !attachments.length)) return;
+    const boundary = snapshotBoundary.current, owner = account.current, revision = accountRevision.current;
     const persist = (result = bodySnapshot.current) => {
-      if (published.current || boundary !== snapshotBoundary.current) return;
+      if (published.current || renderedDraftSession !== draftSession.current || owner !== getCachedUsername() || revision !== accountRevision.current || boundary !== snapshotBoundary.current) return;
       const savedAt = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       cacheService.set(attachmentDraftKey, { savedAt, title, content: result.markdown, document: result.document, typeFields, attachments }, { category: CacheCategory.Topic });
       cacheService.set(LAST_DRAFT_KEY, { topicType, nodeSlug: resolvedNodeSlug || 'water' }, { category: CacheCategory.Topic });
@@ -244,11 +259,27 @@ export default function CreateTopic() {
     persist(); // Retain the latest event snapshot even if native unload cannot complete an async read.
     void getRef('content').current?.snapshot?.().then(result => persist(result)).catch(() => {});
   };
-  Taro.useDidHide(saveOnLeave);
+  const leaveContent = () => {
+    saveOnLeave(); snapshotBoundary.current++; previewGeneration.current++;
+    clearTimeout(previewCloseTimer.current); previewCloseTimer.current = undefined;
+    setPreviewContent(null); setPreviewClosing(false); setShowNodePicker(false);
+    getRef('content').current?.dismissTools?.();
+  };
+  Taro.useDidHide(() => { pageVisible.current = false; leaveContent(); });
+  Taro.useDidShow(() => { pageVisible.current = true; });
   Taro.useUnload(saveOnLeave);
+  const leaveContentRef = useRef(leaveContent); leaveContentRef.current = leaveContent;
+  useEffect(() => { if (!visible) leaveContentRef.current(); }, [visible]);
+  useEffect(() => subscribeCurrentAccount(() => {
+    accountRevision.current++; snapshotBoundary.current++; previewGeneration.current++;
+    account.current = getCachedUsername();
+    clearTimeout(previewCloseTimer.current); previewCloseTimer.current = undefined;
+    previewContext.current = null; setPreviewContent(null); setPreviewClosing(false); setShowNodePicker(false);
+    published.current = false; setTitle(''); updateBody(''); setTypeFields(currentDefRef.current.initialFields); setAttachmentDrafts({});
+  }), []);
 
   const clearForm = () => {
-    if (submitting || submitLock.current || snapshotLock.current || previewContent) return;
+    if (!canInteract() || submitting || submitLock.current || snapshotLock.current || previewContent) return;
     setTitle("");
     snapshotBoundary.current++;
     updateBody('');
@@ -261,14 +292,14 @@ export default function CreateTopic() {
   };
 
   const openNodePicker = () => {
-    if (nodeLocked) return;
+    if (!canInteract() || nodeLocked) return;
     setShowNodePicker(true);
   };
 
   const closeNodePicker = () => setShowNodePicker(false);
 
   const selectNode = async (slug: string) => {
-    if (submitting || submitLock.current || snapshotLock.current || previewContent) return;
+    if (!canInteract() || submitting || submitLock.current || snapshotLock.current || previewContent) return;
     snapshotLock.current = true;
     try { await snapshotBody(); } catch { snapshotLock.current = false; return; }
     saveOnLeave(); snapshotBoundary.current++;
@@ -279,7 +310,7 @@ export default function CreateTopic() {
   };
 
   const handleTopicTypeChange = async (type: TopicType) => {
-    if (submitting || submitLock.current || snapshotLock.current || previewContent || type === topicType) return;
+    if (!canInteract() || submitting || submitLock.current || snapshotLock.current || previewContent || type === topicType) return;
     snapshotLock.current = true;
     try { await snapshotBody(); } catch { snapshotLock.current = false; return; }
     snapshotLock.current = false;
@@ -406,12 +437,12 @@ export default function CreateTopic() {
   };
 
   const handleSubmit = async () => {
-    if (submitting || submitLock.current || snapshotLock.current) return;
+    if (!canInteract() || submitting || submitLock.current || snapshotLock.current) return;
     snapshotLock.current = true;
     try {
       const snapshot = await snapshotBody();
       const finalContent = validateForm(snapshot);
-      if (finalContent && active.current) {
+      if (finalContent && canInteract()) {
         clearTimeout(previewCloseTimer.current); previewCloseTimer.current = undefined; previewGeneration.current++;
         setPreviewClosing(false);
         getRef('content').current?.dismissTools?.();
@@ -438,13 +469,13 @@ export default function CreateTopic() {
   };
 
   const confirmSubmit = async () => {
-    if (submitting || submitLock.current || snapshotLock.current) return;
+    if (!canInteract() || submitting || submitLock.current || snapshotLock.current) return;
     const finalContent = previewContent;
     if (!finalContent) return;
     const docResult = bodySnapshot.current.document ? serializeTopicDocumentHtml(bodySnapshot.current.document.delta, { attachments, username: getCachedUsername() }) : undefined;
     const referencedIds = referencedAttachmentIds(bodySnapshot.current, docResult?.referencedAttachmentIds);
     const preview = previewContext.current;
-    if (!active.current || !preview || preview.boundary !== snapshotBoundary.current || preview.owner !== getCachedUsername() || !getCachedUsername() || docResult?.errors.length || docResult?.unsupported.length || attachments.some(item => (!item.richManaged || referencedIds.includes(item.id)) && item.kind === 'photo' && (item.owner !== getCachedUsername() || item.phase !== 'complete' || !item.url))) {
+    if (!canInteract() || !preview || preview.boundary !== snapshotBoundary.current || preview.owner !== getCachedUsername() || !getCachedUsername() || docResult?.errors.length || docResult?.unsupported.length || attachments.some(item => (!item.richManaged || referencedIds.includes(item.id)) && item.kind === 'photo' && (item.owner !== getCachedUsername() || item.phase !== 'complete' || !item.url))) {
       Taro.showToast({ title: '登录或图片状态已变化，请重新预览', icon: 'none' });
       closePreview();
       return;
@@ -454,24 +485,33 @@ export default function CreateTopic() {
     setSubmitting(true);
     submitLock.current = true;
     Taro.showLoading({ title: "发布中...", mask: true });
+    const owner = account.current, revision = accountRevision.current, boundary = snapshotBoundary.current;
+    const sameSubmission = () => canInteract() && owner === getCachedUsername() && revision === accountRevision.current && boundary === snapshotBoundary.current;
     try {
       await createTopic({
         node: preview.node,
         title: preview.title,
         content: finalContent,
       });
-      published.current = true;
       Taro.hideLoading();
-      if (!active.current) return;
+      if (!sameSubmission()) return;
+      published.current = true;
       const draftKey = getDraftKey(topicType, resolvedNodeSlug || "water");
       cacheService.remove(draftKey);
       cacheService.remove(LAST_DRAFT_KEY);
       setAttachmentDrafts(prev => ({ ...prev, [attachmentDraftKey]: [] }));
       Taro.eventCenter.trigger("refreshTopics");
-      Taro.navigateBack();
+      if (embedded) {
+        // Home retains this component: start a fresh editing session while old
+        // autosave/unload closures remain unable to resurrect the published draft.
+        draftSession.current++; snapshotBoundary.current++; previewContext.current = null;
+        setTitle(''); updateBody(''); setTypeFields(currentDef.initialFields);
+        published.current = false; onPublished?.();
+      }
+      else Taro.navigateBack();
     } catch {
       Taro.hideLoading();
-      if (active.current) Taro.showToast({ title: "发布失败", icon: "none" });
+      if (sameSubmission()) Taro.showToast({ title: "发布失败", icon: "none" });
     } finally {
       if (active.current) setSubmitting(false);
       submitLock.current = false;
@@ -479,9 +519,9 @@ export default function CreateTopic() {
   };
 
   return (
-    <View className={`createTopic${skyline ? " createTopic--skyline" : ""}`}>
-      <Navbar title="发帖" back home titleStyle={{ opacity: 1 }} />
-      <ScrollView type={skyline ? 'custom' : undefined} scrollY style={skyline ? undefined : { height: bodyHeight }} className="createTopicBody" enhanced showScrollbar={false}>
+    <View className={`createTopic${skyline ? " createTopic--skyline" : ""}${embedded ? ' createTopic--embedded' : ''}`}>
+      {!embedded && <Navbar title="发帖" back home titleStyle={{ opacity: 1 }} />}
+      <ScrollView type={skyline ? 'custom' : undefined} scrollY style={skyline || embedded ? undefined : { height: bodyHeight }} className="createTopicBody" enhanced showScrollbar={false}>
         <View className="section typeConfig">
           <View className="typeSection">
             <View className="typeRow">
@@ -524,7 +564,7 @@ export default function CreateTopic() {
         handleTitleInput,
         renderContentInput: (placeholder, previousRef) => <TopicEditor
           key={`${attachmentDraftKey}:${editorRevision}`} inputRef={getRef('content')} previousRef={previousRef}
-          placeholder={placeholder} value={content} document={document} onChange={updateBody} disabled={submitting || !!previewContent}
+          placeholder={placeholder} value={content} document={document} onChange={updateBody} visible={visible} embedded={embedded} disabled={submitting || !!previewContent || !visible}
           onClear={clearForm}
           attachments={attachments} onAttachmentsChange={update => setAttachmentDrafts(prev => ({
             ...prev, [attachmentDraftKey]: update(prev[attachmentDraftKey] ?? []),
@@ -534,7 +574,7 @@ export default function CreateTopic() {
 
       </ScrollView>
 
-      {previewContent && (
+      {visible && previewContent && (
         <View className={`topicPreviewMask${previewClosing ? " topicPreviewMask--closing" : ""}`} onClick={closePreview}>
           <View className={`topicPreviewSheet${previewClosing ? " topicPreviewSheet--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
             <View className='topicPreviewHandle' />
@@ -564,7 +604,7 @@ export default function CreateTopic() {
       )}
 
       <NodePicker
-        visible={showNodePicker}
+        visible={visible && showNodePicker}
         groups={filteredGroups}
         selectedSlug={selectedNodeSlug}
         onSelect={selectNode}
@@ -573,3 +613,5 @@ export default function CreateTopic() {
     </View>
   );
 }
+
+export default function CreateTopic() { return <CreateTopicContent />; }

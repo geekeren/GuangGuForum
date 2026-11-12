@@ -30,10 +30,10 @@ function all(tree: any): any[] { if (Array.isArray(tree)) return tree.flatMap(al
 function text(tree: any): string { if (Array.isArray(tree)) return tree.map(text).join(''); if (typeof tree === 'string' || typeof tree === 'number') return String(tree); return tree?.props ? text(tree.props.children) : ''; }
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (value: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
 function item(id: number, uid = 8, unread = 1) { return { id, peer: { uid, username: `peer${uid}`, display_name: `Fixture${uid}`, avatar: '' }, state: 'active', preview: `preview${id}`, updated: '', unread }; }
-function render() {
+function render(props: Parameters<typeof MessageConversationList>[0] = { initialBucket: 1 }) {
   runtime.cursor = runtime.effectCursor = runtime.stateCursor = 0; const snapshot = runtime.page.store.snapshot();
   runtime.page.snapshot = snapshot; runtime.page.data = snapshot.data; runtime.page.ready = runtime.readyOverride ?? (snapshot.visible && snapshot.uid > 0);
-  const nodes = all(MessageConversationList({ initialBucket: 1 })); runtime.work.splice(0).forEach(effect => effect()); return nodes;
+  const nodes = all(MessageConversationList(props)); runtime.work.splice(0).forEach(effect => effect()); return nodes;
 }
 async function flush() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 beforeEach(() => {
@@ -45,6 +45,23 @@ beforeEach(() => {
 });
 
 describe('unified conversation list independent buckets', () => {
+  it('embedded content list keeps standard avatars, independent pagination and thread event without a duplicate Navbar or back header', async () => {
+    vi.mocked(getMessageConversations).mockResolvedValueOnce({ items: [item(11)], next_cursor: 'content0' }).mockResolvedValueOnce({ items: [item(12)], next_cursor: 'content1' })
+      .mockResolvedValue({ items: [item(13)], next_cursor: null });
+    const props = { embedded: true }; render(props); await flush(); let nodes = render(props);
+    expect(nodes.filter(node => node.type === 'Navbar')).toHaveLength(0); expect(nodes.map(text).join('')).not.toContain('返回论坛');
+    expect(nodes.find(node => node.type === 'ScrollView').props).toMatchObject({ scrollY: true, type: 'custom' });
+    expect(nodes.find(node => node.type === 'UserAvatar').props).toMatchObject({ size: 96, style: { borderRadius: '50%', overflow: 'hidden' } });
+    expect(nodes.find(node => node.type === 'UserAvatar').props.style.width).toBeUndefined();
+    nodes.find(node => node.type === 'ScrollView').props.onScrollToLower(); await flush();
+    expect(getMessageConversations).toHaveBeenCalledWith({ bucket: 0, cursor: 'content0' }); expect(getMessageConversations).toHaveBeenCalledWith({ bucket: 1, cursor: 'content1' });
+    const emit = vi.fn(); vi.mocked(Taro.navigateTo).mockImplementation((options: any) => { options.success({ eventChannel: { emit } }); return Promise.resolve({} as any); });
+    nodes = render(props); nodes.find(node => node.props.className === 'privateConversation').props.onClick();
+    expect(Taro.navigateTo).toHaveBeenCalledWith(expect.objectContaining({ url: '/pages/secondary/messages/thread?cid=13&peer=8' }));
+    expect(emit.mock.calls[0][1].conversations.map((value: any) => value.id)).toEqual([13, 12, 11]);
+    runtime.page.store.hide(); render(props).find(node => node.props.className === 'privateMessageStatus');
+    expect(render(props).filter(node => node.props.className === 'privateConversation')).toHaveLength(0);
+  });
   it('signed-in first JSX remains blank during UID initialization, then hydrates authorized cache without waiting for refresh', async () => {
     privateMessageMemory.put(7, 'list:0', { items: [item(11)], next_cursor: null }); privateMessageMemory.put(7, 'list:1', { items: [], next_cursor: null });
     runtime.readyOverride = false; const initial = render();

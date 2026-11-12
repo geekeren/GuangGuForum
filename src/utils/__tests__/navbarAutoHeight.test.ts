@@ -3,9 +3,10 @@ import { createElement } from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Navbar from '../../components/Navbar';
+import Taro from '@tarojs/taro';
 
 vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', ShareElement: 'ShareElement' }));
-vi.mock('@tarojs/taro', () => ({ default: { useRouter: () => ({ params: {} }) } }));
+vi.mock('@tarojs/taro', () => ({ default: { useRouter: () => ({ params: {} }), getDeviceInfo: vi.fn(() => ({ platform: 'ios' })) } }));
 vi.mock('../../hooks/useTheme', () => ({ useTheme: () => ({ theme: 'dark' }) }));
 vi.mock('../../hooks/usePageRenderer', () => ({ usePageRenderer: () => 'skyline' }));
 vi.mock('../../utils/dimension', () => ({ getNavInfo: () => ({ capsulePaddingTop: 6, capsuleHeight: 32, capsuleWidth: 88, capsuleLeft: 290, screenWidth: 390, statusBarHeight: 44, marginSides: 12 }) }));
@@ -13,6 +14,18 @@ vi.mock('../../components/ThemedIcon', () => ({ default: 'ThemedIcon' }));
 function all(tree: any): any[] { return Array.isArray(tree) ? tree.flatMap(all) : tree && typeof tree === 'object' ? [tree, ...all(tree.props?.children)] : []; }
 
 describe('real Navbar opt-in content height', () => {
+  it.each(['windows', 'mac'])('avoids full-window capsule coordinates on %s while preserving local back and shared parent', platform => {
+    vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform } as any);
+    const tree = Navbar({ back: true, title: '合成标题', shared: true });
+    expect(tree.type).toBe('ShareElement');
+    const nodes = all(tree);
+    expect(nodes.find(node => node.props.className === 'customNavbar')!.props.style.paddingTop).toBe('0px');
+    const bar = nodes.find(node => node.props.className === 'navBar')!.props.style;
+    expect(bar.paddingRight).toBe('12px'); expect(bar.paddingTop).toBe('8px');
+    expect(nodes.find(node => node.props.className === 'navCapsuleBtn')!.props.style.width).toBe('32px');
+    expect(nodes.find(node => node.props.className?.split(' ').includes('navContent'))!.props.style.height).toBe('32px');
+    vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform: 'ios' } as any);
+  });
   it('preserves fixed capsule content height and native capsule/status-bar geometry by default', () => {
     for (const autoHeight of [undefined, false]) {
       const nodes = all(Navbar({ back: true, title: '标题', shared: false, autoHeight }));

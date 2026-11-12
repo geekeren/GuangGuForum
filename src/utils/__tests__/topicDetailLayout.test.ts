@@ -10,7 +10,7 @@ import { cacheService } from '../CacheService';
 import { photoAttachment, stickerAttachment } from "../commentAttachments";
 
 const harness = vi.hoisted(() => ({
-  theme: 'light' as 'light' | 'dark', themeListeners: [] as (() => void)[], state: [] as any[], refs: [] as any[], refCursor: 0, cursor: 0, effects: [] as any[], accountListeners: [] as any[], hide: null as any,
+  theme: 'light' as 'light' | 'dark', themeListeners: [] as (() => void)[], state: [] as any[], refs: [] as any[], refCursor: 0, cursor: 0, effects: [] as any[], accountListeners: [] as any[], hide: null as any, hideCallbacks: [] as any[],
   request: vi.fn(), requestFresh: vi.fn(), params: { tid: '1' } as Record<string, string>, loadedDisplay: undefined as any, status: undefined as string | undefined, detailTid: '1', detailWrites: vi.fn(), authorUserId: undefined as string | undefined, replyUserId: undefined as string | undefined, replyAuthor: 'recipient', replyId: 'r1', replyVoteUrl: '/replyVote?reply_id=1', skyline: true, xsrf: "fixture", username: "tester", account: 'tester', checkingLogin: false, loginError: false, retryLogin: vi.fn(),
 }));
 vi.mock("react", () => ({
@@ -21,13 +21,14 @@ vi.mock("react", () => ({
   },
   useRef: (value: any) => harness.refs[harness.refCursor++] ??= { current: value },
   useEffect: (effect: any) => { harness.effects.push(effect); },
+  useCallback: (callback: any) => callback,
 }));
 vi.mock("@tarojs/components", () => Object.fromEntries(["Button", "Image", "ScrollView", "ShareElement", "Text", "View"].map(name => [name, name])));
 vi.mock("@tarojs/taro", () => ({
   default: { showActionSheet: vi.fn(), showToast: vi.fn(), showLoading: vi.fn(), hideLoading: vi.fn(), navigateTo: vi.fn(), getCurrentInstance: vi.fn(() => ({})), nextTick: vi.fn((callback: () => void) => callback()), worklet: { shared: vi.fn((value: number) => ({ value })) } },
   useRouter: () => ({ path: "/pages/topicDetail/index", params: harness.params }),
-  useDidHide: (callback: any) => { harness.hide = callback; },
-  useReady: vi.fn(), useDidShow: vi.fn(), useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(),
+  useDidHide: (callback: any) => { harness.hideCallbacks.push(callback); harness.hide = () => harness.hideCallbacks.forEach(hide => hide()); },
+  useReady: vi.fn(), useDidShow: vi.fn(), useResize: vi.fn(), useShareAppMessage: vi.fn(), useShareTimeline: vi.fn(),
 }));
 vi.mock("guanggu-forum-api", () => ({ CommentSubmissionError: class extends Error {}, LoginRequiredError: class extends Error {}, getTopicDetail: vi.fn(), commentUpvote: vi.fn(), createNewComment: vi.fn(), URLS: {}, urlPathVaiable: vi.fn() }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: harness.theme, preference: 'system' }) }));
@@ -79,7 +80,7 @@ function all(tree: any): any[] {
   if (!tree || typeof tree !== "object") return [];
   return [tree, ...all(tree.props?.children)];
 }
-function render() { harness.cursor = harness.refCursor = 0; return TopicDetail(); }
+function render() { harness.cursor = harness.refCursor = 0; harness.hideCallbacks = []; return TopicDetail(); }
 function find(tree: any, className: string) { return all(tree).find(e => e.props?.className === className)!.props; }
 beforeEach(() => {
   harness.theme = 'light'; harness.themeListeners = []; harness.state = []; harness.refs = []; harness.effects = []; harness.accountListeners = []; harness.hide = null;

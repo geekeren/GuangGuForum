@@ -7,7 +7,7 @@ import { logout } from "guanggu-forum-api";
 import { ChevronRight as ArrowRightIcon } from "gzk-ui/icons";
 import ThemedIcon from "../../components/ThemedIcon";
 import { linkHandler } from "../../utils/linkHandler";
-import { getCachedUsername } from "../../utils/currentUser";
+import { getCachedUsername, subscribeCurrentAccount } from "../../utils/currentUser";
 import { APP_ROUTES } from '../../utils/appRoutes';
 import { cacheService, CacheCategory, type CategoryStats } from "../../utils/CacheService";
 import AddToDesktopGuide, { checkMiniProgramAdded } from "../../components/AddToDesktopGuide";
@@ -37,13 +37,22 @@ type MenuItem = {
   statusTag?: string;
 };
 
-export default function Settings() {
+export function SettingsContent({ active = true, embedded = false }: { active?: boolean; embedded?: boolean } = {}) {
+  const visible = useRef(active); visible.current = active;
+  const pageVisible = useRef(true);
+  const interactionRevision = useRef(0);
+  const currentInteraction = () => {
+    const revision = interactionRevision.current;
+    return () => visible.current && pageVisible.current && revision === interactionRevision.current;
+  };
   const skyline = isSkyline();
   const { preference: themePreference } = useTheme();
   const handleThemeChange = async () => {
+    const current = currentInteraction(); if (!current()) return;
     const choices: ThemePreference[] = ["system", "light", "dark"];
     try {
       const { tapIndex } = await Taro.showActionSheet({ itemList: choices.map(choice => THEME_LABELS[choice]) });
+      if (!current()) return;
       const selected = choices[tapIndex];
       if (selected && !setThemePreference(selected)) {
         Taro.showToast({ title: "外观设置保存失败，请重试", icon: "none" });
@@ -55,21 +64,25 @@ export default function Settings() {
   const [adEnabled, setAdEnabled] = useState(!isAdDisabled());
   const [adLoading, setAdLoading] = useState(false);
   const videoAdRef = useRef<Taro.RewardedVideoAd | null>(null);
+  const adInteraction = useRef<(() => boolean) | null>(null);
 
-  useEffect(() => {
-    setAdEnabled(!isAdDisabled());
-
-    // 创建激励视频广告实例
+  const prepareVideoAd = () => {
+    if (videoAdRef.current || !visible.current || !pageVisible.current) return;
+    // A new instance per visible lifetime keeps old native callbacks from
+    // authorizing a reward for a later visit.
     if (Taro.createRewardedVideoAd) {
       videoAdRef.current = Taro.createRewardedVideoAd({
         adUnitId: REWARDED_AD_UNIT_ID,
       });
 
-      videoAdRef.current.onLoad(() => {
+      const ad = videoAdRef.current;
+      ad.onLoad(() => {
         console.log("激励视频广告加载成功");
       });
 
       videoAdRef.current.onError((err) => {
+        if (videoAdRef.current !== ad || !adInteraction.current?.()) return;
+        adInteraction.current = null;
         console.error("激励视频广告加载失败", err);
         setAdLoading(false);
         Taro.showToast({ title: "广告加载失败，请稍后重试", icon: "none" });
@@ -77,6 +90,8 @@ export default function Settings() {
       });
 
       videoAdRef.current.onClose((res: { isEnded: boolean }) => {
+        if (videoAdRef.current !== ad || !adInteraction.current?.()) return;
+        adInteraction.current = null;
         setAdLoading(false);
         if (res && res.isEnded) {
           if (disableAd(30)) {
@@ -93,24 +108,18 @@ export default function Settings() {
       });
     }
 
-    return () => {
-      // 销毁广告实例
-      if (videoAdRef.current) {
-        videoAdRef.current.destroy?.();
-      }
-    };
-  }, []);
-
-  Taro.useShareAppMessage(() => ({
-    title: "过早客 - 武汉本地生活社区",
-    path: "/pages/home/index",
-  }));
+  };
+  const destroyVideoAd = () => {
+    const ad = videoAdRef.current; videoAdRef.current = null; adInteraction.current = null; ad?.destroy?.();
+  };
+  useEffect(() => { prepareVideoAd(); return destroyVideoAd; }, []);
 
   const handleExternalUrl = (url: string) => {
     linkHandler(url);
   };
 
   const handleAddToDesktop = async () => {
+    const current = currentInteraction(); if (!current()) return;
     try {
       // @ts-expect-error addDesktopShortcut not in Taro types
       await Taro.addDesktopShortcut({
@@ -118,20 +127,27 @@ export default function Settings() {
         path: "/pages/home/index",
       });
     } catch {
-      setShowGuide(true);
+      if (current()) setShowGuide(true);
     }
   };
 
   const handleAddToMiniProgram = () => {
-    setShowGuide(true);
+    if (currentInteraction()()) setShowGuide(true);
   };
 
   const [cacheStats, setCacheStats] = useState<CategoryStats[]>([]);
 
   const statsRevision = useRef(0);
-  const statsVisible = useRef(true);
-  useEffect(() => () => { statsVisible.current = false; statsRevision.current++; }, []);
-  Taro.useDidHide(() => { statsVisible.current = false; statsRevision.current++; });
+  const statsVisible = useRef(active);
+  const hideContent = () => {
+    interactionRevision.current++; destroyVideoAd();
+    statsVisible.current = false; statsRevision.current++;
+    setShowGuide(false); setAdLoading(false);
+  };
+  useEffect(() => () => { visible.current = false; interactionRevision.current++; adInteraction.current = null; statsVisible.current = false; statsRevision.current++; }, []);
+  const hideContentRef = useRef(hideContent); hideContentRef.current = hideContent;
+  useEffect(() => subscribeCurrentAccount(() => hideContentRef.current()), []);
+  Taro.useDidHide(() => { pageVisible.current = false; hideContent(); });
 
   const refreshCacheStats = async () => {
     const revision = ++statsRevision.current;
@@ -141,12 +157,21 @@ export default function Settings() {
     } catch { /* Keep the previous snapshot if the filesystem is temporarily unavailable. */ }
   };
 
-  Taro.useDidShow(() => {
-    statsVisible.current = true;
+  const showContent = () => {
+    if (!visible.current || !pageVisible.current) return;
+    statsVisible.current = true; prepareVideoAd();
     setAdEnabled(!isAdDisabled());
-    checkMiniProgramAdded().then(setMiniProgramAdded);
-    refreshCacheStats();
-  });
+    void refreshCacheStats();
+    const revision = statsRevision.current;
+    void checkMiniProgramAdded().then(added => {
+      if (statsVisible.current && revision === statsRevision.current) setMiniProgramAdded(added);
+    }).catch(() => {});
+  };
+  Taro.useDidShow(() => { pageVisible.current = true; showContent(); });
+  const showContentRef = useRef(showContent); showContentRef.current = showContent;
+  useEffect(() => {
+    if (active) showContentRef.current(); else hideContentRef.current();
+  }, [active]);
 
   const formatSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + " B";
@@ -157,6 +182,7 @@ export default function Settings() {
   const totalSize = cacheStats.reduce((sum, s) => sum + s.size, 0);
 
   const handleClearCategory = async (cat: CacheCategory, label: string) => {
+    const current = currentInteraction(); if (!current()) return;
     if (cat === CacheCategory.System) {
       Taro.showToast({ title: "包含登录态及系统必须数据，不可删除", icon: "none" });
       return;
@@ -165,65 +191,68 @@ export default function Settings() {
       title: `清除${label}`,
       content: `确定要清除所有${label}吗？`,
     });
-    if (confirm) {
+    if (confirm && current()) {
       try {
         await cacheService.clearCategoryAsync(cat);
-        Taro.showToast({ title: `${label}已清除`, icon: "success" });
+        if (current()) Taro.showToast({ title: `${label}已清除`, icon: "success" });
       } catch {
-        Taro.showToast({ title: "部分缓存清理失败，请重试", icon: "none" });
-      } finally { refreshCacheStats(); }
+        if (current()) Taro.showToast({ title: "部分缓存清理失败，请重试", icon: "none" });
+      } finally { if (current()) void refreshCacheStats(); }
     }
   };
 
   const handleClearAll = async () => {
+    const current = currentInteraction(); if (!current()) return;
     const { confirm } = await Taro.showModal({
       title: "清除缓存",
       content: "确定要清除缓存吗？登录状态等数据将保留。",
     });
-    if (confirm) {
+    if (confirm && current()) {
       try {
         await cacheService.clearAllAsync(true);
-        Taro.showToast({ title: "缓存已清除", icon: "success" });
+        if (current()) Taro.showToast({ title: "缓存已清除", icon: "success" });
       } catch {
-        Taro.showToast({ title: "部分缓存清理失败，请重试", icon: "none" });
-      } finally { refreshCacheStats(); }
+        if (current()) Taro.showToast({ title: "部分缓存清理失败，请重试", icon: "none" });
+      } finally { if (current()) void refreshCacheStats(); }
     }
   };
 
   const handleForceClearAll = async () => {
+    const current = currentInteraction(); if (!current()) return;
     const { confirm } = await Taro.showModal({
       title: "强制清除所有数据",
       content: "将清除所有本地数据，包括登录状态和偏好设置，需要重新登录。确定继续？",
       confirmColor: "#e74c3c",
     });
-    if (confirm) {
+    if (confirm && current()) {
       try {
         await cacheService.clearAllAsync(false);
-        Taro.showToast({ title: "所有数据已清除", icon: "success" });
+        if (current()) Taro.showToast({ title: "所有数据已清除", icon: "success" });
       } catch {
-        Taro.showToast({ title: "数据清理失败，请重试", icon: "none" });
-      } finally { refreshCacheStats(); }
+        if (current()) Taro.showToast({ title: "数据清理失败，请重试", icon: "none" });
+      } finally { if (current()) void refreshCacheStats(); }
     }
   };
 
   const handleLogout = async () => {
+    const current = currentInteraction(); if (!current()) return;
     const { confirm } = await Taro.showModal({
       title: "退出登录",
       content: "确定要退出登录吗？",
     });
-    if (confirm) {
+    if (confirm && current()) {
       Taro.showLoading({ title: "退出中...", mask: true });
       try {
         await logout();
       } finally {
         Taro.hideLoading();
       }
-      Taro.reLaunch({ url: "/pages/home/index" });
+      if (current()) Taro.reLaunch({ url: "/pages/home/index" });
     }
   };
 
   const handleAdSwitchChange = async (value: boolean) => {
-    if (adLoading) return;
+    const current = currentInteraction(); if (!current() || adLoading || adInteraction.current) return;
     if (!value) {
       // 关闭广告需要看激励广告
       const { confirm } = await Taro.showModal({
@@ -232,31 +261,35 @@ export default function Settings() {
         confirmText: "观看广告",
         cancelText: "取消",
       });
-      if (!confirm) return;
+      if (!confirm || !current()) return;
 
-      setAdLoading(true);
+      adInteraction.current = current; setAdLoading(true);
 
-      if (videoAdRef.current) {
-        videoAdRef.current
-          .show()
-          .catch(() => {
-            // 失败重试
-            videoAdRef.current
-              ?.load()
-              .then(() => videoAdRef.current?.show())
-              .catch((err) => {
-                console.error("激励视频广告显示失败", err);
-                Taro.showToast({ title: "广告加载失败，请稍后重试", icon: "none" });
-                setAdLoading(false);
-              });
-          });
+      const ad = videoAdRef.current;
+      if (ad) {
+        try {
+          try { await ad.show(); }
+          catch {
+            if (!current() || ad !== videoAdRef.current) return;
+            await ad.load();
+            if (!current() || ad !== videoAdRef.current) return;
+            await ad.show();
+          }
+        } catch {
+          if (current() && ad === videoAdRef.current) {
+            adInteraction.current = null;
+            Taro.showToast({ title: '广告加载失败，请稍后重试', icon: 'none' }); setAdLoading(false);
+          }
+        }
       } else {
-        Taro.showToast({ title: "当前环境不支持激励广告", icon: "none" });
-        setAdLoading(false);
+        adInteraction.current = null;
+        Taro.showToast({ title: "当前环境不支持激励广告", icon: "none" }); setAdLoading(false);
       }
     } else {
       // 开启广告
-      if (await cacheService.removeAsync(AD_DISABLE_KEY, true)) {
+      const removed = await cacheService.removeAsync(AD_DISABLE_KEY, true);
+      if (!current()) return;
+      if (removed) {
         setAdEnabled(true);
         Taro.showToast({ title: "广告已开启", icon: "success" });
       } else {
@@ -294,8 +327,8 @@ export default function Settings() {
   ];
 
   return (
-    <View className={`settingsPage${skyline ? " settingsPage--skyline" : ""}`}>
-      <Navbar shared={false} back title='设置' titleStyle={{ opacity: 1 }} />
+    <View className={`settingsPage${skyline ? " settingsPage--skyline" : ""}${embedded ? ' settingsPage--embedded' : ''}`}>
+      {!embedded && <Navbar shared={false} back title='设置' titleStyle={{ opacity: 1 }} />}
       <ScrollView type={getScrollViewType()} scrollY className='settingsBody'>
         {sections.map((group, gi) => (
           <View className='settingsGroup' key={gi}>
@@ -322,7 +355,7 @@ export default function Settings() {
                     </View>
                     <View>
                       <Switch
-                        onClick={(e) => { item.onSwitchChange?.(!item.switchValue); }}
+                        onClick={() => item.onSwitchChange?.(!item.switchValue)}
                         checked={item.switchValue}
                         disabled={adLoading}
                         color='#1f69ff'
@@ -395,7 +428,12 @@ export default function Settings() {
         </View>
       </ScrollView>
 
-      {showGuide && <AddToDesktopGuide force onClose={() => setShowGuide(false)} />}
+      {active && showGuide && <AddToDesktopGuide force onClose={() => setShowGuide(false)} />}
     </View>
   );
+}
+
+export default function Settings() {
+  Taro.useShareAppMessage(() => ({ title: '过早客 - 武汉本地生活社区', path: '/pages/home/index' }));
+  return <SettingsContent />;
 }

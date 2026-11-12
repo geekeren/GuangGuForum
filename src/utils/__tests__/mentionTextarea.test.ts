@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MentionTextarea from "../../components/MentionTextarea";
 import { isSkyline } from "../renderer";
+import Taro from '@tarojs/taro';
+import UserAvatar from '../../components/UserAvatar';
+import AiUserTag from '../../components/AiUserTag';
 
 const harness = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], cursor: 0, refCursor: 0 }));
 vi.mock("react", () => ({
@@ -12,18 +15,22 @@ vi.mock("react", () => ({
 vi.mock("@tarojs/components", () => ({ View: "View", Text: "Text", Textarea: "Textarea", ScrollView: "ScrollView", Image: "Image" }));
 vi.mock("@tarojs/taro", () => ({ default: {
   nextTick: (fn: any) => fn(),
-  getWindowInfo: () => ({ windowWidth: 375 }),
+  getWindowInfo: vi.fn(() => ({ windowWidth: 375 })),
+  getDeviceInfo: vi.fn(() => ({ platform: 'ios' })),
   createSelectorQuery: () => {
     const query = { select: () => query, boundingClientRect: (callback: any) => { callback({ width: 300 }); return query; }, exec: () => {} };
     return query;
   },
 } }));
 vi.mock("../renderer", () => ({ isSkyline: vi.fn(() => false) }));
+vi.mock('../localAssets', () => ({ getFromLocalCache: (src: string) => src }));
+vi.mock('../../hooks/usePageRenderer', () => ({ usePageRenderer: () => isSkyline() ? 'skyline' : 'webview' }));
 
 function all(tree: any): any[] {
   if (Array.isArray(tree)) return tree.flatMap(all);
   if (!tree || typeof tree !== "object") return [];
-  return [tree, ...all(tree.props?.children)];
+  const rendered = tree.type === UserAvatar ? UserAvatar(tree.props) : tree.type === AiUserTag ? AiUserTag(tree.props) : null;
+  return [tree, ...all(rendered), ...all(tree.props?.children)];
 }
 function editor(value: string, onInput: any, mentionUsers: string[] = [], editorRef?: any, extra = {}): any {
   harness.cursor = 0; harness.refCursor = 0;
@@ -31,9 +38,24 @@ function editor(value: string, onInput: any, mentionUsers: string[] = [], editor
 }
 function input(tree: any) { return all(tree).find(e => e.type === "Textarea").props; }
 function find(tree: any, cls: string) { return all(tree).find(e => e.props?.className?.split(" ").includes(cls)); }
-beforeEach(() => { harness.state = []; harness.refs = []; vi.mocked(isSkyline).mockReturnValue(false); });
+beforeEach(() => { harness.state = []; harness.refs = []; vi.mocked(isSkyline).mockReturnValue(false); vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform: 'ios' } as any); vi.mocked(Taro.getWindowInfo).mockReturnValue({ windowWidth: 375 } as any); });
 
 describe("inline mention editor", () => {
+  it('keeps desktop candidate width and drag boundary in the same pixel scale', () => {
+    vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform: 'windows' } as any);
+    vi.mocked(Taro.getWindowInfo).mockReturnValue({ windowWidth: 1400 } as any);
+    let value = '';
+    const change = vi.fn(event => { value = event.detail.value; });
+    const users = Array.from({ length: 8 }, (_, i) => 'participant' + i);
+    input(editor(value, change, users)).onInput({ detail: { value: '@', cursor: 1 } });
+    let tree = editor(value, change, users);
+    expect(find(tree, 'mentionCandidatesTrack').props.style.width).toBe('540px');
+    const event = (x: number) => ({ touches: [{ clientX: x }], stopPropagation: vi.fn() });
+    find(tree, 'mentionCandidatesList').props.onTouchStart(event(100));
+    find(tree, 'mentionCandidatesList').props.onTouchMove(event(-1000));
+    tree = editor(value, change, users);
+    expect(find(tree, 'mentionCandidatesTrack').props.style.transform).toBe('translateX(-240px)');
+  });
   it.each([false, true])('automatically includes the AI once and labels it and the topic author (Skyline=%s)', skyline => {
     vi.mocked(isSkyline).mockReturnValue(skyline);
     let value = '';
@@ -46,7 +68,7 @@ describe("inline mention editor", () => {
     expect(candidates.map(e => e.props.ariaLabel)).toEqual(['提及author', '提及ordinary', '提及huanxituo']);
     expect(find(candidates[0], 'mentionCandidateBadge').props.children).toBe('楼主');
     expect(find(candidates[1], 'mentionCandidateBadge')).toBeUndefined();
-    expect(find(candidates[2], 'mentionCandidateBadge--ai').props.children).toBe('AI');
+    expect(find(candidates[2], 'aiUserTag').props.children).toBe('过早客 Ai');
     candidates[2].props.onClick();
     expect(value).toBe('@huanxituo ');
     tree = editor(value, change, users, undefined, extra);
@@ -70,7 +92,8 @@ describe("inline mention editor", () => {
     const extra = { topicAuthor: 'huanxituo' };
     input(editor(value, change, [], undefined, extra)).onInput({ detail: { value: '@', cursor: 1 } });
     let tree = editor(value, change, [], undefined, extra);
-    expect(all(tree).filter(e => e.props?.className?.split(' ').includes('mentionCandidateBadge')).map(e => e.props.children)).toEqual(['楼主', 'AI']);
+    expect(find(tree, 'mentionCandidateOwnerBadge').props.children).toBe('楼主');
+    expect(find(tree, 'aiUserTag').props.children).toBe('过早客 Ai');
     input(tree).onInput({ detail: { value: '@huanxituo @', cursor: 11 } });
     tree = editor(value, change, [], undefined, extra);
     expect(find(tree, 'mentionCandidate')).toBeUndefined();

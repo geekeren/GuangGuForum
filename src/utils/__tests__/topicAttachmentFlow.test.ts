@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import Taro from '@tarojs/taro';
 import { createTopic } from 'guanggu-forum-api';
-import CreateTopic from '../../pages/createTopic';
+import { CreateTopicContent } from '../../pages/createTopic';
 import { STICKERS } from '../stickers';
 import type { TopicAttachment } from '../../pages/createTopic/TopicEditor';
 import type { EditorSnapshot } from '../../pages/createTopic/RichTopicBody';
@@ -13,10 +12,10 @@ vi.mock('react', () => ({
   useEffect(effect: any) { h.effects.push(effect); },
 }));
 vi.mock('@tarojs/components', () => Object.fromEntries(['View', 'Text', 'Image', 'ScrollView', 'Picker', 'Radio', 'RadioGroup'].map(name => [name, name])));
-vi.mock('@tarojs/taro', () => ({ default: { useDidHide: vi.fn(), useUnload: vi.fn(), hideKeyboard: vi.fn().mockResolvedValue(undefined), showToast: vi.fn(), showLoading: vi.fn(), hideLoading: vi.fn(), navigateBack: vi.fn(), eventCenter: { trigger: vi.fn() } }, useRouter: () => ({ params: {} }) }));
+vi.mock('@tarojs/taro', () => ({ default: { useDidHide: vi.fn(), useDidShow: vi.fn(), useUnload: vi.fn(), hideKeyboard: vi.fn().mockResolvedValue(undefined), showToast: vi.fn(), showLoading: vi.fn(), hideLoading: vi.fn(), navigateBack: vi.fn(), eventCenter: { trigger: vi.fn() } }, useRouter: () => ({ params: {} }) }));
 vi.mock('guanggu-forum-api', () => ({ createTopic: vi.fn().mockResolvedValue(undefined), fetchLinkSummary: vi.fn() }));
 vi.mock('../nodeNavigation', () => ({ getCachedNodeNavigation: () => [], fetchAndCacheNodeNavigation: vi.fn().mockResolvedValue([]) }));
-vi.mock('../currentUser', () => ({ getCachedUsername: () => h.owner }));
+vi.mock('../currentUser', () => ({ getCachedUsername: () => h.owner, subscribeCurrentAccount: () => () => {} }));
 vi.mock('../auth', () => ({ openLoginModal: vi.fn() }));
 vi.mock('../CacheService', () => ({ cacheService: { get: (key: string) => h.storage.get(key), set: (key: string, value: any) => h.storage.set(key, value), remove: (key: string) => h.storage.delete(key) }, CacheCategory: { Topic: 'topic' } }));
 vi.mock('../../hooks/usePageRenderer', () => ({ usePageRenderer: () => 'skyline' }));
@@ -28,14 +27,14 @@ vi.mock('../../components/NodePicker', () => ({ default: 'NodePicker' }));
 vi.mock('../../components/LinkPreviewCard', () => ({ default: 'LinkPreviewCard' }));
 vi.mock('../../components/LinkPreviewCard/Header', () => ({ LinkPreviewHeader: 'LinkPreviewHeader' }));
 function all(tree: any): any[] { return Array.isArray(tree) ? tree.flatMap(all) : tree && typeof tree === 'object' ? [tree, ...all(tree.props?.children)] : []; }
-function render() { h.cursor = h.refCursor = 0; return all(CreateTopic()); }
+function render() { h.cursor = h.refCursor = 0; return all(CreateTopicContent()); }
 function body() { return render().find(node => node.type === 'TopicEditor')!.props; }
 function button(className: string) { return render().find(node => node.props?.className === className)!.props; }
 function snapshot(value: EditorSnapshot = { markdown: 'synthetic body', errors: [], unsupported: [] }) { body().inputRef.current = { snapshot: vi.fn().mockResolvedValue(value), dismissTools: vi.fn() }; }
 const photo = (change: Partial<Extract<TopicAttachment, { kind: 'photo' }>> = {}): TopicAttachment => ({ id: 'photo', kind: 'photo', owner: 'tester', path: 'wxfile://synthetic', phase: 'complete', progress: 100, url: 'https://img.test/photo.jpg', ...change });
 beforeEach(() => {
   h.state = []; h.refs = []; h.effects = []; h.storage.clear(); h.owner = 'tester'; vi.clearAllMocks();
-  render(); h.effects.find(effect => effect.toString().includes('lastMeta'))!(); render();
+  render(); h.effects[4](); render();
   render().find(node => node.props?.onInput && node.props?.onNext)!.props.onInput('Synthetic title'); snapshot();
 });
 describe('independent topic attachment preview and submission', () => {
@@ -67,7 +66,7 @@ describe('independent topic attachment preview and submission', () => {
     const attachment = photo({ richManaged: true });
     h.storage.set('topic_draft_last', { topicType: 'normal', nodeSlug: 'water' });
     h.storage.set('topic_draft_normal_water', { title: 'Old title', content: 'legacy source', document, attachments: [attachment] });
-    render(); h.effects.find(effect => effect.toString().includes('lastMeta'))!();
+    render(); h.effects[4]();
     expect(body().document).toBe(document); expect(body().attachments).toEqual([attachment]);
     snapshot({ markdown: 'legacy source', document, errors: [], unsupported: [] });
     await button('previewBtn').onClick();

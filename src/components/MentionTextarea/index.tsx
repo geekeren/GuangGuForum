@@ -7,6 +7,7 @@ import UserAvatar from '../UserAvatar';
 import { usePageRenderer } from "../../hooks/usePageRenderer";
 import type { CommentMentionBinding, CommentMentionTarget } from '../../utils/commentMentionBindings';
 import "./index.scss";
+import { isDesktopClient, uiRpxLength, uiRpxToPx } from '../../utils/desktopLayout';
 
 export interface MentionEditorHandle {
   insertText: (text: string) => void;
@@ -60,7 +61,8 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
   const recipients = segments.filter((part) => part.username && part.start !== query?.start).map((part) => part.username!);
   const candidates = query ? getMentionCandidates([...mentionUsers, AI_MENTION_USERNAME], recipients, query) : [];
   const windowWidth = Taro.getWindowInfo?.().windowWidth || 375;
-  const maxCandidateOffset = Math.max(0, candidates.length * 120 * windowWidth / 750 - (viewportWidth.current || windowWidth));
+  const candidateWidth = isDesktopClient() ? uiRpxToPx(120) : 120 * windowWidth / 750;
+  const maxCandidateOffset = Math.max(0, candidates.length * candidateWidth - (viewportWidth.current || windowWidth));
   const visibleCandidateOffset = Math.max(-maxCandidateOffset, Math.min(0, candidateOffset));
   const emit = (next: string, cursor: number, event?: Parameters<NonNullable<Props["onInput"]>>[0]) => {
     textRef.current = next;
@@ -147,13 +149,13 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
               const delta = x - pan.current.startX;
               if (Math.abs(delta) > 6) pan.current.moved = true;
               if (!pan.current.moved) return;
-              const max = Math.max(0, candidates.length * 120 * windowWidth / 750 - (viewportWidth.current || windowWidth));
+              const max = Math.max(0, candidates.length * candidateWidth - (viewportWidth.current || windowWidth));
               setCandidateOffset(Math.max(-max, Math.min(0, pan.current.offset + delta)));
             }}
             onTouchEnd={(event) => event.stopPropagation()}
             onTouchCancel={(event) => { event.stopPropagation(); pan.current = null; }}
           >
-            {candidates.length > 0 && <View className='mentionCandidatesTrack' style={{ width: candidates.length * 120 + 'rpx', transform: `translateX(${visibleCandidateOffset}px)` }}>
+            {candidates.length > 0 && <View className='mentionCandidatesTrack' style={{ width: uiRpxLength(candidates.length * 120), transform: `translateX(${visibleCandidateOffset}px)` }}>
               {candidates.map((username) => {
                 const avatar = mentionAvatars[username] || '/static/m_default.png';
                 return (

@@ -3,6 +3,7 @@ import { useEffect, useState, type ComponentProps, type ReactNode } from 'react'
 import { getFromLocalCache } from '../../utils/localAssets';
 import { DEFAULT_USER_AVATAR_SOURCE, userAvatarSource } from '../../utils/userAvatarSource';
 import AiUserTag from '../AiUserTag';
+import { uiRpxLength } from '../../utils/desktopLayout';
 import './index.scss';
 
 type Props = Omit<ComponentProps<typeof Image>, 'children'> & {
@@ -19,7 +20,7 @@ export default function UserAvatar({ username, size = 54, src, className = '', s
   useEffect(() => { setFailedSource(undefined); }, [src]);
   const source = failedSource === normalizedSource ? DEFAULT_USER_AVATAR_SOURCE : normalizedSource;
   return <View className={`userAvatar${size <= 36 ? ' userAvatar--small' : ''} ${className}`}
-    style={typeof style === 'string' ? `width:${size}rpx;height:${size}rpx;${style}` : { width: size + 'rpx', height: size + 'rpx', ...style }} onClick={onClick}>
+    style={typeof style === 'string' ? `width:${uiRpxLength(size)};height:${uiRpxLength(size)};${style}` : { width: uiRpxLength(size), height: uiRpxLength(size), ...style }} onClick={onClick}>
     <Image {...imageProps} src={getFromLocalCache(source)} svg={source === DEFAULT_USER_AVATAR_SOURCE || (svg ?? false)}
       onError={event => { setFailedSource(normalizedSource); onError?.(event); }}
       mode={mode} className={`userAvatarImage ${imageClassName}`} style={{ width: '100%', height: '100%' }} />

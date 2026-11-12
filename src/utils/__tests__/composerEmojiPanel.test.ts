@@ -128,7 +128,7 @@ describe('native capture-only slot keeps default controls intact', () => {
     expect(read('src/native-components/topic-format-button/index.wxss')).toContain('.format-button--capture-only { height: 100%; }');
     const topic = read('src/pages/createTopic/TopicEditor.tsx');
     expect(topic).toContain("captureOnly style={{ height: `${14.91 * 1.4}px` }}");
-    expect(topic).toContain("captureOnly style={{ height: '112rpx' }}");
+    expect(topic).toContain("captureOnly style={{ height: uiRpxLength(112) }}");
     const panelCss = compileString(read('src/components/ComposerEmojiPanel/index.scss'), { loadPaths: [resolve('src/components/ComposerEmojiPanel')] }).css;
     expect(panelCss).toMatch(/\.composerEmojiTab\s*\{[^}]*padding: 12rpx 24rpx;[^}]*font-size: 14\.91PX;/);
     expect(panelCss).toMatch(/\.composerEmojiSticker\s*\{[^}]*padding: 8rpx;/);

@@ -3,9 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import App from "../../app";
 import ThemePage from "../../components/ThemePage";
+import { isDesktopClient } from "../desktopLayout";
 
 vi.mock("@tarojs/components", () => ({ PageMeta: "PageMeta", NavigationBar: "NavigationBar", View: "View" }));
 vi.mock("@tarojs/taro", () => ({ default: {} }));
+vi.mock("../desktopLayout", async original => ({ ...await original<typeof import('../desktopLayout')>(), isDesktopClient: vi.fn(() => false) }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "dark", preference: "dark" }) }));
 vi.mock("../CacheService", () => ({ cacheService: {}, CacheCategory: { System: "system" } }));
 vi.mock("../auth", () => ({ openLoginModal: vi.fn() }));
@@ -46,6 +48,20 @@ describe("native theme metadata", () => {
     expect(readFileSync("src/app.scss", "utf8")).toMatch(/page\s*\{[^}]*height:\s*100%;/);
     expect(content.props.style).not.toHaveProperty("backgroundColor");
     expect(content.props.children).toBe(body);
+  });
+  it("adds desktop density to the same real host without moving page children", () => {
+    vi.mocked(isDesktopClient).mockReturnValue(true);
+    try {
+      const body = createElement("view", { id: "synthetic-page" });
+      const tree = ThemePage({ children: body });
+      const content = tree.props.children[1];
+      expect(content.type).toBe("View");
+      expect(content.props.className).toBe("themePageHost themePageHost--dark themePageHost--desktop");
+      expect(content.props.style).toMatchObject({ width: "100%", height: "100%", minHeight: 0 });
+      expect(content.props.children).toBe(body);
+    } finally {
+      vi.mocked(isDesktopClient).mockReturnValue(false);
+    }
   });
   it("enables native metadata and dark configuration for every registered page", () => {
     const config = readFileSync("src/app.config.ts", "utf8");

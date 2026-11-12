@@ -1,7 +1,36 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { createRequire } from 'node:module';
+const requireProject = createRequire(`${process.cwd()}/package.json`);
+function declarations(selector: string) {
+  const result: Record<string, string> = {};
+  requireProject('postcss').parse(requireProject('sass').compile('src/pages/home/discovery/index.scss').css).walkRules((rule: any) => {
+    if (rule.selectors.includes(selector)) rule.walkDecls((decl: any) => { result[decl.prop] = decl.value; });
+  });
+  return result;
+}
 
 const source = (path: string) => readFileSync(`src/${path}`, "utf8");
+
+describe('desktop discovery geometry and mobile baseline', () => {
+  it('fixes hero, cards, ranks, node art and followed avatars without a breakpoint', () => {
+    const pc = (suffix: string) => declarations(`.themePageHost--desktop .discoveryPage ${suffix}`);
+    expect(pc('.discoveryScroll')).toMatchObject({ height: '0', 'flex-basis': '0', 'flex-grow': '1', 'flex-shrink': '1' });
+    expect(pc('.discoveryHero')).toMatchObject({ height: '89PX', margin: '8PX 9PX 15PX', 'border-radius': '15PX' });
+    expect(pc('.discoveryHeroScene')).toMatchObject({ width: '223PX', height: '89PX' });
+    expect(pc('.section')).toMatchObject({ margin: '0 9PX 13PX', padding: '14PX 14PX 11PX', 'border-radius': '15PX' });
+    expect(pc('.hotTopicItem')).toMatchObject({ height: '48PX', 'border-bottom-width': '0.5PX' });
+    expect(pc('.discoveryRank')).toMatchObject({ width: '25PX', height: '20PX', 'margin-right': '12PX', 'border-radius': '7PX' });
+    expect(pc('.hotNodeTag')).toMatchObject({ height: '58PX', 'border-radius': '11PX' });
+    expect(pc('.hotNodeIcon')).toMatchObject({ width: '36PX', height: '34PX' });
+    expect(pc('.interestAvatar')).toMatchObject({ width: '36PX', height: '36PX', 'margin-right': '10PX' });
+    expect(pc('.interestMeta .topicTag')).toMatchObject({ padding: '2PX 5PX', 'border-radius': '12PX' });
+    expect(declarations('.themePageHost--desktop.themePageHost--dark .discoveryPage .discoveryHero')).toMatchObject({ 'border-width': '0.5PX' });
+    expect(pc('.loginPromptBtn')).toMatchObject({ 'min-height': '44PX', 'min-width': '120PX' });
+    expect(declarations('.discoveryPage .discoveryHero')).toMatchObject({ height: '178rpx', 'border-radius': '30rpx' });
+    expect(declarations('.discoveryPage .discoveryRank')).toMatchObject({ width: '50rpx', height: '40rpx' });
+  });
+});
 
 describe("discovery reference layout", () => {
   it("keeps the requested title without a discovery search box", () => {

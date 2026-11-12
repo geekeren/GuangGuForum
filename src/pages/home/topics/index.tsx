@@ -12,6 +12,7 @@ import TopicList from "./topicList";
 import Taro from "@tarojs/taro";
 import { ScrollView, Text, View } from "@tarojs/components";
 import { rpxToPx } from "../../../utils/dimension";
+import { isDesktopClient, uiRpxLength } from '../../../utils/desktopLayout';
 import { fetchAndCacheNodeNavigation } from "../../../utils/nodeNavigation";
 import { useDataWithCache } from "../../../hooks/useDataWithCache";
 import { useTheme } from "../../../hooks/useTheme";
@@ -32,6 +33,7 @@ const defaultTabs: TabConfig[] = [
 
 export default function Topics({ initialTab, active = true }: { initialTab?: string; active?: boolean }) {
   const scrollViewType = usePageScrollViewType();
+  const desktop = isDesktopClient();
   const { theme } = useTheme();
   const palette = THEME_PALETTES[theme];
   const initialTabIndex = initialTab === "interest" ? 3 : 0;
@@ -66,7 +68,8 @@ export default function Topics({ initialTab, active = true }: { initialTab?: str
 
   // A lazy-mounted tab can miss page Ready; measure only after it becomes visible.
   useEffect(() => {
-    if (!active) return;
+    // Desktop panes allocate the ScrollView through flex, not total-window rpx measurements.
+    if (!active || desktop) return;
     let cancelled = false;
     Taro.nextTick(() => {
       if (cancelled) return;
@@ -78,7 +81,7 @@ export default function Topics({ initialTab, active = true }: { initialTab?: str
         .exec();
     });
     return () => { cancelled = true; };
-  }, [active]);
+  }, [active, desktop]);
 
   useEffect(() => {
     const handler = () => {
@@ -98,7 +101,10 @@ export default function Topics({ initialTab, active = true }: { initialTab?: str
     }
     lastTapTime.current = now;
 
-    Taro.nextTick(() => {
+    if (desktop) {
+      // Frameset queries default to the most recently opened page, not this pane.
+      setScrollIntoView(`tab_${value}`);
+    } else Taro.nextTick(() => {
       Taro.createSelectorQuery()
         .select(`#tab_${value}`)
         .boundingClientRect();
@@ -164,9 +170,9 @@ export default function Topics({ initialTab, active = true }: { initialTab?: str
                   background: selected
                     ? theme === "dark" ? palette["tab-active-background"] : "linear-gradient(150deg, #4b8cff, #0754ee)"
                     : theme === "dark" ? palette["tab-inactive-background"] : "rgba(255, 255, 255, 0.78)",
-                  border: theme === "dark" ? `1rpx solid ${selected ? "transparent" : palette["border-subtle"]}` : "none",
-                  lineHeight: theme === "dark" ? "52rpx" : "54rpx",
-                  boxShadow: theme === "dark" ? "none" : selected ? "0 4rpx 12rpx rgba(31, 105, 255, 0.15)" : palette["shadow-sm"],
+                  border: theme === "dark" ? `${desktop ? "1px" : "1rpx"} solid ${selected ? "transparent" : palette["border-subtle"]}` : "none",
+                  lineHeight: desktop ? theme === "dark" ? "26px" : "27px" : theme === "dark" ? "52rpx" : "54rpx",
+                  boxShadow: theme === "dark" ? "none" : selected ? `0 ${uiRpxLength(4)} ${uiRpxLength(12)} rgba(31, 105, 255, 0.15)` : desktop ? "0 2px 6px rgba(15, 23, 42, 0.04)" : palette["shadow-sm"],
                 }}
                 onClick={() => handleClick(index)}
               >
@@ -191,7 +197,7 @@ export default function Topics({ initialTab, active = true }: { initialTab?: str
                   ? `node_topics_${tab.node}`
                   : `recent_topics_${tab.type}`
               }
-              style={{ height: tabPaneHeight }}
+              style={{ height: desktop ? '100%' : tabPaneHeight }}
               freshOnMount={(consumedPublications.current[`${tab.type}_${tab.node || ''}`] ?? 0) < publishGeneration}
               onFreshLoad={() => {
                 const key = `${tab.type}_${tab.node || ''}`;

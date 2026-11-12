@@ -10,6 +10,13 @@ declare module "*.less";
 declare module "*.sass";
 declare module "*.styl";
 
+// WeChat native frameset is newer than the bundled Taro configuration types.
+declare namespace Taro {
+  interface AppConfig {
+    frameset?: boolean;
+  }
+}
+
 declare namespace JSX {
   // Narrow event surface forwarded by the native format button. Keep this local
   // instead of importing Taro types here, so global JSX resolution and existing
@@ -25,6 +32,7 @@ declare namespace JSX {
       background: string;
       thumbnail?: boolean;
       captureOnly?: boolean;
+      desktop?: boolean;
       style?: string | import('react').CSSProperties;
       children?: import('react').ReactNode;
       caption?: string;

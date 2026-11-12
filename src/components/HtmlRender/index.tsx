@@ -10,6 +10,7 @@ import { usePageRenderer } from "../../hooks/usePageRenderer";
 import { LinkChipUrl as LinkChipIcon } from "gzk-ui/icon-urls";
 import { isCustomStickerUrl } from "../../utils/stickers";
 import { containsHtmlMedia, transformHtmlMedia } from './media';
+import { uiRpxLength } from '../../utils/desktopLayout';
 
 interface TopicMeta {
   type: "repost" | "event" | "dating";
@@ -39,6 +40,8 @@ interface Props {
   html: string;
   variant?: 'body';
   fullBleedImages?: boolean;
+  /** Re-measure the existing body after a local layout switch, without re-parsing HTML. */
+  imageLayoutKey?: boolean;
 }
 
 function setNodeName(element: TaroElement, name: "text" | "view" | "span") {
@@ -135,7 +138,7 @@ function sizeBodyImage(image: TaroElement) {
   if (!host) return;
   if (owner.scope.fullBleed && !state.displayed) stageBodyImage(image);
   if (!state.width || !state.height) {
-    if (!state.staged) image.setAttribute('style', 'display: block; width: 100%; height: 180px; max-width: 100%; margin: 12rpx auto');
+    if (!state.staged) image.setAttribute('style', `display: block; width: 100%; height: 180px; max-width: 100%; margin: ${uiRpxLength(12)} auto`);
     return;
   }
   const { root, scope } = owner;
@@ -167,7 +170,7 @@ function sizeBodyImage(image: TaroElement) {
     measuredHost.setAttribute('style', state.staged
       ? `height: ${displayHeight}px; width: ${displayWidth}px; max-width: ${fullBleed ? 'none' : '100%'}; ${parentWidth === undefined ? 'margin-left: auto; margin-right: auto;' : `left: ${(parentWidth - displayWidth) / 2}px;`} transform: translateX(${offset}px)`
       : `transform: translateX(${offset}px)`);
-    image.setAttribute('style', `display: block; flex-shrink: 0; width: ${displayWidth}px; height: ${displayHeight}px; max-width: ${fullBleed ? 'none' : '100%'}; margin: 0; border-radius: ${fullBleed ? '0' : '8rpx'}${state.staged ? '; opacity: 1' : ''}`);
+    image.setAttribute('style', `display: block; flex-shrink: 0; width: ${displayWidth}px; height: ${displayHeight}px; max-width: ${fullBleed ? 'none' : '100%'}; margin: 0; border-radius: ${fullBleed ? '0' : uiRpxLength(8)}${state.staged ? '; opacity: 1' : ''}`);
     state.displayed = true;
     if (state.staged) {
       measuredHost.className = 'htmlBodyImageHost htmlBodyImageHost--staged htmlBodyImageHost--ready';
@@ -186,7 +189,7 @@ function sizeBodyImage(image: TaroElement) {
     const scaledWidth = height * state.width! / state.height!;
     commitSize(scaledWidth, height, 0, false);
     measuredHost.setAttribute('style', `height: ${height}px; width: 100%; transform: translateX(0px)`);
-    image.setAttribute('style', `display: block; flex-shrink: 0; width: 100%; height: ${height}px; max-width: 100%; margin: 0; border-radius: 8rpx; opacity: 1`);
+    image.setAttribute('style', `display: block; flex-shrink: 0; width: 100%; height: ${height}px; max-width: 100%; margin: 0; border-radius: ${uiRpxLength(8)}; opacity: 1`);
   };
   const measure = () => {
     if (!current()) return;
@@ -631,7 +634,7 @@ const HtmlRender = (props: Props) => {
       scope.active = false;
       if (bodyImageRoots.get(root) === scope) bodyImageRoots.delete(root);
     };
-  }, [renderHtml, props.variant, props.fullBleedImages]);
+  }, [renderHtml, props.variant, props.fullBleedImages, props.imageLayoutKey]);
 
   return (
     <View className={`htmlWrap${skyline ? ' htmlWrap--skyline' : ''}${props.variant === 'body' ? ' htmlWrap--body' : ''}`}>

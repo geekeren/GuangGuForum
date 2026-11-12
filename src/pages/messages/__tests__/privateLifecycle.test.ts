@@ -98,6 +98,18 @@ describe('actual private page hook lifecycle', () => {
     privateMessageMemory.get(8, 'list:0', 1, true); expect(runtime.fileGet).toHaveBeenCalledWith(8, 'list:0', 1);
     privateMessageMemory.get(7, 'list:0', 1, true); expect(runtime.fileGet).toHaveBeenCalledTimes(1);
   });
+  it('retained embedded instance activates only in the visible private content tab and rejects old scope across tab/account changes', async () => {
+    const first = deferred<any>(); runtime.summary = first.promise; const dormant = RenderHarness(false); const store = dormant.store;
+    expect(store.snapshot().visible).toBe(false); RenderHarness(true); first.resolve({ uid: 7 }); await flush();
+    expect(RenderHarness(true).store).toBe(store); expect(RenderHarness(true).ready).toBe(true);
+    const old = deferred<string>(), applied = vi.fn(); const reading = store.read('list', () => old.promise, applied, vi.fn());
+    RenderHarness(false); old.resolve('late old list'); await reading; expect(applied).not.toHaveBeenCalled(); expect(RenderHarness(false).ready).toBe(false);
+    runtime.account = 'other-user'; runtime.listeners.forEach(listener => listener('changed')); const next = deferred<any>(); runtime.summary = next.promise;
+    expect(RenderHarness(false).ready).toBe(false); RenderHarness(true); next.resolve({ uid: 8 }); await flush();
+    const resumed = RenderHarness(true); expect(resumed.store).toBe(store); expect(resumed.snapshot.uid).toBe(8); expect(resumed.snapshot.account).toBe('other-user');
+    runtime.hide(); expect(RenderHarness(true).ready).toBe(false); RenderHarness(false); runtime.show();
+    expect(RenderHarness(false).ready).toBe(false); expect(store.snapshot().visible).toBe(false);
+  });
   it('inactive message area never requests summary', async () => {
     const summary = deferred<any>(); runtime.summary = summary.promise; let hook = RenderHarness(false); expect(hook.ready).toBe(false); expect(hook.snapshot.visible).toBe(false);
     summary.resolve({ uid: 7 }); await flush(); hook = RenderHarness(false); expect(hook.snapshot.uid).toBe(0);

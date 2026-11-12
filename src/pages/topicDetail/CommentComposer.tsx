@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import MentionTextarea, { type MentionEditorHandle } from "../../components/MentionTextarea";
 import ThemedIcon from "../../components/ThemedIcon";
 import { isSkyline } from "../../utils/renderer";
+import { isDesktopClient, uiRpxLength } from '../../utils/desktopLayout';
 import { getCommentBody } from "../../utils/mentions";
 import type { CommentMentionBinding, CommentMentionTarget } from '../../utils/commentMentionBindings';
 import { Mention as MentionIcon } from "gzk-ui/icons";
@@ -43,6 +44,7 @@ interface Props {
 
 export default function CommentComposer({ value, mentionUsers, mentionAvatars, mentionTargets, onMentionInsert, topicAuthor, stickers = [], onStickersChange, photos = [], onPhotosChange, previewAttachments, onAttachmentsChange, sending, onChange, onClose, onSend }: Props) {
   const skyline = isSkyline();
+  const desktop = isDesktopClient();
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [activePanel, setActivePanel] = useState<'emoji' | 'more' | null>(null);
   const showEmojis = activePanel === 'emoji';
@@ -87,12 +89,16 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, m
   };
 
   // Skyline's fixed overlay needs explicit bounds; only the sheet follows the keyboard.
-  const popupStyle = windowInfo ? {
+  const popupStyle = desktop ? { width: '100%', height: '100%' } : windowInfo ? {
     width: windowInfo.windowWidth + "px",
     height: windowInfo.windowHeight + "px",
   } : undefined;
   const inputHeight = panelVisible ? lastKeyboardHeight.current : keyboardHeight;
-  const bodyStyle = windowInfo ? {
+  const bodyStyle = desktop ? {
+    bottom: inputHeight + 'px',
+    paddingBottom: `calc(12px + ${inputHeight > 0 ? 0 : safeBottom}px)`,
+    maxHeight: `calc(100% - ${inputHeight}px)`,
+  } : windowInfo ? {
     bottom: inputHeight + "px",
     paddingBottom: `calc(24rpx + ${inputHeight > 0 ? 0 : safeBottom}px)`,
     maxHeight: Math.max(0, windowInfo.windowHeight - inputHeight) + "px",
@@ -190,9 +196,9 @@ export default function CommentComposer({ value, mentionUsers, mentionAvatars, m
       <View className='commentPopupMask' onClick={onClose} />
       <View className='commentPopupBody' style={bodyStyle}>
         <View className='commentPopupHandle' />
-        <View className='commentPopupAttachmentRegion' style={{ height: previewHeight + 'rpx' }}>
+        <View className='commentPopupAttachmentRegion' style={{ height: uiRpxLength(previewHeight) }}>
           {previewCount > 0 && <ScrollView type={skyline ? 'custom' : undefined} scrollX scrollIntoView={`comment-preview-${previews[previews.length - 1].id}`} scrollWithAnimation className='commentStickerPreviews' {...{ 'keyboard-dismiss-mode': 'none' }}>
-            <View className='commentStickerPreviewTrack' style={{ width: previewCount * 144 + 'rpx' }}>
+            <View className='commentStickerPreviewTrack' style={{ width: uiRpxLength(previewCount * 144) }}>
               {previews.map((item, index) => <View className={`commentStickerPreview${item.kind === 'photo' ? ' commentPopupPhotoPreview' : ''}`} id={`comment-preview-${item.id}`} key={item.id}>
                 <Image src={item.kind === 'photo' ? item.path : item.sticker.url} mode='aspectFit' className='commentStickerPreviewImage' />
                 {item.kind === 'photo' && item.status !== 'complete' && <View className='commentPhotoUploadOverlay'

@@ -92,3 +92,21 @@
   -webkit-line-clamp: 2;
 }
 .mentionCandidatesEmpty { display: block; color: $text-muted; font-size: 13.76PX; }
+
+// The shared desktop track and touch clamp both use a fixed 60px candidate.
+.themePageHost--desktop .mentionEditor {
+  padding: 10PX;
+  border-width: 0.5PX;
+  border-radius: 8PX;
+  .mentionEditorInput { height: 100PX; min-height: 80PX; }
+  .mentionCandidates--visible { height: 88PX; }
+  .mentionCandidatesTitle { height: 18PX; line-height: 18PX; }
+  .mentionCandidatesList, .mentionCandidatesTrack { height: 64PX; }
+  .mentionCandidate { width: 60PX; padding: 2PX 4PX; border-radius: 8PX; }
+  .mentionCandidateAvatarWrap { width: 27PX !important; height: 27PX !important; }
+  .mentionCandidateAvatar { width: 27PX; height: 27PX; border-radius: 13.5PX; }
+  .mentionCandidateOwnerBadge { top: -2PX; }
+  .mentionCandidateBadge { padding: 0 3PX; border-radius: 3PX; height: 12PX; line-height: 12PX; }
+  .mentionCandidateName { margin-top: 4PX; line-height: 14PX; max-height: 28PX; }
+  .aiUserTag { height: 12PX; padding: 0 3PX; border-radius: 3PX; line-height: 12PX; }
+}

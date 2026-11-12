@@ -49,6 +49,9 @@ const config = {
         enable: true,
         config: { referenceWidth: 430, designWidth: 750 },
       },
+      "./config/desktopLengths.js": {
+        enable: true,
+      },
       cssModules: {
         enable: true, // 默认为 false，如需使用 css modules 功能，则设为 true
         config: {

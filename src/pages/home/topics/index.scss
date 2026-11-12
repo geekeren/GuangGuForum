@@ -50,3 +50,12 @@
     font-weight: 700;
   }
 }
+
+.themePageHost--desktop .topicsContainer {
+  width: 100%;
+  .tab-header { height: 38PX; padding-top: 5PX; padding-bottom: 6PX; }
+  .tab-scroll { height: 27PX; padding: 0 11PX; }
+  .tab-item { height: 27PX; padding: 0 14PX; margin-right: 7PX; border-radius: 15PX; }
+  .topicPane { width: 100%; height: 0; flex-basis: 0; flex-grow: 1; flex-shrink: 1; }
+  .topicListTopSpacer { height: 8PX; }
+}

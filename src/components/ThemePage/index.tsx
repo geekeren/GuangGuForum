@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { NavigationBar, PageMeta, View } from "@tarojs/components";
 import { useTheme } from "../../hooks/useTheme";
 import { PageRendererProvider } from "../../hooks/usePageRenderer";
+import { isDesktopClient } from "../../utils/desktopLayout";
 import { THEME_PALETTES, themePageStyle, themeVariables } from "../../utils/themePreferences";
 
 // PageMeta's page-style does not establish a Skyline variable scope.
@@ -21,7 +22,7 @@ export default function ThemePage({ children }: { children?: ReactNode }) {
       >
         <NavigationBar frontColor={theme === "dark" ? "#ffffff" : "#000000"} backgroundColor={palette.bg} />
       </PageMeta>
-      <View className={`themePageHost themePageHost--${theme}`} style={{ ...themeVariables(theme), width: "100%", height: "100%", minHeight: 0 }}>
+      <View className={`themePageHost themePageHost--${theme}${isDesktopClient() ? " themePageHost--desktop" : ""}`} style={{ ...themeVariables(theme), width: "100%", height: "100%", minHeight: 0 }}>
         {children}
       </View>
     </PageRendererProvider>

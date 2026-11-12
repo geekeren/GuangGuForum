@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Taro from '@tarojs/taro';
-import { getNodeTopics, getRecentTopics } from 'guanggu-forum-api';
+import React from 'react';
+import { document } from '@tarojs/runtime';
+import { render as renderNative, unmountComponentAtNode } from '@tarojs/react';
+import { createRequire } from 'node:module';
+import { getNodeTopics, getRecentTopics, type TopicSummary } from 'guanggu-forum-api';
 import TopicList from '../../pages/home/topics/topicList';
 import HomeTopics from '../../pages/home/topics';
 import NodeTopics from '../../pages/node/topicList';
 import { fetchAndCacheNodeNavigation } from '../nodeNavigation';
 
-const harness = vi.hoisted(() => ({ values: [] as any[], cursor: 0, effects: [] as any[], refs: [] as any[], refCursor: 0 }));
+const harness = vi.hoisted(() => ({ values: [] as any[], cursor: 0, effects: [] as any[], refs: [] as any[], refCursor: 0, theme: 'light' }));
 vi.mock('react', async original => ({
   ...await original<any>(),
   useState(initial: any) {
@@ -21,13 +25,15 @@ vi.mock('react', async original => ({
 }));
 vi.mock('@tarojs/components', () => Object.fromEntries(['OpenContainer', 'ScrollView', 'ShareElement', 'Text', 'View', 'Image'].map(name => [name, name])));
 vi.mock('@tarojs/taro', () => ({
-  default: { eventCenter: { on: vi.fn(), off: vi.fn() }, nextTick: vi.fn(), showNavigationBarLoading: vi.fn(), hideNavigationBarLoading: vi.fn(), showToast: vi.fn() },
+  default: { getDeviceInfo: vi.fn(() => ({ platform: 'ios' })), createSelectorQuery: vi.fn(), eventCenter: { on: vi.fn(), off: vi.fn() }, nextTick: vi.fn(), showNavigationBarLoading: vi.fn(), hideNavigationBarLoading: vi.fn(), showToast: vi.fn() },
   useReady: vi.fn(), useRouter: () => ({ params: { node: 'water' } }),
 }));
 vi.mock('guanggu-forum-api', () => ({
   getHotNodes: vi.fn(), getNodeTopics: vi.fn(), getRecentTopics: vi.fn(),
   createApiCacheEntry: vi.fn(), readApiCacheEntry: vi.fn(), URLS: { TOPIC_DETAIL: '/t/:tid' },
 }));
+vi.mock('../../hooks/usePageRenderer', () => ({ PageRendererContext: {}, usePageRenderer: () => 'webview', usePageScrollViewType: () => undefined }));
+vi.mock('../../hooks/useTheme', () => ({ useTheme: () => ({ theme: harness.theme }) }));
 vi.mock('../../hooks/useDataWithCache', () => ({ useDataWithCache: () => ({ request: vi.fn() }) }));
 vi.mock('../nodeNavigation', () => ({ fetchAndCacheNodeNavigation: vi.fn(), getCachedNodeNavigation: () => [] }));
 vi.mock('../CacheService', () => ({ cacheService: { get: vi.fn() }, CacheCategory: {} }));
@@ -59,6 +65,152 @@ function elements(tree: any): any[] {
 beforeEach(() => {
   vi.clearAllMocks(); harness.values = []; harness.cursor = 0; harness.effects = []; harness.refs = []; harness.refCursor = 0;
   vi.mocked(fetchAndCacheNodeNavigation).mockResolvedValue([]);
+  harness.theme = 'light';
+  vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform: 'ios' } as any);
+});
+
+describe('desktop viewport sizing without resize remounts', () => {
+  it.each([0, 400, '100%'])('forwards actual ScrollView height %s without adding px', height => {
+    const list = makeList(vi.fn(), { style: { height } });
+    list.setState({ topics: [{ link: '/t/1', title: 'Fixture sizing topic', username: 'fixture-account', category: '水', lastUpdated: '', userLink: '/u/fixture-account', userAvatarUrl: '', commentCount: '' }] });
+    expect(elements(list.render()).find(node => node.type === 'ScrollView').props.style).toEqual({ height });
+  });
+  it.each(['windows', 'mac'])('uses flex height and stable list keys on %s', platform => {
+    vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform } as any);
+    const first = HomeTopics({});
+    const firstList = elements(first).find(node => node.type === TopicList);
+    expect(firstList.props.style).toEqual({ height: '100%' });
+    harness.effects[2]();
+    expect(Taro.nextTick).not.toHaveBeenCalled();
+    expect(elements(first).find(node => node.props?.id === 'tab_0').props.style.lineHeight).toBe('27px');
+    expect(elements(first).find(node => node.props?.id === 'tab_0').props.style.boxShadow).toBe('0 2px 6px rgba(31, 105, 255, 0.15)');
+    harness.cursor = 0; harness.refCursor = 0;
+    const nextList = elements(HomeTopics({})).find(node => node.type === TopicList);
+    expect(nextList.key).toBe(firstList.key);
+    expect(harness.values[0]).toBe(0);
+    elements(first).find(node => node.props?.id === 'tab_1').props.onClick();
+    harness.cursor = 0; harness.refCursor = 0;
+    expect(elements(HomeTopics({})).find(node => node.props?.className === 'tab-scroll').props.scrollIntoView).toBe('tab_1');
+    expect(Taro.createSelectorQuery).not.toHaveBeenCalled();
+    harness.theme = 'dark'; harness.cursor = 0; harness.refCursor = 0;
+    expect(elements(HomeTopics({})).find(node => node.props?.id === 'tab_1').props.style.lineHeight).toBe('26px');
+  });
+});
+
+describe('pagination preserves the owning native scroll subtree', () => {
+  function syntheticTopic(tid: number): TopicSummary {
+    return { link: `/t/${tid}`, title: `Synthetic topic ${tid}`, username: 'synthetic', category: '水', lastUpdated: '', userLink: '/u/synthetic', userAvatarUrl: '', commentCount: '' };
+  }
+  // Render the real TopicList JSX through the installed Taro reconciler. The
+  // synthetic leaf hosts avoid images/network; runtime DOM/payloads stay real.
+  function nativeTree(tree: any, flattenFooter = false): any {
+    if (Array.isArray(tree)) return tree.map(child => nativeTree(child, flattenFooter));
+    if (!tree || typeof tree !== 'object') return tree;
+    const { children, ...props } = tree.props;
+    if (flattenFooter && props.className === 'topicListLoadingHost') return nativeTree(children, true);
+    const tag = tree.type === 'ScrollView' ? 'scroll-view' : 'view';
+    const nativeChildren = tree.props.topic ? tree.props.topic.link : nativeTree(children, flattenFooter);
+    return React.createElement(tag, { ...props, ...(tree.key === null ? {} : { key: tree.key }) },
+      ...(Array.isArray(nativeChildren) ? nativeChildren : [nativeChildren]));
+  }
+  function nativeNodes(node: any): any[] { return [node, ...node.childNodes.flatMap(nativeNodes)]; }
+  it('demonstrates the previous direct-sibling loading deletion replaces the native parent children array', () => {
+    const list = makeList(vi.fn()); list.setState({ topics: [syntheticTopic(1)], loading: false });
+    const root = document.createElement('root') as any;
+    try {
+      renderNative(nativeTree(list.render(), true), root, () => {});
+      const scroll = nativeNodes(root).find(node => node.nodeName === 'scroll-view');
+      const parentChildrenPath = `${scroll.parentNode._path}.cn`;
+      root.updatePayloads = [];
+      list.setState({ loading: true }); renderNative(nativeTree(list.render(), true), root, () => {});
+      expect(root.updatePayloads.some((payload: any) => payload.path === parentChildrenPath)).toBe(false);
+      root.updatePayloads = [];
+      list.setState({ loading: false }); renderNative(nativeTree(list.render(), true), root, () => {});
+      expect(root.updatePayloads.some((payload: any) => payload.path === parentChildrenPath)).toBe(true);
+      expect(nativeNodes(root).find(node => node.nodeName === 'scroll-view')).toBe(scroll);
+    } finally { unmountComponentAtNode(root); }
+  });
+  it('keeps an idle footer host empty and free from authored spacing or height', () => {
+    const list = makeList(vi.fn());
+    list.setState({ topics: [syntheticTopic(1)], loading: false });
+    const host = elements(list.render()).find(node => node.props?.className === 'topicListLoadingHost');
+    expect(host.props.children).toBe(false); expect(host.props.style).toBeUndefined();
+    const requireProject = createRequire(`${process.cwd()}/package.json`);
+    const values: Record<string, string> = {};
+    requireProject('postcss').parse(requireProject('sass').compile('src/pages/home/topics/topicList/index.scss').css).walkRules((rule: any) => {
+      if (rule.selectors.includes('.topicListLoadingHost')) rule.walkDecls((decl: any) => { values[decl.prop] = decl.value; });
+    });
+    expect(values).toEqual({ margin: '0', padding: '0', 'min-height': '0', flex: 'none' });
+  });
+  it.each(['skyline', 'webview'])('isolates both pagination loading edges from the %s ScrollView children array', async renderer => {
+    const firstTopics = [syntheticTopic(1), syntheticTopic(2)];
+    const page = deferred();
+    const getTopics = vi.fn().mockResolvedValueOnce(firstTopics).mockReturnValueOnce(page.promise);
+    const list = makeList(getTopics, { style: { height: 400 } });
+    list.context = renderer;
+    await list.refreshTopics(false);
+    elements(list.render()).find(node => node.type === 'ScrollView').props.onScroll({ detail: { scrollTop: 900 } });
+    const root = document.createElement('root') as any;
+    try {
+      renderNative(nativeTree(list.render()), root, () => {});
+      const scroll = nativeNodes(root).find(node => node.nodeName === 'scroll-view');
+      const firstItems = scroll.childNodes.slice(1).map((node: any) => node.sid);
+      const parentChildrenPath = `${scroll.parentNode._path}.cn`;
+      const height = scroll.style.height;
+      root.updatePayloads = [];
+      const pending = list.listReachBottom();
+      renderNative(nativeTree(list.render()), root, () => {});
+      expect(nativeNodes(root).find(node => node.nodeName === 'scroll-view')).toBe(scroll);
+      expect(root.updatePayloads.some((payload: any) => payload.path === parentChildrenPath)).toBe(false);
+      expect(scroll.style.height).toBe(height);
+      expect(list.state.scrollTop).toBeUndefined();
+      root.updatePayloads = [];
+      page.resolve([syntheticTopic(3), syntheticTopic(4)]); await pending;
+      renderNative(nativeTree(list.render()), root, () => {});
+      expect(nativeNodes(root).find(node => node.nodeName === 'scroll-view')).toBe(scroll);
+      expect(scroll.childNodes.slice(1, 3).map((node: any) => node.sid)).toEqual(firstItems);
+      expect(scroll.childNodes).toHaveLength(5);
+      expect(root.updatePayloads.some((payload: any) => payload.path === parentChildrenPath)).toBe(false);
+      expect(scroll.style.height).toBe(height);
+      expect(list.state.scrollTop).toBeUndefined();
+      expect(getTopics).toHaveBeenLastCalledWith(2, { cache: false });
+      const oldRefresh = getTopics.mock.calls[0][1].onRefresh;
+      oldRefresh([syntheticTopic(99)]);
+      expect(list.state.topics.map(topic => topic.link)).toEqual(['/t/1', '/t/2', '/t/3', '/t/4']);
+    } finally { unmountComponentAtNode(root); }
+  });
+  it.each(['skyline', 'webview'])('retains the %s native viewport and zero-gap host through pagination failure and retry', async renderer => {
+    const retry = deferred();
+    const getTopics = vi.fn().mockResolvedValueOnce([syntheticTopic(1)])
+      .mockRejectedValueOnce(new Error('synthetic offline')).mockReturnValueOnce(retry.promise);
+    const list = makeList(getTopics, { style: { height: '100%' } }); list.context = renderer;
+    await list.refreshTopics(false);
+    elements(list.render()).find(node => node.type === 'ScrollView').props.onScroll({ detail: { scrollTop: 500 } });
+    const root = document.createElement('root') as any;
+    try {
+      renderNative(nativeTree(list.render()), root, () => {});
+      const scroll = nativeNodes(root).find(node => node.nodeName === 'scroll-view');
+      const host = nativeNodes(root).find(node => node.className === 'topicListLoadingHost');
+      const parentChildrenPath = `${scroll.parentNode._path}.cn`;
+      const assertStable = () => {
+        expect(nativeNodes(root).find(node => node.nodeName === 'scroll-view')).toBe(scroll);
+        expect(nativeNodes(root).find(node => node.className === 'topicListLoadingHost')).toBe(host);
+        expect(root.updatePayloads.some((payload: any) => payload.path === parentChildrenPath)).toBe(false);
+        expect(scroll.style.height).toBe('100%'); expect(list.state.scrollTop).toBeUndefined();
+      };
+      root.updatePayloads = [];
+      const failed = list.listReachBottom(); renderNative(nativeTree(list.render()), root, () => {}); assertStable();
+      expect(host.childNodes).toHaveLength(1);
+      await failed; renderNative(nativeTree(list.render()), root, () => {}); assertStable();
+      expect(host.childNodes).toHaveLength(0);
+      root.updatePayloads = [];
+      const pending = list.listReachBottom(); renderNative(nativeTree(list.render()), root, () => {}); assertStable();
+      expect(host.childNodes).toHaveLength(1);
+      retry.resolve([syntheticTopic(2)]); await pending; renderNative(nativeTree(list.render()), root, () => {}); assertStable();
+      expect(host.childNodes).toHaveLength(0);
+      expect(getTopics.mock.calls.slice(1).map(call => call[0])).toEqual([2, 2]);
+    } finally { unmountComponentAtNode(root); }
+  });
 });
 
 describe('returning to topic lists after publishing', () => {
@@ -87,7 +239,7 @@ describe('returning to topic lists after publishing', () => {
     HomeTopics({});
     harness.values[0] = 1;
     harness.values[3] = { 0: true, 1: true };
-    const cleanup = harness.effects[2]();
+    const cleanup = harness.effects[3]();
     expect(Taro.eventCenter.on).toHaveBeenCalledWith('refreshTopics', expect.any(Function));
     vi.mocked(Taro.eventCenter.on).mock.calls[0][1]();
     expect(harness.values[0]).toBe(1);
@@ -120,7 +272,7 @@ describe('returning to topic lists after publishing', () => {
     };
     HomeTopics({});
     harness.values[3] = { 0: true, 1: true };
-    harness.effects[2]();
+    harness.effects[3]();
     const publish = vi.mocked(Taro.eventCenter.on).mock.calls[0][1];
     publish();
     let lists = render();

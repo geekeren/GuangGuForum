@@ -26,7 +26,7 @@ import Navbar from "../../components/Navbar";
 import ThemedIcon from "../../components/ThemedIcon";
 import UserAvatar from '../../components/UserAvatar';
 import { readCommentSortAscending, subscribeCommentSort, writeCommentSortAscending } from "../../utils/commentSortPreferences";
-import { rpxToPx } from "../../utils/dimension";
+import { uiRpxToPx } from '../../utils/desktopLayout';
 import { useTheme } from "../../hooks/useTheme";
 import { getThemeSnapshot, subscribeTheme, THEME_PALETTES } from "../../utils/themePreferences";
 import { isSkyline } from "../../utils/renderer";
@@ -43,6 +43,7 @@ import { SortAsc as SortAscIcon } from "gzk-ui/icons";
 import { SortDesc as SortDescIcon } from "gzk-ui/icons";
 import { Upvote as UpvoteIcon } from "gzk-ui/icons";
 import RelatingTopics from "./relatingTopics";
+import { useRelatedTopicsRail } from './useRelatedTopicsRail';
 import PullDownRefresh, { PullDownRefreshRef } from "../../components/PullDownRefresh";
 import AddToDesktopGuide from "../../components/AddToDesktopGuide";
 import AdBanner from "../../components/AdBanner";
@@ -263,9 +264,17 @@ const Index = () => {
     ...(shareImageUrl ? { imageUrl: shareImageUrl } : {}),
   }));
 
+  const relatedRail = useRelatedTopicsRail(!!topicDetail, pageReady);
+  const geometryPending = !relatedRail.ready;
+  const blockPendingGesture = (event: any) => {
+    if (!geometryPending) return false;
+    event?.stopPropagation?.();
+    return true;
+  };
+
   if (!topicDetail) {
     return (
-      <View className={skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}>
+      <View id={relatedRail.rootId} className={skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}>
         <Navbar back home title='帖子详情' backgroundRGB={topicCanvasRGB(theme)} />
         <View className='topicDetailLoading'>
           <Loading />
@@ -324,7 +333,7 @@ const Index = () => {
 
   return (
     <>
-      <View className={skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}>
+      <View id={relatedRail.rootId} className={skyline ? 'topicDetail topicDetail--skyline' : 'topicDetail'}>
         <Navbar
           back
           home
@@ -339,7 +348,7 @@ const Index = () => {
         <PullDownRefresh
           ref={pullDownRef}
           className='scrollViewContainer'
-          onRefresh={() => setRefreshTime(Date.now())}
+          onRefresh={() => { if (!geometryPending) setRefreshTime(Date.now()); }}
         >
           <ScrollView
             type={getScrollViewType()}
@@ -348,15 +357,18 @@ const Index = () => {
             bounces
             enhanced
             scrollTop={scrollTop}
+            id={relatedRail.viewportId}
             className='scrollContent'
             onTouchStart={(e: any) => {
+              if (blockPendingGesture(e)) return;
               cancelScrollRef.current?.();
               setLocatingComment(false);
               pullDownRef.current?.onTouchStart(e);
             }}
-            onTouchMove={(e: any) => pullDownRef.current?.onTouchMove(e)}
-            onTouchEnd={(e: any) => pullDownRef.current?.onTouchEnd(e)}
+            onTouchMove={(e: any) => { if (!blockPendingGesture(e)) pullDownRef.current?.onTouchMove(e); }}
+            onTouchEnd={(e: any) => { if (!blockPendingGesture(e)) pullDownRef.current?.onTouchEnd(e); }}
             onScroll={(e: any) => {
+              if (blockPendingGesture(e)) return;
               pullDownRef.current?.onScroll(e.detail.scrollTop);
               const progress = Math.min(e.detail.scrollTop / 100, 1);
               if (workletReady.current && scrollProgressSV.current) {
@@ -365,7 +377,7 @@ const Index = () => {
               setNavScrollProgress(progress);
             }}
           >
-            <View className='topicDetailFlow'>
+            <View className={`topicDetailFlow${geometryPending ? ' topicDetailFlow--pending' : ''}`} style={relatedRail.flowStyle}>
             <View className='main topicBodyImageViewport'>
               <View className='header'>
                 <View className='title'>
@@ -415,7 +427,7 @@ const Index = () => {
                 </View>
               </View>
               <View className='content'>
-                <HtmlRender html={topicDetail.content} variant='body' fullBleedImages />
+                <HtmlRender html={topicDetail.content} variant='body' fullBleedImages imageLayoutKey={relatedRail.wide} />
               </View>
               <View className='extra'>
                 <View className='right'>
@@ -537,7 +549,7 @@ const Index = () => {
                               });
                             }}
                           >
-                            <ThemedIcon src={UpvoteIcon} tone='muted' lightColor='#000' style={{ height: rpxToPx(28), width: rpxToPx(28) }} />
+                            <ThemedIcon src={UpvoteIcon} tone='muted' lightColor='#000' style={{ height: uiRpxToPx(28), width: uiRpxToPx(28) }} />
                             <Text>{parseInt(comment.upVoteCount.replace("赞", ""))}</Text>
                           </View>
                         </View>
@@ -557,12 +569,23 @@ const Index = () => {
                   return items;
                 })}
             </View>
-            <View className='relatingTopics section'>
+            <View className={`relatingTopics section${relatedRail.wide ? ' relatingTopics--floating' : ''}`} style={relatedRail.railStyle}>
               <View className='header'><Text>相关主题</Text></View>
-              <RelatingTopics topicDetail={topicDetail} />
+              <RelatingTopics topicDetail={topicDetail} floating={relatedRail.wide} />
             </View>
             </View>
           </ScrollView>
+          {/* Permanent host keeps body/media/related ownership stable while
+              native geometry is pending. Only the loading leaf is conditional. */}
+          <View
+            className={`topicDetailGeometryOverlay${geometryPending ? ' topicDetailGeometryOverlay--pending' : ''}`}
+            onClick={(event: any) => { blockPendingGesture(event); }}
+            onTouchStart={(event: any) => { blockPendingGesture(event); }}
+            onTouchMove={(event: any) => { blockPendingGesture(event); }}
+            onTouchEnd={(event: any) => { blockPendingGesture(event); }}
+          >
+            {geometryPending && <Loading size={32} />}
+          </View>
         </PullDownRefresh>
         <View className='actions'>
           <View className='left' onClick={() => showCommentDialog()}>

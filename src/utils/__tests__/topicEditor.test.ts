@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Taro from '@tarojs/taro';
+import { createImageUploadController, uploadImage } from 'guanggu-forum-api';
 import TopicEditor, { restoreTopicAttachments } from '../../pages/createTopic/TopicEditor';
 import ComposerEmojiPanel from '../../components/ComposerEmojiPanel';
 import { EMPTY_FORMAT_STATUS } from '../../pages/createTopic/nativeEditorStatus';
 import { getCommonEmojiUsage, recordCommentEmojiUsage } from '../emojiUsage';
 import { ensureImageHostBound } from '../imageUploadGuard';
 import { STICKERS } from '../stickers';
-import { createImageUploadController, uploadImage } from 'guanggu-forum-api';
 
-const harness = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], cursor: 0, refCursor: 0, effects: [] as any[], keyboard: null as any, hide: null as any, show: null as any, theme: 'light' as 'light' | 'dark', resize: null as any, geometry: null as any, cleanups: [] as Array<() => void>, bodyTop: 300, measuredDockHeight: 80, windowWidth: 430, account: 'tester' }));
+const harness = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], cursor: 0, refCursor: 0, effects: [] as any[], keyboard: null as any, hide: null as any, show: null as any, theme: 'light' as 'light' | 'dark', platform: 'ios', resize: null as any, geometry: null as any, cleanups: [] as Array<() => void>, bodyTop: 300, measuredDockHeight: 80, windowWidth: 430, account: 'tester', owner: {}, queryOwners: [] as any[], bounds: { left: 56, width: 374 }, accountListeners: [] as (() => void)[] }));
 vi.mock('react', () => ({
   useEffect: (effect: any) => harness.effects.push(effect),
   useImperativeHandle: (ref: any, create: any) => { if (ref) ref.current = create(); },
@@ -22,8 +22,8 @@ vi.mock('react', () => ({
 // Current production uses page lifecycle, RootPortal and native viewport measurement.
 vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', Image: 'Image', ScrollView: 'ScrollView', RootPortal: 'RootPortal' }));
 vi.mock('@tarojs/taro', () => ({
-  default: { getWindowInfo: () => ({ windowWidth: harness.windowWidth, windowHeight: 900, screenHeight: 932, safeArea: { bottom: 898 } }), onWindowResize: (cb: any) => { harness.resize = cb; }, offWindowResize: vi.fn(), hideKeyboard: vi.fn(), showToast: vi.fn(), chooseMedia: vi.fn(), onKeyboardHeightChange: (cb: any) => { harness.keyboard = cb; }, offKeyboardHeightChange: vi.fn(),
-    nextTick: (cb: any) => cb(), createSelectorQuery: () => { const query = { select: () => query, boundingClientRect: (cb?: any) => { if (typeof cb === 'function') cb(harness.geometry); return query; }, exec: (cb?: any) => { if (typeof cb === 'function') cb([{ top: harness.bodyTop }, { height: 500 }, { height: 1000 }, { height: harness.measuredDockHeight }, harness.geometry]); } }; return query; } },
+  default: { getCurrentInstance: () => ({ page: harness.owner }), getDeviceInfo: () => ({ platform: harness.platform }), getWindowInfo: () => ({ windowWidth: harness.windowWidth, windowHeight: 900, screenHeight: 932, safeArea: { bottom: 898 } }), onWindowResize: (cb: any) => { harness.resize = cb; }, offWindowResize: vi.fn(), hideKeyboard: vi.fn(), showToast: vi.fn(), chooseMedia: vi.fn(), onKeyboardHeightChange: (cb: any) => { harness.keyboard = cb; }, offKeyboardHeightChange: vi.fn(),
+    nextTick: (cb: any) => cb(), createSelectorQuery: () => { const query = { in: (owner: any) => { harness.queryOwners.push(owner); return query; }, select: () => query, boundingClientRect: (cb?: any) => { if (typeof cb === 'function') cb(harness.geometry); return query; }, exec: (cb?: any) => { if (typeof cb === 'function') cb([{ top: harness.bodyTop }, { height: 500 }, { height: 1000 }, { height: harness.measuredDockHeight }, harness.geometry, harness.bounds]); } }; return query; } },
   useDidHide: (cb: any) => { harness.hide = cb; }, useDidShow: (cb: any) => { harness.show = cb; }, useReady: vi.fn(),
 }));
 vi.mock('guanggu-forum-api', () => ({ createImageUploadController: vi.fn(), ImageUploadError: class extends Error {}, uploadImage: vi.fn() }));
@@ -35,7 +35,7 @@ vi.mock('../keyboardAccessory', () => ({ tryHideKeyboardAccessoryView: vi.fn() }
 vi.mock('../imageUploadGuard', () => ({ ensureImageHostBound: vi.fn(), openImageHostSettings: vi.fn() }));
 vi.mock('../imageCompressionPreferences', () => ({ isImageCompressionEnabled: () => false }));
 vi.mock('../commentPhotos', () => ({ compressCommentPhoto: vi.fn() }));
-vi.mock('../currentUser', () => ({ getCachedUsername: () => harness.account }));
+vi.mock('../currentUser', () => ({ getCachedUsername: () => harness.account, subscribeCurrentAccount: (listener: () => void) => { harness.accountListeners.push(listener); return () => {}; } }));
 vi.mock('../emojiUsage', () => ({ EMOJIS: ['👍', '😂'], getCommonEmojiUsage: vi.fn(), recordCommentEmojiUsage: vi.fn() }));
 function all(tree: any): any[] {
   if (Array.isArray(tree)) return tree.flatMap(all);
@@ -59,7 +59,8 @@ function ready() { body().onFocus(); status(); const format = vi.fn(); body().ha
 function mountEffects() { for (const effect of harness.effects.splice(0)) { const cleanup = effect(); if (typeof cleanup === 'function') harness.cleanups.push(cleanup); } }
 async function settle() { await vi.advanceTimersByTimeAsync(600); }
 beforeEach(() => {
-  process.env.TARO_ENV = 'h5'; harness.account = 'tester';
+  harness.owner = {}; harness.queryOwners = []; harness.bounds = { left: 56, width: 374 }; harness.accountListeners = [];
+  process.env.TARO_ENV = 'h5'; harness.account = 'tester'; harness.platform = 'ios';
   vi.restoreAllMocks();
   vi.useFakeTimers(); harness.state = []; harness.refs = []; harness.effects = []; harness.cleanups = []; harness.bodyTop = 300; harness.measuredDockHeight = 80; harness.windowWidth = 430; harness.geometry = { width: 430, top: 0, bottom: 900, height: 900 }; vi.clearAllMocks();
   vi.mocked(Taro.hideKeyboard).mockReset().mockResolvedValue({ errMsg: 'hideKeyboard:ok' });
@@ -71,6 +72,26 @@ beforeEach(() => {
   render(); mountEffects(); dispose = () => { for (const cleanup of harness.cleanups.splice(0).reverse()) cleanup(); };
 });
 afterEach(() => { dispose?.(); harness.theme = 'light'; process.env.TARO_ENV = initialTaroEnv; vi.useRealTimers(); });
+
+describe('embedded native editor scope', () => {
+  it('measures within the captured native owner and confines the portal to the right content width while retaining the editor across tabs', () => {
+    harness.platform = 'windows'; props.embedded = true; props.visible = true; render(); mountEffects(); ready();
+    expect(find(render(), 'topicEditorDockHost').props.style).toMatchObject({ left: '56px', right: 'auto', width: '374px' });
+    expect(harness.queryOwners.every(owner => owner === harness.owner)).toBe(true); const nativeHandle = body().handleRef;
+    props.visible = false; render(); mountEffects(); expect(dock()).toBeUndefined(); expect(find(render(), 'topicEditorViewportProbe')).toBeUndefined();
+    harness.owner = {}; props.visible = true; render(); mountEffects();
+    expect(body().handleRef).toBe(nativeHandle); expect(harness.queryOwners.at(-1)).not.toBe(harness.owner); expect(props.onChange).not.toHaveBeenCalled();
+  });
+  it.each(['tab', 'A-B-A'] as const)('refuses a delayed system photo choice after %s without adding attachments or starting upload', async reason => {
+    process.env.TARO_ENV = 'weapp'; ready(); let complete!: (value: any) => void;
+    vi.mocked(Taro.chooseMedia).mockImplementationOnce(() => new Promise(resolve => { complete = resolve; }));
+    const picking = click('选择照片'); await Promise.resolve(); await Promise.resolve();
+    if (reason === 'tab') { props.visible = false; render(); mountEffects(); props.visible = true; render(); mountEffects(); }
+    else { harness.account = 'B'; harness.accountListeners.forEach(listener => listener()); harness.account = 'tester'; harness.accountListeners.forEach(listener => listener()); }
+    complete({ tempFiles: [{ tempFilePath: 'wxfile://synthetic', size: 5 }], type: 'image', errMsg: 'chooseMedia:ok' }); await picking; await Promise.resolve();
+    expect(props.attachments).toEqual([]); expect(uploadImage).not.toHaveBeenCalled(); expect(props.onChange).not.toHaveBeenCalled();
+  });
+});
 
 describe('topic editor format toolbar', () => {
   it.each(['加粗', '无序列表'])('uses one click for %s without a gesture lease or refocus', label => {
@@ -176,6 +197,32 @@ describe('topic editor format toolbar', () => {
 });
 
 describe('topic editor floating tools and attachments', () => {
+  it.each(['windows', 'mac'])('keeps desktop preview/native capture dimensions fixed on %s through resize without draft changes', async platform => {
+    harness.platform = platform; process.env.TARO_ENV = 'weapp';
+    props.value = 'Synthetic preserved draft';
+    props.attachments = [{ id: 'kept', kind: 'sticker', sticker: STICKERS[0] }];
+    ready();
+    for (const width of [450, 750, 1400]) {
+      harness.windowWidth = width; harness.geometry = { width, top: 0, bottom: 900, height: 900 };
+      harness.resize(); await settle();
+      const tree = render();
+      expect(find(tree, 'topicAttachmentRegion').props.style.height).toBe('83px');
+      expect(find(tree, 'topicAttachmentTrack').props.style.width).toBe('72px');
+      expect(find(tree, 'topicEditorDockHost').props.className).toContain('themePageHost--desktop');
+      expect(find(tree, 'topicEditorDockHost').props.style).toMatchObject({ width: '100%', height: '100%' });
+      expect(find(tree, 'topicEditorDock').props.style.maxHeight).toBe('calc(100% - 0px)');
+      const captures = all(tree).filter(node => node.type === 'topic-format-button');
+      expect(captures.length).toBeGreaterThan(0);
+      for (const capture of captures) expect(capture.props.desktop).toBe(true);
+      expect(find(tree, 'RichTopicBody').props.value).toBe('Synthetic preserved draft');
+    }
+    click('表情');
+    const panel = all(render()).find(node => node.type === ComposerEmojiPanel)!.props;
+    const stickerCapture = panel.renderStickerControl(STICKERS[0], vi.fn(), 'synthetic');
+    expect(stickerCapture.props.style.height).toBe('56px'); expect(stickerCapture.props.desktop).toBe(true);
+    expect(props.attachments.map(item => item.id)).toEqual(['kept']);
+    expect(props.onChange).not.toHaveBeenCalled(); expect(uploadImage).not.toHaveBeenCalled();
+  });
   it('uses a fixed bounded overlay with an independent sibling emoji panel without a keyboard-open claim', () => {
     ready(); click('表情');
     const host = find(render(), 'topicEditorDockHost');

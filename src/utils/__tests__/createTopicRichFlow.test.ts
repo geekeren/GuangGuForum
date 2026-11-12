@@ -1,22 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Taro from '@tarojs/taro';
 import { createTopic } from 'guanggu-forum-api';
-import CreateTopic from '../../pages/createTopic';
+import { CreateTopicContent } from '../../pages/createTopic';
 import TopicTitle from '../../pages/createTopic/TopicTitle';
 import { TOPIC_TYPE_REGISTRY } from '../../pages/createTopic/topicTypes/registry';
 import { serializeTopicDocumentHtml, topicMarkdownToSafeHtml, importTopicMarkdown } from '../topicDocument';
 
-const h = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], effects: [] as any[], cursor: 0, refCursor: 0, owner: 'tester', storage: new Map<string, any>() }));
+const h = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], effects: [] as any[], cursor: 0, refCursor: 0, owner: 'tester', listeners: [] as (() => void)[], storage: new Map<string, any>() }));
 vi.mock('react', () => ({
   useState(initial: any) { const i = h.cursor++; if (!(i in h.state)) h.state[i] = typeof initial === 'function' ? initial() : initial; return [h.state[i], (v: any) => { h.state[i] = typeof v === 'function' ? v(h.state[i]) : v; }]; },
   useRef(initial: any) { return h.refs[h.refCursor++] ??= { current: initial }; },
   useEffect(effect: any) { h.effects.push(effect); },
 }));
 vi.mock('@tarojs/components', () => Object.fromEntries(['View', 'Text', 'Image', 'ScrollView', 'Picker', 'Radio', 'RadioGroup'].map(name => [name, name])));
-vi.mock('@tarojs/taro', () => ({ default: { useDidHide: vi.fn(), useUnload: vi.fn(), showToast: vi.fn(), showLoading: vi.fn(), hideLoading: vi.fn(), navigateBack: vi.fn(), eventCenter: { trigger: vi.fn() } }, useRouter: () => ({ params: {} }) }));
+vi.mock('@tarojs/taro', () => ({ default: { useDidHide: vi.fn(), useDidShow: vi.fn(), useUnload: vi.fn(), showToast: vi.fn(), showLoading: vi.fn(), hideLoading: vi.fn(), navigateBack: vi.fn(), eventCenter: { trigger: vi.fn() } }, useRouter: () => ({ params: {} }) }));
 vi.mock('guanggu-forum-api', () => ({ createTopic: vi.fn(), fetchLinkSummary: vi.fn() }));
 vi.mock('../nodeNavigation', () => ({ getCachedNodeNavigation: () => [], fetchAndCacheNodeNavigation: vi.fn().mockResolvedValue([]) }));
-vi.mock('../currentUser', () => ({ getCachedUsername: () => h.owner }));
+vi.mock('../currentUser', () => ({ getCachedUsername: () => h.owner, subscribeCurrentAccount: (listener: () => void) => { h.listeners.push(listener); return () => {}; } }));
 vi.mock('../auth', () => ({ openLoginModal: vi.fn() }));
 vi.mock('../CacheService', () => ({ cacheService: { get: (key: string) => h.storage.get(key), set: (key: string, value: any) => h.storage.set(key, value), remove: (key: string) => h.storage.delete(key) }, CacheCategory: { Topic: 'topic' } }));
 vi.mock('../renderer', () => ({ isSkyline: () => true, getScrollViewType: () => 'list' }));
@@ -29,7 +29,8 @@ vi.mock('../../components/NodePicker', () => ({ default: 'NodePicker' }));
 vi.mock('../../components/LinkPreviewCard', () => ({ default: 'LinkPreviewCard' }));
 vi.mock('../../components/LinkPreviewCard/Header', () => ({ LinkPreviewHeader: 'LinkPreviewHeader' }));
 function elements(tree: any): any[] { return Array.isArray(tree) ? tree.flatMap(elements) : tree && typeof tree === 'object' ? [tree, ...elements(tree.props?.children)] : []; }
-function render() { h.cursor = 0; h.refCursor = 0; return elements(CreateTopic()); }
+let pageProps: Parameters<typeof CreateTopicContent>[0];
+function render() { h.cursor = 0; h.refCursor = 0; return elements(CreateTopicContent(pageProps)); }
 function body() { return render().find(e => e.type === 'TopicEditor')!.props; }
 function find(name: string) { return render().find(e => e.props?.className === name)!; }
 function setSnapshot(markdown: string, document?: any) {
@@ -39,7 +40,7 @@ function setSnapshot(markdown: string, document?: any) {
 // Drive the real page-to-title contract without executing TopicTitle's isolated hooks.
 function title(value = '标题') { render().find(e => e.type === TopicTitle)!.props.onInput(value); }
 beforeEach(() => {
-  h.state = []; h.refs = []; h.effects = []; h.owner = 'tester'; h.storage.clear(); vi.clearAllMocks();
+  pageProps = undefined; h.listeners = []; h.state = []; h.refs = []; h.effects = []; h.owner = 'tester'; h.storage.clear(); vi.clearAllMocks();
   render(); h.effects[4](); render();
   title(); setSnapshot('正文');
 });
@@ -127,7 +128,7 @@ describe('safe HTML publishing flow', () => {
     expect(render().find(e => e.type === 'HtmlRender')!.props.html).not.toContain('<img ');
     h.state[8] = null; setSnapshot(source); h.owner = 'other'; await find('previewBtn').props.onClick();
     expect(render().some(e => e.type === 'HtmlRender')).toBe(false);
-    expect(Taro.showToast).toHaveBeenLastCalledWith({ title: '图片所属账号已变化，请移除后重新上传', icon: 'none' });
+    expect(createTopic).not.toHaveBeenCalled(); // An account-mismatched retained page cannot even start the native snapshot.
   });
   it('checks managed ownership after source-to-rich roundtrip drops attachment tags', async () => {
     const image = { id: 'roundtrip', kind: 'photo', owner: 'tester', path: 'wxfile://p', phase: 'complete', progress: 100, url: 'https://img.test/p(1).jpg', richManaged: true };
@@ -140,8 +141,60 @@ describe('safe HTML publishing flow', () => {
     h.state[8] = null; h.owner = 'other'; setSnapshot(source, document);
     await find('previewBtn').props.onClick();
     expect(render().some(e => e.type === 'HtmlRender')).toBe(false);
-    expect(Taro.showToast).toHaveBeenLastCalledWith({ title: '图片所属账号已变化，请移除后重新上传', icon: 'none' });
+    expect(createTopic).not.toHaveBeenCalled(); // An account-mismatched retained page cannot even start the native snapshot.
     expect(createTopic).not.toHaveBeenCalled();
+  });
+  it('retains embedded draft and native handle across tab switching without a second Navbar, then completes through Home callback only', async () => {
+    const onPublished = vi.fn(); pageProps = { embedded: true, active: true, onPublished };
+    expect(render().filter(node => node.type === 'Navbar')).toHaveLength(0); const nativeHandle = body().inputRef;
+    expect(body()).toMatchObject({ embedded: true, visible: true, disabled: false });
+    pageProps.active = false; expect(body()).toMatchObject({ visible: false, disabled: true });
+    await find('previewBtn').props.onClick(); expect(createTopic).not.toHaveBeenCalled();
+    pageProps.active = true; expect(body().inputRef).toBe(nativeHandle); expect(render().find(node => node.type === TopicTitle).props.value).toBe('标题');
+    await find('previewBtn').props.onClick(); await find('topicPreviewPublish').props.onClick();
+    expect(onPublished).toHaveBeenCalledOnce(); expect(Taro.navigateBack).not.toHaveBeenCalled(); expect(createTopic).toHaveBeenCalledOnce();
+  });
+  it.each(['tab', 'A-B-A'] as const)('rejects delayed native preview after %s changes scope and cannot publish or restore another account draft', async reason => {
+    pageProps = { embedded: true, active: true }; render(); h.effects[8]();
+    let complete!: (value: any) => void; body().inputRef.current = { snapshot: vi.fn().mockImplementationOnce(() => new Promise(resolve => { complete = resolve; })).mockResolvedValue({ markdown: 'saved synthetic', errors: [], unsupported: [] }) };
+    const pending = find('previewBtn').props.onClick();
+    if (reason === 'tab') { pageProps.active = false; const offset = h.effects.length; render(); h.effects[offset + 7](); pageProps.active = true; render(); }
+    else { h.owner = 'B'; h.listeners.forEach(listener => listener()); h.owner = 'tester'; h.listeners.forEach(listener => listener()); render(); }
+    complete({ markdown: 'late synthetic', errors: [], unsupported: [] }); await pending;
+    expect(render().some(node => node.type === 'HtmlRender')).toBe(false); expect(createTopic).not.toHaveBeenCalled();
+    if (reason === 'A-B-A') { expect(body().value).toBe(''); expect(render().find(node => node.type === TopicTitle).props.value).toBe(''); }
+  });
+  it.each(['tab', 'account'] as const)('does not navigate, clear draft or call Home after a successful but stale submitted response on %s', async reason => {
+    const onPublished = vi.fn(); pageProps = { embedded: true, active: true, onPublished }; render(); h.effects[8]();
+    h.storage.set('topic_draft_normal_water', { title: 'protected synthetic draft' });
+    await find('previewBtn').props.onClick(); let complete!: () => void;
+    vi.mocked(createTopic).mockImplementationOnce(() => new Promise(resolve => { complete = () => resolve({} as any); }));
+    const pending = find('topicPreviewPublish').props.onClick();
+    if (reason === 'tab') { pageProps.active = false; render(); }
+    else { h.owner = 'B'; h.listeners.forEach(listener => listener()); render(); }
+    complete(); await pending; expect(onPublished).not.toHaveBeenCalled(); expect(Taro.navigateBack).not.toHaveBeenCalled();
+    expect(h.storage.get('topic_draft_normal_water')).toEqual({ title: 'protected synthetic draft' });
+  });
+  it('starts a fresh retained draft session after publish while rejecting old autosave and unload closures', async () => {
+    pageProps = { embedded: true, active: true, onPublished: vi.fn() }; render();
+    const callbacks: (() => void)[] = [];
+    const timer = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((callback: () => void) => { callbacks.push(callback); return callbacks.length; }) as any);
+    const cancel = vi.spyOn(globalThis, 'clearTimeout').mockImplementation(() => {});
+    try {
+      render(); h.effects.at(-3)(); // Existing 800ms autosave for the first draft.
+      const oldTimer = callbacks.at(-1)!; const oldUnload = vi.mocked(Taro.useUnload).mock.calls.at(-1)![0];
+      await find('previewBtn').props.onClick(); await find('topicPreviewPublish').props.onClick();
+      expect(h.storage.has('topic_draft_normal_water')).toBe(false);
+      pageProps.active = false; render(); h.effects.at(-2)();
+      pageProps.active = true; render(); title('第二篇标题'); body().onChange('第二篇正文');
+      render(); h.effects.at(-3)(); const newTimer = callbacks.at(-1)!;
+      oldTimer(); oldUnload(); expect(h.storage.has('topic_draft_normal_water')).toBe(false);
+      newTimer(); expect(h.storage.get('topic_draft_normal_water')).toMatchObject({ title: '第二篇标题', content: '第二篇正文' });
+      oldTimer(); oldUnload(); expect(h.storage.get('topic_draft_normal_water')).toMatchObject({ title: '第二篇标题', content: '第二篇正文' });
+      h.storage.delete('topic_draft_normal_water'); pageProps.active = false; render(); h.effects.at(-2)();
+      expect(h.storage.get('topic_draft_normal_water')).toMatchObject({ title: '第二篇标题', content: '第二篇正文' });
+      pageProps.active = true; expect(body().value).toBe('第二篇正文'); expect(render().find(node => node.type === TopicTitle).props.value).toBe('第二篇标题');
+    } finally { timer.mockRestore(); cancel.mockRestore(); }
   });
   it('keeps native serializer errors caller-enforced', () => {
     expect(serializeTopicDocumentHtml({ ops: [{ insert: { image: 'wxfile://local' } }, { insert: '\n' }] }).errors.length).toBeGreaterThan(0);

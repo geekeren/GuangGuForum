@@ -19,6 +19,7 @@
   }
 
   .scrollViewContainer {
+    position: relative;
     flex: auto;
     min-height: 0;
     overflow: hidden;
@@ -34,6 +35,47 @@
     width: 100%;
     min-width: 0;
     flex-shrink: 0;
+  }
+
+  // Hidden content remains mounted and measurable, including fixed children.
+  .topicDetailFlow--pending,
+  .topicDetailFlow--pending .relatingTopics {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .topicDetailGeometryOverlay {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .topicDetailGeometryOverlay--pending {
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  // The same related section stays inline on narrow panes. In a measured wide
+  // pane its native scroll owner floats inside the full-width viewport bounds.
+  .relatingTopics--floating {
+    position: fixed;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    z-index: 2;
+
+    .header { flex-shrink: 0; }
   }
 
   .authorNameRow,
@@ -62,6 +104,10 @@
   // 主帖内容
   // ────────────────────────────────────────────────────────────
   .main {
+    width: auto;
+    min-width: 0;
+    align-self: stretch;
+    box-sizing: border-box;
     background: $surface;
     margin: 12rpx 16rpx 0;
     padding: 20rpx 24rpx 16rpx;
@@ -742,5 +788,164 @@
   }
   to {
     transform: translateY(0);
+  }
+}
+
+// Fixed design-pixel geometry only within desktop detail and its sibling sheet.
+.themePageHost--desktop {
+  .topicDetail {
+    width: 100%; height: 100%; min-height: 0;
+    .scrollViewContainer { height: 0; flex-basis: 0; flex-grow: 1; flex-shrink: 1; }
+    .authorLevel { margin-left: 4PX; }
+    .main {
+      margin: 6PX 8PX 0; padding: 10PX 12PX 8PX; border-radius: 13PX;
+      .header {
+        .title { margin-bottom: 8PX; }
+        .metaRow {
+          gap: 6PX;
+          .authorInfo {
+            gap: 6PX;
+            .avatar image { width: 28PX; height: 28PX; border-radius: 14PX; }
+            .avatar .userAvatar { width: 28PX !important; height: 28PX !important; }
+            .moreInfo { margin-top: 1PX; }
+          }
+        }
+      }
+      .content { padding: 8PX 0 2PX; }
+      .extra { padding-top: 4PX; .right { gap: 6PX; } }
+    }
+    .topicTag { max-width: 90PX; padding: 2PX 5PX; border-radius: 12PX; }
+    .topicTagIcon { width: 10PX; height: 10PX; margin-right: 3PX; }
+    .section {
+      padding: 9PX 12PX; margin: 7PX 8PX 0; border-radius: 13PX;
+      .header {
+        margin-bottom: 4PX; min-height: 22PX; letter-spacing: -0.1PX;
+        &::before { width: 3PX; height: 14PX; border-radius: 1.5PX; margin-right: 6PX; }
+        .sortBtn { width: 24PX; height: 24PX; border-radius: 12PX; .sortIcon { width: 14PX; height: 14PX; } }
+      }
+    }
+    .comments {
+      .comment-item {
+        padding: 7PX 0; border-radius: 6PX;
+        .comment-author-avatar {
+          margin-right: 7PX;
+          image { width: 27PX; height: 27PX; border-radius: 13.5PX; }
+          .userAvatar { width: 27PX !important; height: 27PX !important; }
+        }
+        .comment-right {
+          padding: 0 0 7PX; border-bottom-width: 1PX;
+          .line1 { gap: 6PX; }
+          .comment-floor { padding: 1PX 4PX; border-radius: 4PX; }
+          .comment-content { margin: 3PX 0 4PX; .html .h5-p { margin: 0 0 4PX; } }
+          .comment-line3 { gap: 6PX; .commentUpvote { gap: 2PX; image { width: 14PX; height: 14PX; margin-right: 2PX; } } }
+        }
+        &:last-child, &:last-child .comment-right { padding-bottom: 0; }
+      }
+      .emptyComments {
+        padding: 24PX 0;
+        .emptyIcon { margin-bottom: 10PX; }
+        .emptyTitle { margin-bottom: 4PX; }
+        .emptyDesc { margin-bottom: 16PX; }
+        .emptyBtn { padding: 8PX 32PX; border-radius: 20PX; }
+      }
+    }
+    .relatingTopics { margin-bottom: 8PX; }
+    .relatingTopics--floating { margin: 0; }
+    .actions {
+      min-height: 56PX; height: calc(44PX + env(safe-area-inset-bottom));
+      padding: 6PX 11PX max(6PX, env(safe-area-inset-bottom)); flex-shrink: 0;
+      .left { height: 32PX; min-width: 0; border-radius: 20PX; padding: 7PX 14PX; text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } }
+      .right {
+        margin-left: 8PX; flex-shrink: 0;
+        .commentIcon { width: 20PX; height: 20PX; }
+        .badgeWrap { margin-right: 14PX; .badgeValue { top: -6PX; right: -7PX; min-width: 14PX; height: 14PX; border-radius: 7PX; line-height: 14PX; padding: 0 3PX; } }
+        .share { border-radius: 16PX; padding: 5PX 11PX 5PX 8PX !important; .icon { width: 16PX; height: 16PX; margin-right: 4PX; } }
+      }
+    }
+    .htmlWrap {
+      .htmlMediaHost { margin: 8PX 0; padding: 6PX 0; border-radius: 6PX; }
+      .htmlMediaStatus, .htmlMediaLink { padding: 4PX 8PX; }
+      .metaCard { gap: 6PX; padding: 8PX 10PX; border-radius: 6PX; margin-bottom: 8PX; }
+      .metaCardTag { padding: 2PX 7PX; border-radius: 3PX; }
+      .metaCardInfo { gap: 2PX; }
+      .html {
+        .h5-p { margin: 8PX 0; }
+        .h5-img { border-radius: 6PX; margin: 6PX auto; }
+        .h5-h1 { margin: 20PX 0 10PX; padding-bottom: 8PX; border-bottom-width: 1PX; }
+        .h5-h2 { margin: 18PX 0 8PX; padding-bottom: 6PX; border-bottom-width: 1PX; }
+        .h5-h3 { margin: 14PX 0 6PX; }
+        .h5-h4 { margin: 12PX 0 5PX; }
+        .h5-h5, .h5-h6 { margin: 10PX 0 4PX; }
+        .h5-ul, .h5-ol { margin: 8PX 0; }
+        .h5-li { padding-left: 20PX; margin: 5PX 0; }
+        .h5-ul .h5-li::before { left: 5PX; top: 9PX; width: 5PX; height: 5PX; }
+        .h5-li .h5-ul .h5-li::before { border-width: 1.5PX; }
+        .h5-li .h5-ul .h5-li .h5-ul .h5-li::before { border-radius: 1PX; }
+        .h5-hr { height: 1PX; margin: 16PX 0; }
+        .h5-blockquote { border-left-width: 3PX; padding: 8PX 12PX; margin: 10PX 0; border-radius: 0 4PX 4PX 0; }
+        .h5-code, code { padding: 2PX 5PX; border-radius: 3PX; }
+        .h5-pre { border-radius: 4PX; padding: 10PX 12PX; margin: 10PX 0; .h5-code, code { padding: 0; } }
+        .h5-table { margin: 10PX 0; }
+        .h5-tr { border-top-width: 1PX; }
+        .h5-th, .h5-td { min-width: 60PX; max-width: 200PX; padding: 6PX 10PX; border-width: 1PX; }
+        .html-link--mention { padding: 0 6PX; border-radius: 5PX; }
+        .html-linkChip { gap: 3PX; padding: 2PX 5PX; margin: 0 3PX; border-radius: 10PX; }
+        .html-linkIcon { width: 11PX; height: 11PX; }
+      }
+      &.htmlWrap--skyline .html .h5-p, &.htmlWrap--body .html .h5-p { margin: 0 0 6PX; &:last-child { margin-bottom: 0; } }
+      &.htmlWrap--body .html {
+        .h5-img { border-radius: 4PX; margin: 6PX 0; }
+        .htmlBodyImageHost { margin: 6PX 0; }
+        .htmlBodyImageSkeleton { border-radius: 4PX; border-width: 1PX; }
+      }
+    }
+  }
+  .commentPopup {
+    .commentPopupBody { padding: 12PX; padding-bottom: calc(12PX + env(safe-area-inset-bottom)); border-radius: 12PX 12PX 0 0; }
+    .commentPopupHandle { width: 32PX; height: 3PX; border-radius: 3PX; margin: -3PX auto 9PX; }
+    .commentPopupTextarea {
+      min-height: 68PX; border-radius: 12PX;
+      .mentionEditorInput { height: 48PX; min-height: 48PX; }
+      .mentionEditorSurface { padding: 10PX 12PX; border-radius: 12PX; }
+    }
+    .commentPopupToolbar { margin-top: 5PX; min-height: 40PX; }
+    .commentPopupTool { width: 38PX; height: 38PX; border-radius: 10PX; }
+    .commentPopupToolIcon { width: 23PX; height: 23PX; }
+    .commentPopupMore:not(.commentPopupTool--active) .commentPopupToolIcon { width: 21PX; height: 21PX; padding: 2PX; border-width: 1PX; }
+    .commentPopupMinimum { margin-right: 8PX; }
+    .commentPopupSend { min-width: 62PX; height: 32PX; padding: 0 14PX; border-radius: 20PX; text { height: 20PX; line-height: 20PX; } }
+    .commentPopupEmojiPanel { border-top-width: 1PX; }
+    .commentPopupMoreActions { padding: 18PX 12PX; }
+    .commentPopupMoreSquare { width: 56PX; height: 56PX; margin-bottom: 8PX; border-radius: 12PX; }
+    .commentPopupMoreIcon { width: 26PX; height: 26PX; }
+    .commentPopupPhotoNotice { height: 16PX; line-height: 16PX; }
+    .commentStickerPreviews { height: 72PX; margin-bottom: 6PX; }
+    .commentStickerPreviewTrack { height: 72PX; }
+    .commentStickerPreview { width: 72PX; height: 72PX; padding: 6PX; }
+    .commentStickerPreviewImage { width: 60PX; height: 60PX; }
+    .commentPhotoUploadOverlay { left: 6PX; right: 6PX; top: 6PX; bottom: 6PX; border-radius: 6PX; }
+    .commentPhotoUploadLabel { padding: 0 2PX; }
+    .commentPhotoUploadSpinner { width: 16PX; height: 16PX; border-width: 1.5PX; margin-bottom: 6PX; }
+    .commentStickerRemove { width: 20PX; height: 20PX; border-radius: 10PX; }
+    .composerEmojiTabs { height: 36PX; padding: 0 12PX; }
+    .composerEmojiTab { padding: 6PX 12PX; border-radius: 8PX; }
+    .composerEmojiGrid { padding: 8PX 12PX; }
+    .composerEmojiHeading { margin: 6PX 0; }
+    .composerEmojiEmpty { padding: 8PX 0 14PX; }
+    .composerEmojiCell { height: 32PX; border-radius: 8PX; }
+    .composerEmojiSticker { padding: 4PX; }
+    .composerEmojiStickerImage { width: 56PX; height: 56PX; }
+    .mentionCandidates--visible { height: 88PX; }
+    .mentionCandidatesTitle { height: 18PX; line-height: 18PX; }
+    .mentionCandidatesList, .mentionCandidatesTrack { height: 64PX; }
+    .mentionCandidate { width: 60PX; padding: 2PX 4PX; border-radius: 8PX; }
+    .mentionCandidateAvatarWrap, .mentionCandidateAvatar { width: 27PX !important; height: 27PX !important; border-radius: 13.5PX; }
+    .mentionCandidateOwnerBadge { top: -2PX; }
+    .mentionCandidateBadge { padding: 0 3PX; border-radius: 3PX; height: 12PX; line-height: 12PX; }
+    .mentionCandidateName { margin-top: 4PX; line-height: 14PX; max-height: 28PX; }
+  }
+  .topicDetail, .commentPopup {
+    .aiUserTag { padding: 0 3PX; border-radius: 3PX; height: 12PX; line-height: 12PX; }
+    .aiUserTag--compact { height: 10PX; line-height: 10PX; padding: 0 2PX; }
   }
 }

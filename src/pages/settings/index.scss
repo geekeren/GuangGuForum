@@ -8,6 +8,8 @@
   background: $bgColor;
 }
 
+.settingsPage--embedded { height: 100%; min-height: 0; min-width: 0; }
+
 .settingsBody {
   flex: 1;
   height: 0;

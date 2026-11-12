@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import Taro from '@tarojs/taro';
 import UserAvatar from '../../components/UserAvatar';
 import { DEFAULT_USER_AVATAR_SOURCE, userAvatarSource } from '../userAvatarSource';
 
@@ -17,6 +18,7 @@ vi.mock('react', () => ({
   },
 }));
 vi.mock('@tarojs/components', () => ({ Image: 'Image', View: 'View' }));
+vi.mock('@tarojs/taro', () => ({ default: { getDeviceInfo: vi.fn(() => ({ platform: 'ios' })), getWindowInfo: vi.fn(() => ({ windowWidth: 375 })) } }));
 vi.mock('../../components/AiUserTag', () => ({ default: 'AiUserTag' }));
 vi.mock('../localAssets', () => ({ getFromLocalCache: (source: string) => source === '/static/m_default.png' ? 'fixture-local-default.svg' : source }));
 function render(props: any) {
@@ -25,7 +27,7 @@ function render(props: any) {
   runtime.pending.splice(0).forEach(effect => effect());
   return { tree, image: (tree.props.children as any[]).find(child => child?.type === 'Image') };
 }
-beforeEach(() => { runtime.state = []; runtime.effects = []; runtime.pending = []; });
+beforeEach(() => { runtime.state = []; runtime.effects = []; runtime.pending = []; vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform: 'ios' } as any); });
 
 describe('avatar source normalization', () => {
   it.each([
@@ -59,6 +61,23 @@ describe('avatar source normalization', () => {
 });
 
 describe('shared UserAvatar', () => {
+  it.each(['windows', 'mac'])('uses fixed design geometry on %s at any pane width while keeping caller override precedence', platform => {
+    vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform } as any);
+    for (const width of [450, 750, 1400]) {
+      vi.mocked(Taro.getWindowInfo).mockReturnValue({ windowWidth: width } as any);
+      for (const size of [36, 52, 54, 96, 140]) {
+        const { tree, image } = render({ size, src: '' });
+        expect(tree.props.style).toEqual({ width: `${size / 2}px`, height: `${size / 2}px` });
+        expect(image.props.style).toEqual({ width: '100%', height: '100%' });
+      }
+    }
+    expect(render({ size: 96, style: { width: '17px', height: '19px' } }).tree.props.style).toEqual({ width: '17px', height: '19px' });
+    expect(render({ size: 96, style: 'width:17px;transform:scale(1)' }).tree.props.style).toBe('width:48px;height:48px;width:17px;transform:scale(1)');
+  });
+  it.each(['ios', 'android', 'devtools'])('keeps native rpx for %s without width-based platform guessing', platform => {
+    vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform } as any);
+    expect(render({ size: 140 }).tree.props.style).toEqual({ width: '140rpx', height: '140rpx' });
+  });
   it('preserves native image props, click, sizing, classes, children and AI identity', () => {
     const onClick = vi.fn(); const onLoad = vi.fn();
     const { tree, image } = render({ src: '/static/avatar/fixture.png', username: 'fixture-user', size: 36, className: 'fixture-avatar', imageClassName: 'fixture-image', style: { borderRadius: '50%' }, mode: 'aspectFit', lazyLoad: true, onClick, onLoad, compactAiTag: false, children: 'fixture-child' });

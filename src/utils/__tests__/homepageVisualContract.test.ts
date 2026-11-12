@@ -1,7 +1,115 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { createRequire } from 'node:module';
+
+const requireProject = createRequire(`${process.cwd()}/package.json`);
+function declarations(file: string, selector: string) {
+  const result: Record<string, string> = {};
+  requireProject('postcss').parse(requireProject('sass').compile(file).css).walkRules((rule: any) => {
+    if (rule.selectors.includes(selector)) rule.walkDecls((decl: any) => { result[decl.prop] = decl.value; });
+  });
+  return result;
+}
 
 const source = (path: string) => readFileSync(`src/${path}`, "utf8");
+
+describe('announcement layout stays bounded without changing artwork or title data', () => {
+  it('keeps decorative layers out of the flex row in both themes and gives copy the remaining width', () => {
+    const file = 'src/components/PinnedTopicCard/index.scss';
+    expect(declarations(file, '.homeAnnouncement .homeAnnouncementIllustration')).toMatchObject({ position: 'absolute', 'max-width': '100%', 'flex-shrink': '0' });
+    expect(declarations(file, '.homeAnnouncement .homeAnnouncementBlend')).toMatchObject({ position: 'absolute', right: '0', top: '0', bottom: '0', 'max-width': '100%', 'pointer-events': 'none' });
+    expect(declarations(file, '.homeAnnouncement .homeAnnouncementCopy')).toMatchObject({ flex: '1', 'flex-basis': '0', 'min-width': '0' });
+    expect(declarations(file, '.homeAnnouncement .homeAnnouncementIconWrap')).toMatchObject({ 'flex-shrink': '0', width: '44rpx', height: '44rpx' });
+    const card = source('components/PinnedTopicCard/index.tsx');
+    expect(card).toContain('{topic.title}');
+    expect(card).toContain("svg mode='aspectFit' className='homeAnnouncementIllustration'");
+    expect(card).not.toMatch(/isDesktopClient|isSkyline|windowWidth/);
+  });
+});
+
+describe('desktop Home geometry independent of total window width', () => {
+  it('keeps the original bottom tabs in flow with fixed desktop dimensions and mobile baseline', () => {
+    const file = 'src/pages/home/index.scss';
+    expect(declarations(file, '.themePageHost--desktop .root .bottomTab')).toMatchObject({ height: '56PX', 'padding-bottom': 'max(8PX, env(safe-area-inset-bottom))', 'border-radius': '14PX 14PX 0 0' });
+    expect(declarations(file, '.bottomTab')).toMatchObject({ height: '112rpx', position: 'relative', 'flex-shrink': '0', 'padding-bottom': 'max(16rpx, env(safe-area-inset-bottom))' });
+    expect(declarations(file, '.themePageHost--desktop .root .bottomTab .tabIcon')).toMatchObject({ width: '22PX', height: '22PX' });
+    expect(declarations(file, '.themePageHost--desktop .root .bottomTab .composeShareElement')).toMatchObject({ width: '36PX', height: '36PX' });
+    expect(declarations(file, '.themePageHost--desktop.themePageHost--dark .root .bottomTab')).toMatchObject({ height: '55PX', 'border-top-width': '1PX' });
+    const home = source('pages/home/index.tsx');
+    expect(home).not.toMatch(/DesktopLayout|desktopRail|usePageScope|useViewport/);
+  });
+  it('reserves the same normal-flow left rail for synchronous PC or measured non-PC roots, overriding dark and native footer heights', () => {
+    const file = 'src/pages/home/index.scss';
+    expect(declarations(file, '.root .homeWorkspace')).toMatchObject({ display: 'flex', 'flex-direction': 'column', flex: '1', 'min-height': '0', 'min-width': '0' });
+    expect(declarations(file, '.root .homeMain')).toMatchObject({ display: 'flex', 'flex-direction': 'column', flex: '1', 'min-height': '0', 'min-width': '0', overflow: 'hidden' });
+    expect(declarations(file, '.root.root--wideTabs .homeWorkspace')).toMatchObject({ 'flex-direction': 'row-reverse' });
+    const rail = declarations(file, '.desktopSideNav');
+    expect(rail).toMatchObject({ display: 'flex', width: '56PX', height: '100%', flex: 'none', 'box-sizing': 'border-box', 'flex-direction': 'column', padding: '16PX 5PX' });
+    expect(rail.position).toBeUndefined();
+    expect(rail.background).toContain('--theme-surface');
+    expect(declarations(file, '.root.root--wideTabs .tabContent')).toMatchObject({ flex: '1', 'min-width': '0' });
+    expect(declarations(file, '.desktopSideNav .desktopSideNavFooter')).toMatchObject({ display: 'flex', flex: 'none', 'flex-direction': 'column', 'margin-top': 'auto', 'padding-top': '16PX' });
+    expect(declarations(file, '.desktopSideNav .desktopNavItem')).toMatchObject({ width: '100%', padding: '10PX 0' });
+    expect(declarations(file, '.desktopSideNav .tabIcon')).toMatchObject({ width: '22PX', height: '22PX' });
+    expect(declarations(file, '.desktopSideNav .tabIconWrap')).toMatchObject({ width: '40PX', height: '24PX' });
+    expect(declarations(file, '.desktopSideNav .desktopComposeButton')).toMatchObject({ height: '32PX', 'font-size': '12PX', color: '#fff' });
+    expect(declarations(file, '.desktopSideNav .desktopSettingsButton')).toMatchObject({ display: 'flex', width: '44PX', height: '44PX', 'align-items': 'center', 'justify-content': 'center' });
+    expect(declarations(file, '.desktopSideNav .desktopSettingsIcon')).toMatchObject({ width: '22PX', height: '22PX' });
+    const account = declarations(file, '.desktopSideNav .desktopAccountButton');
+    expect(account).toMatchObject({ width: '44PX', height: '44PX' });
+    const horizontalPadding = Number.parseFloat(rail.padding.split(' ')[1]);
+    const innerWidth = Number.parseFloat(rail.width) - horizontalPadding * 2 - Number.parseFloat(rail['border-right']);
+    expect(Number.parseFloat(rail.width)).toBe(56);
+    expect(innerWidth).toBe(45);
+    expect(innerWidth >= Number.parseFloat(account.width)).toBe(true);
+    expect(innerWidth >= Number.parseFloat(declarations(file, '.desktopSideNav .tabIconWrap').width)).toBe(true);
+    expect(declarations(file, '.desktopSideNav .desktopAccountButton--active').background).toContain('--theme-accent-muted');
+    const home = source('pages/home/index.tsx');
+    expect(home).toContain('private readonly desktopTabs = isDesktopClient();');
+    expect(home).toContain('wideTabs: this.desktopTabs');
+    expect(home.indexOf('if (this.desktopTabs)')).toBeLessThan(home.indexOf('this.setState({ wideTabs: false })'));
+    expect(home.indexOf('if (this.desktopTabs)')).toBeLessThan(home.indexOf('Taro.nextTick'));
+    expect(home).not.toContain('if (!isDesktopClient() || !this.ownerPage)');
+    expect(home.match(/<View className='homeWorkspace'>/g)).toHaveLength(1);
+    expect(home).toContain("skyline && !this.state.wideTabs ? this.bottomTabStyle : undefined");
+    expect(home).toContain('const owner = this.ownerPage;');
+    expect(home).toContain('if (!owner) return;');
+    expect(home).toContain('query.in(owner).select');
+    const ownerGetter = home.split('private get ownerPage()')[1].split('private tabGeometry')[0];
+    expect(ownerGetter).toContain('if (!this.ownerPath) return this.capturedOwner;');
+    expect(ownerGetter).toContain('runtimeDocument.getElementById(this.ownerPath)?.ctx ?? undefined');
+    expect(ownerGetter).not.toMatch(/Taro\.getCurrentInstance\(|return\s+Current\.page/);
+    expect(home).toContain("this.ownerPath = typeof props.tid === 'string' && props.tid ? props.tid : undefined;");
+    expect(home).toContain('this.capturedOwner = this.ownerPath ? null : instance.page;');
+    expect(home).not.toMatch(/createDesktopPaneHistory|paneHistory|selectionRevision|未能关闭右侧页面/);
+    expect(home).toContain('Taro.redirectTo({ url })');
+    expect(home).toContain('`/pages/home/index?tab=${index}`');
+    expect(home).not.toMatch(/pageRouter|navigateBack|reLaunch|clearStorage|removeStorage/);
+    expect(home).not.toMatch(/getCurrentPages|getWindowInfo|windowWidth|setInterval|setTimeout/);
+  });
+  it('uses the normal content viewport for private messages without replacing or widening the navigation rail', () => {
+    const home = source('pages/home/index.tsx'), css = source('pages/home/index.scss');
+    expect(home).toContain('const CONTENT_TABS = [0, 1, 3, 4, 5, 6, 2];');
+    expect(home).toContain('this.state.visitedTabs[5]');
+    expect(home).toContain('active={this.state.selectedTabIndex === 5 && this.state.pageVisible}');
+    expect(home).not.toMatch(/privateSidebar|visitedPrivateSidebar|homePrivate|homeNavigation|onPrivateMessages|embedded compact/);
+    expect(css).not.toMatch(/homePrivate|homeNavigation|320PX|60%/);
+    expect(source('pages/messages/index.tsx')).not.toContain('compact');
+    expect(declarations('src/pages/home/index.scss', '.root .tabContent')).toMatchObject({ flex: '1', 'min-width': '0', 'min-height': '0', overflow: 'hidden' });
+  });
+  it('sizes actual pills, list avatars, TopicTag and announcement artwork only on desktop', () => {
+    const topics = 'src/pages/home/topics/index.scss';
+    expect(declarations(topics, '.themePageHost--desktop .topicsContainer .tab-header')).toMatchObject({ height: '38PX', 'padding-top': '5PX', 'padding-bottom': '6PX' });
+    expect(declarations(topics, '.themePageHost--desktop .topicsContainer .tab-item')).toMatchObject({ height: '27PX', 'border-radius': '15PX' });
+    const list = 'src/pages/home/topics/topicList/index.scss';
+    const prefix = '.themePageHost--desktop .topicList';
+    expect(declarations(list, `${prefix} .topicItem`)).toMatchObject({ margin: '0 11PX 7PX', padding: '11PX 13PX 10PX', 'min-height': '66PX', 'border-radius': '12PX' });
+    expect(declarations(list, `${prefix} .topicItem .meta .topicTag`)).toMatchObject({ 'max-width': '79PX', padding: '2PX 5PX', 'border-radius': '12PX' });
+    expect(declarations(list, `${prefix} .topicItem .meta .user .userAvatar`)).toMatchObject({ width: '16PX', height: '16PX' });
+    expect(declarations(list, `${prefix} .homeAnnouncement .homeAnnouncementIllustration`)).toMatchObject({ width: '138PX', height: '57PX' });
+    expect(declarations(list, '.topicList .topicItem')).toMatchObject({ 'border-radius': '24rpx', 'min-height': '132rpx' });
+  });
+});
 
 // Reference screenshot is 852px wide, mapped to the mini-program's 750rpx grid.
 describe("homepage reference geometry", () => {
@@ -11,7 +119,7 @@ describe("homepage reference geometry", () => {
     expect(home).toContain('this.state.selectedTabIndex === 0 ? "root root--topics"');
     expect(css).toMatch(/&--topics\s*\{\s*background: linear-gradient\(180deg, var\(--theme-brand-soft, #e7efff\)/);
     expect(css).toContain("background: rgba(var(--theme-surface-rgb, 255, 255, 255), 0.78);");
-    expect(home).toContain('height: getNavInfo().capsuleHeight + "px"');
+    expect(home).toContain('height: (isDesktopClient() ? 32 : getNavInfo().capsuleHeight) + "px"');
     expect(source("components/SearchEntry/index.tsx")).toContain("useSearchPlaceholder(!node)");
   });
 
@@ -32,7 +140,7 @@ describe("homepage reference geometry", () => {
     expect(header).toContain("padding-bottom: 12rpx;");
     expect(scroll).toContain("height: 54rpx;");
     const controls = source("pages/home/topics/index.tsx");
-    expect(controls).toContain('lineHeight: theme === "dark" ? "52rpx" : "54rpx",');
+    expect(controls).toContain('lineHeight: desktop ? theme === "dark" ? "26px" : "27px" : theme === "dark" ? "52rpx" : "54rpx",');
     expect(css).toContain("border-radius: 30rpx;");
     expect(css).toContain("&--active {\n    font-weight: 700;");
     expect(controls).toContain('const color = selected ? "#fff" : palette["text-primary"];');
@@ -51,7 +159,7 @@ describe("homepage reference geometry", () => {
     expect(scroll.indexOf("topicListTopSpacer")).toBeLessThan(scroll.indexOf("regularTopics.map"));
     expect(list.match(/className='topicListTopSpacer'/g)).toHaveLength(1);
     const css = source("pages/home/topics/topicList/index.scss");
-    const [shared, native] = css.split(".topicList--skyline");
+    const [shared, native] = css.split('.themePageHost--desktop')[0].split(".topicList--skyline");
     const spacer = shared.match(/\.topicListTopSpacer\s*\{([^}]+)\}/)?.[1];
     expect(spacer).toContain("display: block;");
     expect(spacer).toContain("height: 28rpx;");
@@ -197,7 +305,7 @@ describe("homepage reference geometry", () => {
     expect(css).not.toContain("height: 5rpx;");
     expect(css).not.toMatch(/\.tabItem[\s\S]{0,220}?&::after\s*\{/);
     expect(css).toContain("env(safe-area-inset-bottom)");
-    expect(source("pages/home/index.tsx")).toContain("Math.max(rpxToPx(16), getBottomSafeAreaInset())");
+    expect(source("pages/home/index.tsx")).toContain("Math.max(uiRpxToPx(16), getBottomSafeAreaInset())");
   });
 
   it("centers the compose image independently of text baselines and the share-element wrapper", () => {

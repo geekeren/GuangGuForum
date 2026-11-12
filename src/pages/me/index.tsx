@@ -1,7 +1,7 @@
 import { usePageScrollViewType } from "../../hooks/usePageRenderer";
 import { View, Text, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getUserProfile } from "guanggu-forum-api";
 import Loading from "../../components/Loading";
 import "./index.scss";
@@ -16,10 +16,38 @@ import ThemedIcon from "../../components/ThemedIcon";
 import { useDataWithCache } from "../../hooks/useDataWithCache";
 import { APP_ROUTES } from '../../utils/appRoutes';
 
-const Me = ({ active }: { active?: boolean }) => {
+const Me = ({ active, hideSettings = false, onOwnAvatarChange }: { active?: boolean; hideSettings?: boolean; onOwnAvatarChange?: (value: { account: string; avatarUrl?: string }) => void }) => {
   const scrollViewType = usePageScrollViewType();
   const { username, loading: checkingLogin, error: loginError, retry } = useCurrentUsername(active);
-  const { data: profile, request: fetchProfile, requestFresh: fetchFreshProfile } = useDataWithCache(getUserProfile);
+  // Bind avatar publication to the UI scope that started the existing request.
+  // A retained A profile must not acquire a new publisher after A -> B -> A.
+  const avatarScope = useRef({ account: username, publish: onOwnAvatarChange });
+  avatarScope.current = { account: username, publish: onOwnAvatarChange };
+  const avatarRequest = useRef(0);
+  const avatarMounted = useRef(true);
+  useEffect(() => {
+    avatarMounted.current = true;
+    return () => { avatarMounted.current = false; avatarRequest.current += 1; };
+  }, []);
+  const [avatarSnapshot, setAvatarSnapshot] = useState<{
+    account: string;
+    profile: Awaited<ReturnType<typeof getUserProfile>>;
+    publish: typeof onOwnAvatarChange;
+  }>();
+  const profileWithAvatar = useCallback<typeof getUserProfile>((params, options) => {
+    const scope = avatarScope.current;
+    const request = ++avatarRequest.current;
+    const remember = (value: Awaited<ReturnType<typeof getUserProfile>>) => {
+      if (avatarMounted.current && request === avatarRequest.current) {
+        setAvatarSnapshot({ ...scope, profile: value });
+      }
+    };
+    return getUserProfile(params, {
+      ...options,
+      onRefresh: value => { options?.onRefresh?.(value); remember(value); },
+    }).then(value => { remember(value); return value; });
+  }, []);
+  const { data: profile, request: fetchProfile, requestFresh: fetchFreshProfile } = useDataWithCache(profileWithAvatar);
   const pendingProfileRefresh = useRef(false);
   const activeRef = useRef(active);
   activeRef.current = active;
@@ -48,8 +76,15 @@ const Me = ({ active }: { active?: boolean }) => {
   let decodedUsername = username;
   try { decodedUsername = decodeURIComponent(username); } catch { /* Keep legacy encoding unchanged. */ }
   const ownProfile = profile && (profile.username === username || profile.username === decodedUsername);
+  useEffect(() => {
+    if (username && ownProfile && !loginError && getCachedUsername() === username
+      && avatarSnapshot?.account === username
+      && avatarSnapshot.publish === onOwnAvatarChange && avatarSnapshot.profile === profile) {
+      avatarSnapshot.publish?.({ account: username, avatarUrl: avatarSnapshot.profile.avatarUrl });
+    }
+  }, [username, ownProfile, loginError, profile, avatarSnapshot, onOwnAvatarChange]);
 
-  const settingsAction = (
+  const settingsAction = hideSettings ? null : (
     <ThemedIcon
       className='navSettingsIcon'
       src={SettingsIcon}

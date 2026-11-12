@@ -7,6 +7,7 @@ Component({
     background: { type: String, value: 'transparent' },
     thumbnail: { type: Boolean, value: false },
     captureOnly: { type: Boolean, value: false },
+    desktop: { type: Boolean, value: false },
     caption: { type: String, value: '' },
     loading: { type: Boolean, value: false },
   },

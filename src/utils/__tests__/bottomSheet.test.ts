@@ -6,6 +6,7 @@ import { themeVariables } from "../themePreferences";
 
 const theme = vi.hoisted(() => ({ current: "dark" as "light" | "dark" }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: theme.current }) }));
+vi.mock("../../hooks/usePageRenderer", () => ({ usePageRenderer: () => (globalThis as any).getCurrentPages()[0].renderer }));
 vi.mock("../CacheService", () => ({ cacheService: {}, CacheCategory: {} }));
 
 const harness = vi.hoisted(() => ({ state: [] as any[], cursor: 0, effects: [] as (() => any)[] }));
@@ -19,6 +20,7 @@ vi.mock("react", () => ({
 }));
 vi.mock("@tarojs/components", () => ({ RootPortal: "RootPortal", View: "View", Text: "Text", ScrollView: "ScrollView" }));
 vi.mock("@tarojs/taro", () => ({ default: {
+  getDeviceInfo: vi.fn(() => ({ platform: 'ios' })),
   getWindowInfo: vi.fn(() => ({ windowWidth: 430, windowHeight: 932, screenHeight: 932, safeArea: { bottom: 898 } })),
   onKeyboardHeightChange: vi.fn(), offKeyboardHeightChange: vi.fn(),
 } }));
@@ -32,10 +34,25 @@ function elements(tree: any): any[] {
   return tree && typeof tree === "object" ? [tree, ...elements(tree.props?.children)] : [];
 }
 function find(tree: any, name: string) { return elements(tree).find(e => String(e.props?.className || "").split(" ").includes(name))!.props; }
-beforeEach(() => { vi.clearAllMocks(); theme.current = "dark"; harness.state = []; vi.useFakeTimers(); vi.stubGlobal("getCurrentPages", () => [{ renderer: "skyline" }]); });
+beforeEach(() => { vi.clearAllMocks(); theme.current = "dark"; vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform: 'ios' } as any); vi.mocked(Taro.getWindowInfo).mockReturnValue({ windowWidth: 430, windowHeight: 932, screenHeight: 932, safeArea: { bottom: 898 } } as any); harness.state = []; vi.useFakeTimers(); vi.stubGlobal("getCurrentPages", () => [{ renderer: "skyline" }]); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe("shared bottom sheet", () => {
+  it.each(['windows', 'mac'])('uses local desktop percentage bounds and fixed design height on %s without remounts or native inset scaling', platform => {
+    vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform } as any);
+    for (const renderer of ['skyline', 'webview']) {
+      vi.stubGlobal('getCurrentPages', () => [{ renderer }]);
+      for (const width of [450, 750, 1400]) {
+        vi.mocked(Taro.getWindowInfo).mockReturnValue({ windowWidth: width, windowHeight: 932, screenHeight: 932, safeArea: { bottom: 898 } } as any);
+        const tree = render();
+        expect(find(tree, 'bottomSheetMask').className).toContain('themePageHost--desktop');
+        expect(find(tree, 'bottomSheetMask').style).toMatchObject({ width: '100%', height: '100%' });
+        expect(find(tree, 'bottomSheetPanel').style).toMatchObject({ bottom: '0px', top: 'auto', width: '100%', height: '284px', maxHeight: 'calc((100% - 0px) * 0.85)' });
+        expect(find(tree, 'bottomSheetFooter').style.paddingBottom).toBe('calc(10px + 34px)');
+        expect(tree?.key).toBeNull();
+      }
+    }
+  });
   it("anchors a compact native panel to the bottom with a bounded body and safe-area footer", () => {
     const tree = render();
     expect(tree.type).toBe("RootPortal");

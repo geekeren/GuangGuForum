@@ -14,17 +14,46 @@ const harness = vi.hoisted(() => {
   return { effects: [] as (() => void | (() => void))[], cleanups: [] as (() => void)[],
     queries: [] as { selector: string; callback: (rect: any) => void }[],
     window: { windowWidth: 390, windowHeight: 800 }, renderer: 'skyline',
-    viewportSelectors: new Set<string>(), viewportRect: { width: 390, left: 0 } as Record<string, unknown> | null, contentWidth: 350, resize: null as any };
+    viewportSelectors: new Set<string>(), viewportRect: { width: 390, left: 0 } as Record<string, unknown> | null, contentWidth: 350, resize: null as any,
+    stableHooks: null as any[] | null, hookIndex: 0 };
 });
-vi.mock('react', async original => ({ ...await original<any>(),
-  useRef: () => ({ current: null }), useMemo: (fn: any) => fn(),
-  useEffect: (fn: any) => harness.effects.push(fn),
-}));
+vi.mock('react', async original => {
+  const sameDeps = (a: any[], b: any[]) => a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
+  return { ...await original<any>(),
+    useRef: () => {
+      if (!harness.stableHooks) return { current: null };
+      const index = harness.hookIndex++;
+      return harness.stableHooks[index] ??= { current: null };
+    },
+    useMemo: (fn: any, deps: any[]) => {
+      if (!harness.stableHooks) return fn();
+      const index = harness.hookIndex++;
+      const previous = harness.stableHooks[index];
+      if (!previous || !sameDeps(previous.deps, deps)) harness.stableHooks[index] = { deps, value: fn() };
+      return harness.stableHooks[index].value;
+    },
+    useEffect: (fn: any, deps: any[]) => {
+      if (!harness.stableHooks) { harness.effects.push(fn); return; }
+      const index = harness.hookIndex++;
+      const previous = harness.stableHooks[index];
+      if (previous && sameDeps(previous.deps, deps)) return;
+      const slot = previous ?? { cleanup: undefined };
+      slot.deps = deps;
+      harness.stableHooks[index] = slot;
+      harness.effects.push(() => {
+        slot.cleanup?.();
+        slot.cleanup = fn();
+        return previous ? undefined : () => slot.cleanup?.();
+      });
+    },
+  };
+});
 vi.mock('@tarojs/components', () => ({ View: 'View', Span: 'Span', Text: 'Text' }));
 vi.mock('@tarojs/taro', async () => {
   const runtime = await import('@tarojs/runtime');
   return { default: { options: runtime.options, previewImage: vi.fn(() => Promise.resolve()),
     nextTick: (fn: () => void) => fn(), getWindowInfo: () => harness.window,
+    getDeviceInfo: vi.fn(() => ({ platform: 'ios' })),
     onWindowResize: (callback: any) => { harness.resize = callback; }, offWindowResize: () => { harness.resize = null; },
     createSelectorQuery: () => { let selector = ''; const query = {
       select: (value: string) => { selector = value; return query; },
@@ -57,7 +86,7 @@ function mount(html: string, props: any = { variant: 'body' }, beforeMount?: (im
   const images = nodes(root).filter(node => node.className?.split(' ').includes('h5-img'));
   beforeMount?.(images);
   for (const effect of harness.effects.splice(0)) { const cleanup = effect(); if (cleanup) harness.cleanups.push(cleanup); }
-  return { root, images };
+  return { root, images, view, markup: view.props.dangerouslySetInnerHTML.__html };
 }
 function nativeEvent(type: string, detail?: Record<string, unknown>) {
   const event = new TaroEvent(type, { bubbles: true, cancelable: true }) as TaroEvent & { detail?: Record<string, unknown> };
@@ -96,7 +125,7 @@ function photoBounds(image: any, parentLeft: number) {
   expect(width).toBeCloseTo(parseFloat(image.style.width));
   return { left, right: left + width, width };
 }
-beforeEach(() => { vi.clearAllMocks(); harness.effects = []; harness.queries = []; harness.window = { windowWidth: 390, windowHeight: 800 }; harness.renderer = 'skyline'; harness.viewportSelectors.clear(); harness.viewportRect = { width: 390, left: 0 }; harness.contentWidth = 350; });
+beforeEach(() => { harness.stableHooks = null; harness.hookIndex = 0; vi.clearAllMocks(); vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform: 'ios' } as any); harness.effects = []; harness.queries = []; harness.window = { windowWidth: 390, windowHeight: 800 }; harness.renderer = 'skyline'; harness.viewportSelectors.clear(); harness.viewportRect = { width: 390, left: 0 }; harness.contentWidth = 350; });
 afterEach(() => { for (const cleanup of harness.cleanups.splice(0)) cleanup(); });
 
 function prepared(html: string, props: any = { variant: 'body', fullBleedImages: true }) {
@@ -188,6 +217,14 @@ describe('topic photo skeleton presentation lifecycle', () => {
 });
 
 describe('mounted body image geometry and isolation', () => {
+  it.each(['windows', 'mac'])('fixes only contained image visual margin and radius on %s', platform => {
+    vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform } as any);
+    const { images } = mount('<blockquote><img src="fixture.png"></blockquote>');
+    expect(images[0].style.margin).toBe('6px auto');
+    load(images[0], 800, 400); measure();
+    expect(images[0].style.borderRadius).toBe('4px');
+    size(images[0], 350, 175, 0);
+  });
   it.each(['skyline', 'webview'])('centers landscape photos in preview without upscale in %s', renderer => {
     harness.renderer = renderer;
     const { images } = mount('<p><img src="/photo.png"></p>');
@@ -291,6 +328,46 @@ describe('mounted body image geometry and isolation', () => {
     load(images[0], 1200, 600); measure(); size(images[0], 390, 195, -20);
     harness.window = { windowWidth: 320, windowHeight: 650 }; harness.viewportRect = { width: 300, left: 10 };
     harness.resize(); measure(260, 30); size(images[0], 300, 150, -20);
+  });
+  it.each(['skyline', 'webview'])('remeasures the same %s body on rail layout changes without replacing HTML, images or presentation tokens', renderer => {
+    harness.renderer = renderer;
+    harness.stableHooks = [];
+    const html = '<p><img src="synthetic-layout.png"></p>';
+    const props = { variant: 'body', fullBleedImages: true, imageLayoutKey: false, testViewportCard: true };
+    const mounted = mount(html, props);
+    const image = mounted.images[0];
+    const host = image.parentElement;
+    load(image, 1600, 400); measure(); size(image, 390, 97.5, -20);
+    const rerender = (key: boolean) => {
+      harness.hookIndex = 0;
+      const request = prepared(html, { ...props, imageLayoutKey: key });
+      expect(request.html).toBe(mounted.markup);
+      expect(request.view.ref || request.view.props.ref).toBe(mounted.view.ref || mounted.view.props.ref);
+      for (const effect of harness.effects.splice(0)) { const cleanup = effect(); if (cleanup) harness.cleanups.push(cleanup); }
+      expect(nodes(mounted.root).filter(node => node.className?.split(' ').includes('h5-img'))).toEqual([image]);
+      expect(image.parentElement).toBe(host);
+    };
+    // A window resize may queue full-pane geometry before the rail commits.
+    harness.resize();
+    const stale = harness.queries.splice(0);
+    harness.viewportRect = { width: 290, left: 10 };
+    rerender(true); measure(250, 30); size(image, 290, 72.5, -20);
+    for (const query of stale) query.callback({ width: 390, left: 0 });
+    size(image, 290, 72.5, -20);
+    rerender(true); expect(harness.queries).toHaveLength(0);
+    harness.viewportRect = { width: 390, left: 0 };
+    rerender(false); measure(); size(image, 390, 97.5, -20);
+  });
+  it('leaves omitted image layout keys unchanged on unrelated body rerenders', () => {
+    harness.stableHooks = [];
+    const html = '<img src="synthetic-default.png">';
+    const mounted = mount(html, { variant: 'body', fullBleedImages: true });
+    load(mounted.images[0], 1200, 600); measure();
+    harness.hookIndex = 0;
+    const request = prepared(html);
+    expect(request.html).toBe(mounted.markup);
+    expect(harness.effects).toHaveLength(0);
+    expect(harness.queries).toHaveLength(0);
   });
   it('scales portrait and extreme screenshots by both parent width and 60% window height', () => {
     const { images } = mount('<img src="portrait.png"><img src="tall.png">', { variant: 'body', fullBleedImages: true });

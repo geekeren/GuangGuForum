@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Taro from "@tarojs/taro";
 import { cacheService } from "../CacheService";
 
-const env = vi.hoisted(() => ({ system: "light", stored: undefined as unknown }));
+const env = vi.hoisted(() => ({ system: "light", platform: 'ios', stored: undefined as unknown }));
 vi.mock("@tarojs/taro", () => ({ default: {
   getAppBaseInfo: vi.fn(() => ({ theme: env.system })),
+  getDeviceInfo: vi.fn(() => ({ platform: env.platform })),
   onThemeChange: vi.fn(), offThemeChange: vi.fn(),
 } }));
 vi.mock("../CacheService", () => ({
@@ -14,7 +15,7 @@ vi.mock("../CacheService", () => ({
 
 beforeEach(() => {
   vi.resetModules(); vi.clearAllMocks();
-  env.system = "light"; env.stored = undefined;
+  env.system = "light"; env.platform = 'ios'; env.stored = undefined;
   vi.mocked(cacheService.set).mockReturnValue(true);
   vi.mocked(Taro.getAppBaseInfo).mockImplementation(() => ({ theme: env.system } as any));
 });
@@ -96,6 +97,21 @@ describe("appearance preferences", () => {
     expect(light.bg).toBe("#f4f5fa");
     expect(light.surface).toBe("#ffffff");
     expect(light["icon-filter"]).toBe("none");
+  });
+  it('fixes desktop runtime shadows on page and portal hosts without changing phone palettes', async () => {
+    const theme = await import('../themePreferences');
+    for (const mode of ['light', 'dark'] as const) {
+      const mobile = theme.themeVariables(mode);
+      expect(mobile['--theme-shadow-sm']).toBe(theme.THEME_PALETTES[mode]['shadow-sm']);
+      expect(theme.themePageStyle(mode)).toContain('--theme-navigation-shadow:' + theme.THEME_PALETTES[mode]['navigation-shadow']);
+      env.platform = 'windows';
+      const desktop = theme.themeVariables(mode);
+      expect(desktop['--theme-shadow-sm']).toBe(mobile['--theme-shadow-sm'].replace('12rpx', '6px'));
+      expect(desktop['--theme-navigation-shadow']).toBe(mobile['--theme-navigation-shadow'].replace('-4rpx', '-2px').replace('16rpx', '8px'));
+      expect(theme.themePageStyle(mode)).not.toContain('rpx');
+      expect(desktop['--theme-bg']).toBe(mobile['--theme-bg']);
+      env.platform = 'ios';
+    }
   });
   it("falls back to light when system theme APIs are unavailable", async () => {
     vi.mocked(Taro.getAppBaseInfo).mockImplementation(() => { throw new Error("unsupported"); });

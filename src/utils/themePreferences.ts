@@ -1,11 +1,12 @@
 import Taro from "@tarojs/taro";
-import { cacheService, CacheCategory } from "./CacheService";
 import {
   BASE_THEME_PALETTES,
   themeVariables as baseThemeVariables,
   themePageStyle as baseThemePageStyle,
   type ColorTheme,
 } from "gzk-ui/theme";
+import { cacheService, CacheCategory } from "./CacheService";
+import { uiCssRpxValue } from "./desktopLayout";
 
 export type { ColorTheme } from "gzk-ui/theme";
 export type ThemePreference = "system" | ColorTheme;
@@ -99,8 +100,9 @@ export function startThemeListener(): () => void {
   return stopSystemListener;
 }
 export function themeVariables(theme: ColorTheme): Record<string, string> {
-  return baseThemeVariables(theme, THEME_PALETTES[theme]);
+  return Object.fromEntries(Object.entries(baseThemeVariables(theme, THEME_PALETTES[theme]))
+    .map(([name, value]) => [name, uiCssRpxValue(value)]));
 }
 export function themePageStyle(theme: ColorTheme): string {
-  return baseThemePageStyle(theme, THEME_PALETTES[theme]);
+  return uiCssRpxValue(baseThemePageStyle(theme, THEME_PALETTES[theme]));
 }

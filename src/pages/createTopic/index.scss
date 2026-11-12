@@ -1,5 +1,7 @@
 @import "../../vars.scss";
 
+.createTopic.createTopic--embedded { height: 100%; min-height: 0; min-width: 0; overflow: hidden; }
+
 .createTopic {
   background: $bgColor;
   height: 100vh;

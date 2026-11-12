@@ -15,3 +15,13 @@
 .format-button__spinner { width: 28rpx; height: 28rpx; border: 3rpx solid rgba(255, 255, 255, 0.35); border-top-color: #fff; border-radius: 50%; animation: format-button-spin 800ms linear infinite; }
 .format-button__caption { color: #fff; font-size: 11.47px; line-height: 1.5; margin-top: 10rpx; text-align: center; }
 @keyframes format-button-spin { to { transform: rotate(360deg); } }
+
+/* Native copied WXSS bypasses PostCSS and style isolation blocks parent tokens.
+   Keep internal hit targets and glyphs on the same desktop design baseline. */
+.format-button--desktop { height: 36px; }
+.format-button--desktop.format-button--capture-only { height: 100%; }
+.format-button--desktop .format-button__glyph { width: 32px; height: 32px; border-radius: 8px; }
+.format-button--desktop .format-button__icon { width: 20px; height: 20px; }
+.format-button--desktop.format-button--thumbnail { height: 64px; border-radius: 8px; }
+.format-button--desktop .format-button__spinner { width: 14px; height: 14px; border-width: 1.5px; }
+.format-button--desktop .format-button__caption { margin-top: 5px; }

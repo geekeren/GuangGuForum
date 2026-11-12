@@ -15,6 +15,22 @@ function instance(disabled = false) {
   return { events, context, run: (method: string) => definition.methods[method].call(context) };
 }
 describe('native topic control capture bridge', () => {
+  it('explicitly passes desktop density into isolated native content with fixed internal targets and unchanged mobile values', () => {
+    const definition = component(); expect(definition.properties.desktop).toMatchObject({ value: false });
+    const entry = readFileSync(resolve(directory, 'index.wxml'), 'utf8');
+    const content = readFileSync(resolve(directory, 'content.wxml'), 'utf8');
+    expect(entry).toContain("{{desktop ? 'format-button--desktop' : ''}}");
+    expect(content).toContain("{{desktop ? 'format-button--desktop' : ''}}");
+    const css = readFileSync(resolve(directory, 'index.wxss'), 'utf8');
+    expect(css).toContain('.format-button--desktop { height: 36px; }');
+    expect(css).toContain('.format-button--desktop.format-button--capture-only { height: 100%; }');
+    expect(css).toContain('.format-button--desktop .format-button__glyph { width: 32px; height: 32px; border-radius: 8px; }');
+    expect(css).toContain('.format-button--desktop .format-button__icon { width: 20px; height: 20px; }');
+    expect(css).toContain('.format-button--desktop.format-button--thumbnail { height: 64px; border-radius: 8px; }');
+    expect(css).toContain('border-width: 1.5px;');
+    expect(css).toContain('font-size: 11.47px;');
+    expect(css).not.toContain('--gzk-rpx');
+  });
   it('registers a compiler-resolvable source path rather than a runtime-only absolute copy path', () => {
     const pageDirectory = resolve(process.cwd(), 'src/pages/createTopic');
     const pageConfig = readFileSync(resolve(pageDirectory, 'index.config.ts'), 'utf8');
@@ -33,7 +49,7 @@ describe('native topic control capture bridge', () => {
     expect(assets).toEqual(['./content.wxml']);
     for (const asset of assets) expect(existsSync(resolve(directory, asset))).toBe(true);
     expect(entry).toContain('is="topic-control-content"');
-    expect(entry).toContain('data="{{icon, label, disabled, active, background, thumbnail, caption, loading}}"');
+    expect(entry).toContain('data="{{icon, label, disabled, active, background, thumbnail, caption, loading, desktop}}"');
     const content = readFileSync(resolve(directory, 'content.wxml'), 'utf8');
     expect(content).toContain('<template name="topic-control-content">');
     expect(content).toContain('src="{{icon}}"'); expect(content).toContain('catchtouchend="formatEnd"');
@@ -91,7 +107,7 @@ describe('native topic control capture bridge', () => {
   it('does not format, focus, hide the keyboard or create timers inside the bridge', () => {
     const source = readFileSync(resolve(directory, 'index.js'), 'utf8');
     for (const forbidden of ['setTimeout', 'Date.now', 'editor.', 'hideKeyboard', 'focus(']) expect(source).not.toContain(forbidden);
-    expect(Object.keys(component().properties)).toEqual(['icon', 'label', 'disabled', 'active', 'background', 'thumbnail', 'caption', 'loading']);
+    expect(Object.keys(component().properties)).toEqual(['icon', 'label', 'disabled', 'active', 'background', 'thumbnail', 'captureOnly', 'desktop', 'caption', 'loading']);
   });
   it('mirrors the independent glyph size and supports captured thumbnail/retry content', () => {
     const template = readFileSync(resolve(directory, 'content.wxml'), 'utf8');

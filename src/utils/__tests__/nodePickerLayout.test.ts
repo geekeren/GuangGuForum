@@ -7,11 +7,12 @@ import { themeVariables } from "../themePreferences";
 
 const theme = vi.hoisted(() => ({ current: "dark" as "light" | "dark" }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: theme.current }) }));
+vi.mock("../../hooks/usePageRenderer", () => ({ usePageRenderer: () => isSkyline() ? 'skyline' : 'webview' }));
 vi.mock("../CacheService", () => ({ cacheService: {}, CacheCategory: {} }));
 
 vi.mock("react", () => ({ useState: (value: any) => [value, vi.fn()], useEffect: vi.fn() }));
 vi.mock("@tarojs/components", () => ({ RootPortal: "RootPortal", View: "View", Text: "Text", ScrollView: "ScrollView" }));
-vi.mock("@tarojs/taro", () => ({ default: { getWindowInfo: vi.fn(() => ({ windowWidth: 390, windowHeight: 844, screenHeight: 844, safeArea: { bottom: 810 } })) } }));
+vi.mock("@tarojs/taro", () => ({ default: { getDeviceInfo: vi.fn(() => ({ platform: 'ios' })), getWindowInfo: vi.fn(() => ({ windowWidth: 390, windowHeight: 844, screenHeight: 844, safeArea: { bottom: 810 } })) } }));
 vi.mock("../renderer", () => ({ isSkyline: vi.fn(() => true), getScrollViewType: () => 'custom' }));
 const props = { visible: true, groups: [{ category: "生活", nodes: [{ slug: "house", name: "房产" }] }], selectedSlug: "house", allLabel: "全部节点", onSelect: vi.fn(), onClose: vi.fn() };
 function all(tree: any): any[] {
@@ -19,8 +20,23 @@ function all(tree: any): any[] {
   return tree && typeof tree === "object" ? [tree, ...all(tree.props?.children)] : [];
 }
 function find(tree: any, name: string) { return all(tree).find(e => e.props.className === name)!.props; }
-beforeEach(() => { vi.clearAllMocks(); theme.current = "dark"; vi.mocked(isSkyline).mockReturnValue(true); });
+beforeEach(() => { vi.clearAllMocks(); theme.current = "dark"; vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform: 'ios' } as any); vi.mocked(Taro.getWindowInfo).mockReturnValue({ windowWidth: 390, windowHeight: 844, screenHeight: 844, safeArea: { bottom: 810 } } as any); vi.mocked(isSkyline).mockReturnValue(true); });
 describe("board picker bottom positioning", () => {
+  it.each(['windows', 'mac'])('uses local desktop mask/sheet bounds and an explicit token host on %s', platform => {
+    vi.mocked(Taro.getDeviceInfo).mockReturnValue({ platform } as any);
+    for (const skyline of [true, false]) {
+      vi.mocked(isSkyline).mockReturnValue(skyline);
+      for (const width of [450, 750, 1400]) {
+        vi.mocked(Taro.getWindowInfo).mockReturnValue({ windowWidth: width, windowHeight: 844, screenHeight: 844, safeArea: { bottom: 810 } } as any);
+        const tree = NodePicker(props)!;
+        const mask = skyline ? tree.props.children.props : tree.props;
+        expect(mask.className).toContain('themePageHost--desktop');
+        expect(mask.style).toMatchObject({ width: '100%', height: '100%' });
+        expect(find(tree, 'nodePickerSheet').style).toEqual({ position: 'absolute', left: 0, bottom: 0, width: '100%', height: '70%', maxHeight: '70%' });
+        expect(find(tree, 'nodePickerScroll').style).toMatchObject({ height: 0, flex: 1, minHeight: 0, paddingBottom: 'calc(16px + 34px)' });
+      }
+    }
+  });
   it("uses the actual native viewport and explicitly anchors the sheet to its bottom", () => {
     const tree = NodePicker(props)!;
     expect(tree.type).toBe("RootPortal");
