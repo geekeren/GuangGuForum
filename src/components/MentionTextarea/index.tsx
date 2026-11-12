@@ -1,8 +1,7 @@
 import { View, Text } from "@tarojs/components";
 import { GzkNativeTextarea as Textarea } from "gzk-ui/native-form";
+import Taro from "@tarojs/taro";
 import { ComponentProps, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { usePageOwner, usePageWindowInfo } from "../../hooks/usePageScope";
-import { createPageSelectorQuery } from "../../utils/pageScope";
 import { AI_MENTION_USERNAME, getMentionSegments, getMentionQuery, getMentionCandidates, replaceInlineMention } from "../../utils/mentions";
 import UserAvatar from '../UserAvatar';
 import { usePageRenderer } from "../../hooks/usePageRenderer";
@@ -30,8 +29,6 @@ type MentionSelection = { start: number; end: number };
 type NativeTextarea = { value: string; setAttribute: (name: string, value: number) => void };
 
 export default function MentionTextarea({ value = "", onInput, onBlur, onSelectionChange, className, style, mentionUsers = [], mentionAvatars = {}, mentionTargets = [], onMentionInsert, topicAuthor, editorRef, candidatesStyle, ...props }: Props) {
-  const owner = usePageOwner();
-  const windowInfo = usePageWindowInfo();
   const skyline = usePageRenderer() === "skyline";
   const textRef = useRef(value);
   const lastValue = useRef(value);
@@ -62,7 +59,7 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
   const segments = getMentionSegments(text);
   const recipients = segments.filter((part) => part.username && part.start !== query?.start).map((part) => part.username!);
   const candidates = query ? getMentionCandidates([...mentionUsers, AI_MENTION_USERNAME], recipients, query) : [];
-  const windowWidth = windowInfo.windowWidth;
+  const windowWidth = Taro.getWindowInfo?.().windowWidth || 375;
   const maxCandidateOffset = Math.max(0, candidates.length * 120 * windowWidth / 750 - (viewportWidth.current || windowWidth));
   const visibleCandidateOffset = Math.max(-maxCandidateOffset, Math.min(0, candidateOffset));
   const emit = (next: string, cursor: number, event?: Parameters<NonNullable<Props["onInput"]>>[0]) => {
@@ -139,7 +136,7 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
               event.stopPropagation();
               const x = (event as typeof event & CandidateTouchEvent).touches?.[0]?.clientX;
               pan.current = typeof x === 'number' && Number.isFinite(x) ? { startX: x, offset: visibleCandidateOffset, moved: false } : null;
-              createPageSelectorQuery(owner).select(`#${viewportId.current}`).boundingClientRect((rect) => {
+              Taro.createSelectorQuery?.().select(`#${viewportId.current}`).boundingClientRect((rect) => {
                 if (rect && !Array.isArray(rect) && rect.width > 0) viewportWidth.current = rect.width;
               }).exec();
             }}
@@ -178,8 +175,7 @@ export default function MentionTextarea({ value = "", onInput, onBlur, onSelecti
         setSelection(undefined);
         setMentionSelection(null);
         pendingMention.current = null;
-      }}
-      >
+      }}>
         <Textarea
           {...props}
           ref={nativeInput}

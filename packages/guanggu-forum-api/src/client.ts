@@ -4,15 +4,8 @@ import url from "url";
 import { parse, HTMLElement } from "node-html-parser";
 import { URLS } from "./urls";
 import { Cookie, parseCookie, stringifyCookie } from "./utils/cookie";
-import { ICacheService } from "./types";
+import { ICacheService, CacheCategory } from "./types";
 import { createApiCacheEntry, readApiCacheEntry, getApiCacheVersions, type CacheApi } from "./cacheVersions";
-import {
-  cleanHtmlForCache,
-  categorizeUrl,
-  READING_CACHE_APIS,
-} from "./request/cachePolicy";
-import { ParsedHtmlCache } from "./request/parsedHtmlCache";
-import { RequestRevisions } from "./request/revisions";
 import { parseUnreadNotifications } from "./notification/unread";
 
 type TaroRequestConfig = Parameters<typeof Taro.request>[0];
@@ -38,13 +31,60 @@ function getCacheEnvironment(): string {
   }
 }
 
+const STRIP_TAGS = /<(script|style|noscript|iframe)[^>]*>[\s\S]*?<\/\1>/gi;
+const STRIP_BODY_FOOTER = /<footer[^>]*class="footer"[^>]*>[\s\S]*?<\/footer>/gi;
+const COLLAPSE_BLANK_LINES = /\n\s*\n/g;
+const COMPRESS_WHITESPACE = />\s+</g;
+
+function cleanHtmlForCache(html: string): string {
+  return html
+    .replace(STRIP_TAGS, "")
+    .replace(STRIP_BODY_FOOTER, "")
+    .replace(COLLAPSE_BLANK_LINES, "\n")
+    .replace(COMPRESS_WHITESPACE, "><")
+    .trim();
+}
+
+function categorizeUrl(relativeUrl: string): CacheCategory {
+  if (relativeUrl === "/") return "node";
+  if (/\/t\//.test(relativeUrl)) return "topic";
+  if (/\/node\//.test(relativeUrl)) return "node";
+  if (/\/u\//.test(relativeUrl)) return "user";
+  if (/^https?:\/\//.test(relativeUrl)) return "link";
+  return "other";
+}
+
 let _cacheService: ICacheService | null = null;
 let _onLoginRequired: (() => void) | null = null;
 let _onUnreadNotifications: ((count: number, username: string) => void) | null = null;
 
-// Parsed documents and in-flight revisions have independent lifetimes.
-const parsedCache = new ParsedHtmlCache();
-const requestRevisions = new RequestRevisions();
+// In-memory cache for parsed HTML to avoid re-parsing on every cache hit
+const parsedCache = new Map<string, { body: HTMLElement; html: string; timestamp: number }>();
+const PARSED_CACHE_TTL = 10 * 60 * 1000; // 10 min
+const PARSED_CACHE_MAX_ENTRIES = 100;
+const READING_CACHE_APIS = new Set<CacheApi>([
+  "getRecentTopics", "getTopicDetail", "getNodeTopics", "getHotNodes", "getNodeNavigation",
+  "getUserProfile", "getUserFavorites", "getRecentlyViewedTopics", "fetchLinkSummary", "getNotifications",
+  "getHotTopics", "getHotTopicMetadata", "getHotTopicCategory", "getDiscoveryData",
+  "resolveSearchNode", "getInterestTopics", "getSearchNodes", "searchTopics", "resolveSearchResult",
+]);
+// Keep only active requests; older responses cannot publish after a newer request starts.
+const requestRevisions = new Map<string, { latest: number; active: number }>();
+let nextRequestRevision = 0;
+
+function pruneParsedCache() {
+  const now = Date.now();
+  for (const [key, entry] of parsedCache) {
+    if (now < entry.timestamp || now - entry.timestamp >= PARSED_CACHE_TTL) parsedCache.delete(key);
+  }
+}
+
+function rememberParsed(key: string, html: string, body: HTMLElement) {
+  pruneParsedCache();
+  parsedCache.delete(key);
+  parsedCache.set(key, { body, html, timestamp: Date.now() });
+  while (parsedCache.size > PARSED_CACHE_MAX_ENTRIES) parsedCache.delete(parsedCache.keys().next().value!);
+}
 
 export function setCacheService(cs: ICacheService) {
   _cacheService = cs;
@@ -128,21 +168,23 @@ export async function request(
     onRefresh,
     ...rest
   } = config || {};
-  const filteredQuery = Object.fromEntries(
-    Object.entries(query).filter(([, value]) => !!value),
-  );
+  Object.entries(query).forEach(([k, v]) => {
+    if (!v) {
+      delete query[k];
+    }
+  });
   const baseUrl = url.parse(
     url.resolve(useProxy ? URLS.PROXY_ROOT_URL : URLS.ROOT_URL, relativeUrl),
   );
   const newUrl = url.format({
     ...baseUrl,
-    query: filteredQuery,
+    query: { ...query },
   });
 
   const persistCache = method === "GET" && !useProxy && !!cacheApi &&
     READING_CACHE_APIS.has(cacheApi) && !!getApiCacheVersions(cacheApi);
   const cache = requestedCache && persistCache;
-  parsedCache.prune();
+  pruneParsedCache();
   const cs = getCacheService();
   const username = useCookie ? cs.get<string>("current_username") : null;
   const getCookies = () => cs.get<Record<string, Cookie | string>>("cookies") || {};
@@ -169,8 +211,20 @@ export async function request(
   if (!scopeCurrent()) return request(relativeUrl, config);
 
   const revisionKey = JSON.stringify([cacheKey, useCookie, requestCookie]);
-  const startRequest = () =>
-    requestRevisions.start(revisionKey, () => getCacheService() === cs);
+  const startRequest = () => {
+    const state = requestRevisions.get(revisionKey) || { latest: 0, active: 0 };
+    const revision = ++nextRequestRevision;
+    state.latest = revision;
+    state.active++;
+    requestRevisions.set(revisionKey, state);
+    return {
+      current: () => state.latest === revision && getCacheService() === cs,
+      finish: () => {
+        state.active--;
+        if (state.active === 0 && requestRevisions.get(revisionKey) === state) requestRevisions.delete(revisionKey);
+      },
+    };
+  };
   const persistHtml = async (resData: string, body: HTMLElement, current: () => boolean) => {
     if (!persistCache || !current()) return;
     const html = cleanHtmlForCache(resData);
@@ -182,7 +236,7 @@ export async function request(
     } catch {
       // A storage failure must not turn a successful read into a UI/network failure.
     }
-    if (current()) parsedCache.remember(cacheKey, html, body);
+    if (current()) rememberParsed(cacheKey, html, body);
   };
   const liveRequest = () => Taro.request({
     url: newUrl,
@@ -241,13 +295,15 @@ export async function request(
     // Check in-memory parsed cache first to skip HTML parsing
     const cached = parsedCache.get(cacheKey);
     if (cached && cached.html === cachedHtml) {
+      parsedCache.delete(cacheKey);
+      parsedCache.set(cacheKey, cached);
       doBackgroundRefresh();
       return Promise.resolve({ body: cached.body, rawRes: null, fromCache: true });
     }
 
     const body = parseHtmlResponse(cachedHtml, relativeUrl);
     if (body) {
-      parsedCache.remember(cacheKey, cachedHtml, body);
+      rememberParsed(cacheKey, cachedHtml, body);
     }
 
     if (body) {

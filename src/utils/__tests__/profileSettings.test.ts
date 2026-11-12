@@ -4,13 +4,6 @@ import { getCacheService, request } from '../../../packages/guanggu-forum-api/sr
 import { getOwnProfileSettings, saveOwnProfileSettings, type OwnProfileFields } from '../../../packages/guanggu-forum-api/src/user/profileSettings';
 import type { ICacheService } from '../../../packages/guanggu-forum-api/src/types';
 
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, false);
-});
 vi.mock('../../../packages/guanggu-forum-api/src/client', () => ({ request: vi.fn(), getCacheService: vi.fn() }));
 const fields: OwnProfileFields = { nickname: 'fixture name', gender: '1', generation: '1990', signature: 'fixture signature', location: 'fixture city', website: 'https://example.invalid/', college: 'fixture school', company: 'fixture company', self_intro: 'fixture introduction' };
 const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

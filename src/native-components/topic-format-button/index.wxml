@@ -5,4 +5,4 @@
 <view wx:if="{{captureOnly}}" class="format-button format-button--capture-only {{disabled ? 'format-button--disabled' : ''}}" aria-role="button" aria-label="{{label}}" aria-disabled="{{disabled}}" bindtouchstart="formatStart" catchtouchend="formatEnd" bindtouchmove="formatMove" catchtouchcancel="formatCancel" catchtap="formatTap">
   <view class="format-button__slot"><slot /></view>
 </view>
-<template wx:else is="topic-control-content" data="{{icon, label, disabled, active, background, thumbnail, compact, caption, loading}}" />
+<template wx:else is="topic-control-content" data="{{icon, label, disabled, active, background, thumbnail, caption, loading}}" />

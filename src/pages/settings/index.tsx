@@ -1,26 +1,26 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { View, Text, ScrollView } from "@tarojs/components";
 import { GzkButton as Button, GzkSwitch as Switch } from "gzk-ui/native-form";
 import Taro from "@tarojs/taro";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { logout } from "guanggu-forum-api";
 import { ChevronRight as ArrowRightIcon } from "gzk-ui/icons";
-import { usePageRenderer } from "../../hooks/usePageRenderer";
-import { usePageOwner, usePageNavigation } from "../../hooks/usePageScope";
 import ThemedIcon from "../../components/ThemedIcon";
 import { linkHandler } from "../../utils/linkHandler";
 import { getCachedUsername } from "../../utils/currentUser";
 import { APP_ROUTES } from '../../utils/appRoutes';
-import { CacheCategory } from "../../utils/CacheService";
+import { cacheService, CacheCategory, type CategoryStats } from "../../utils/CacheService";
 import AddToDesktopGuide, { checkMiniProgramAdded } from "../../components/AddToDesktopGuide";
 import Navbar from "../../components/Navbar";
+import { isSkyline } from "../../utils/renderer";
 import { useTheme } from "../../hooks/useTheme";
 import { setThemePreference, THEME_LABELS, type ThemePreference } from "../../utils/themePreferences";
-import { useRewardedAd } from "./useRewardedAd";
-import { useCacheManagement, formatSize } from "./useCacheManagement";
+import { AD_DISABLE_KEY, disableAd, isAdDisabled, getAdDisabledDays } from "../../utils/ad";
 import "./index.scss";
 
 const FEEDBACK_URL = "https://www.guozaoke.com/t/91893";
 const GITHUB_URL = "https://github.com/geekeren/GuangGuForum";
+const REWARDED_AD_UNIT_ID = "adunit-d0ac20b3f633671e";
 
 type MenuItem = {
   label: string;
@@ -38,9 +38,7 @@ type MenuItem = {
 };
 
 export default function Settings() {
-  const owner = usePageOwner();
-  const navigation = usePageNavigation();
-  const skyline = usePageRenderer() === "skyline";
+  const skyline = isSkyline();
   const { preference: themePreference } = useTheme();
   const handleThemeChange = async () => {
     const choices: ThemePreference[] = ["system", "light", "dark"];
@@ -54,12 +52,54 @@ export default function Settings() {
   };
   const [showGuide, setShowGuide] = useState(false);
   const [miniProgramAdded, setMiniProgramAdded] = useState(false);
-  const { adEnabled, adLoading, handleAdSwitchChange, adSwitchDesc } = useRewardedAd();
-  const { cacheStats, totalSize, handleClearCategory, handleClearAll, handleForceClearAll } = useCacheManagement();
+  const [adEnabled, setAdEnabled] = useState(!isAdDisabled());
+  const [adLoading, setAdLoading] = useState(false);
+  const videoAdRef = useRef<Taro.RewardedVideoAd | null>(null);
 
-  Taro.useDidShow(() => {
-    checkMiniProgramAdded().then(setMiniProgramAdded);
-  });
+  useEffect(() => {
+    setAdEnabled(!isAdDisabled());
+
+    // 创建激励视频广告实例
+    if (Taro.createRewardedVideoAd) {
+      videoAdRef.current = Taro.createRewardedVideoAd({
+        adUnitId: REWARDED_AD_UNIT_ID,
+      });
+
+      videoAdRef.current.onLoad(() => {
+        console.log("激励视频广告加载成功");
+      });
+
+      videoAdRef.current.onError((err) => {
+        console.error("激励视频广告加载失败", err);
+        setAdLoading(false);
+        Taro.showToast({ title: "广告加载失败，请稍后重试", icon: "none" });
+        setAdEnabled(!isAdDisabled());
+      });
+
+      videoAdRef.current.onClose((res: { isEnded: boolean }) => {
+        setAdLoading(false);
+        if (res && res.isEnded) {
+          if (disableAd(30)) {
+            setAdEnabled(false);
+            Taro.showToast({ title: "广告已关闭30天", icon: "success" });
+          } else {
+            setAdEnabled(!isAdDisabled());
+            Taro.showToast({ title: "免广告设置保存失败，请重试", icon: "none" });
+          }
+        } else {
+          Taro.showToast({ title: "需看完广告才能关闭", icon: "none" });
+          setAdEnabled(true);
+        }
+      });
+    }
+
+    return () => {
+      // 销毁广告实例
+      if (videoAdRef.current) {
+        videoAdRef.current.destroy?.();
+      }
+    };
+  }, []);
 
   Taro.useShareAppMessage(() => ({
     title: "过早客 - 武汉本地生活社区",
@@ -67,7 +107,7 @@ export default function Settings() {
   }));
 
   const handleExternalUrl = (url: string) => {
-    linkHandler(url, owner);
+    linkHandler(url);
   };
 
   const handleAddToDesktop = async () => {
@@ -86,6 +126,86 @@ export default function Settings() {
     setShowGuide(true);
   };
 
+  const [cacheStats, setCacheStats] = useState<CategoryStats[]>([]);
+
+  const statsRevision = useRef(0);
+  const statsVisible = useRef(true);
+  useEffect(() => () => { statsVisible.current = false; statsRevision.current++; }, []);
+  Taro.useDidHide(() => { statsVisible.current = false; statsRevision.current++; });
+
+  const refreshCacheStats = async () => {
+    const revision = ++statsRevision.current;
+    try {
+      const stats = await cacheService.getAllCategoryStatsAsync();
+      if (statsVisible.current && revision === statsRevision.current) setCacheStats(stats);
+    } catch { /* Keep the previous snapshot if the filesystem is temporarily unavailable. */ }
+  };
+
+  Taro.useDidShow(() => {
+    statsVisible.current = true;
+    setAdEnabled(!isAdDisabled());
+    checkMiniProgramAdded().then(setMiniProgramAdded);
+    refreshCacheStats();
+  });
+
+  const formatSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const totalSize = cacheStats.reduce((sum, s) => sum + s.size, 0);
+
+  const handleClearCategory = async (cat: CacheCategory, label: string) => {
+    if (cat === CacheCategory.System) {
+      Taro.showToast({ title: "包含登录态及系统必须数据，不可删除", icon: "none" });
+      return;
+    }
+    const { confirm } = await Taro.showModal({
+      title: `清除${label}`,
+      content: `确定要清除所有${label}吗？`,
+    });
+    if (confirm) {
+      try {
+        await cacheService.clearCategoryAsync(cat);
+        Taro.showToast({ title: `${label}已清除`, icon: "success" });
+      } catch {
+        Taro.showToast({ title: "部分缓存清理失败，请重试", icon: "none" });
+      } finally { refreshCacheStats(); }
+    }
+  };
+
+  const handleClearAll = async () => {
+    const { confirm } = await Taro.showModal({
+      title: "清除缓存",
+      content: "确定要清除缓存吗？登录状态等数据将保留。",
+    });
+    if (confirm) {
+      try {
+        await cacheService.clearAllAsync(true);
+        Taro.showToast({ title: "缓存已清除", icon: "success" });
+      } catch {
+        Taro.showToast({ title: "部分缓存清理失败，请重试", icon: "none" });
+      } finally { refreshCacheStats(); }
+    }
+  };
+
+  const handleForceClearAll = async () => {
+    const { confirm } = await Taro.showModal({
+      title: "强制清除所有数据",
+      content: "将清除所有本地数据，包括登录状态和偏好设置，需要重新登录。确定继续？",
+      confirmColor: "#e74c3c",
+    });
+    if (confirm) {
+      try {
+        await cacheService.clearAllAsync(false);
+        Taro.showToast({ title: "所有数据已清除", icon: "success" });
+      } catch {
+        Taro.showToast({ title: "数据清理失败，请重试", icon: "none" });
+      } finally { refreshCacheStats(); }
+    }
+  };
+
   const handleLogout = async () => {
     const { confirm } = await Taro.showModal({
       title: "退出登录",
@@ -98,8 +218,58 @@ export default function Settings() {
       } finally {
         Taro.hideLoading();
       }
-      navigation.reLaunch({ url: "/pages/home/index" });
+      Taro.reLaunch({ url: "/pages/home/index" });
     }
+  };
+
+  const handleAdSwitchChange = async (value: boolean) => {
+    if (adLoading) return;
+    if (!value) {
+      // 关闭广告需要看激励广告
+      const { confirm } = await Taro.showModal({
+        title: "关闭广告",
+        content: "完整观看激励视频后，可关闭广告30天",
+        confirmText: "观看广告",
+        cancelText: "取消",
+      });
+      if (!confirm) return;
+
+      setAdLoading(true);
+
+      if (videoAdRef.current) {
+        videoAdRef.current
+          .show()
+          .catch(() => {
+            // 失败重试
+            videoAdRef.current
+              ?.load()
+              .then(() => videoAdRef.current?.show())
+              .catch((err) => {
+                console.error("激励视频广告显示失败", err);
+                Taro.showToast({ title: "广告加载失败，请稍后重试", icon: "none" });
+                setAdLoading(false);
+              });
+          });
+      } else {
+        Taro.showToast({ title: "当前环境不支持激励广告", icon: "none" });
+        setAdLoading(false);
+      }
+    } else {
+      // 开启广告
+      if (await cacheService.removeAsync(AD_DISABLE_KEY, true)) {
+        setAdEnabled(true);
+        Taro.showToast({ title: "广告已开启", icon: "success" });
+      } else {
+        setAdEnabled(!isAdDisabled());
+        Taro.showToast({ title: "广告设置保存失败，请重试", icon: "none" });
+      }
+    }
+  };
+
+  const getAdSwitchDesc = () => {
+    if (adEnabled) return "";
+    const remainDays = getAdDisabledDays();
+    return remainDays > 0 ? `免广告剩余 ${remainDays} 天` : "";
   };
 
   const isLoggedIn = !!getCachedUsername();
@@ -108,7 +278,7 @@ export default function Settings() {
     [
       { label: "外观", desc: THEME_LABELS[themePreference], action: handleThemeChange },
       { label: '图床设置', desc: 'ImgURL Token · 图片压缩', action: () => {
-        navigation.navigateTo({ url: APP_ROUTES.imageSettings });
+        Taro.navigateTo({ url: APP_ROUTES.imageSettings });
       } },
     ],
     [
@@ -116,7 +286,7 @@ export default function Settings() {
       { label: "开源地址", desc: "GitHub", action: () => handleExternalUrl(GITHUB_URL) },
     ],
     [
-      { label: "广告管理", switchControl: true, switchValue: adEnabled, onSwitchChange: handleAdSwitchChange, switchDesc: adSwitchDesc, noArrow: true },
+      { label: "广告管理", switchControl: true, switchValue: adEnabled, onSwitchChange: handleAdSwitchChange, switchDesc: getAdSwitchDesc(), noArrow: true },
       { label: "推荐给朋友", shareButton: true },
       { label: "添加到桌面", action: handleAddToDesktop },
       { label: "添加到我的小程序", action: handleAddToMiniProgram, statusTag: miniProgramAdded ? "已添加" : "未添加" },
@@ -126,7 +296,7 @@ export default function Settings() {
   return (
     <View className={`settingsPage${skyline ? " settingsPage--skyline" : ""}`}>
       <Navbar shared={false} back title='设置' titleStyle={{ opacity: 1 }} />
-      <ScrollView type={skyline ? 'custom' : undefined} scrollY className='settingsBody'>
+      <ScrollView type={getScrollViewType()} scrollY className='settingsBody'>
         {sections.map((group, gi) => (
           <View className='settingsGroup' key={gi}>
             {group.map((item, ii) => (
@@ -152,7 +322,7 @@ export default function Settings() {
                     </View>
                     <View>
                       <Switch
-                        onClick={() => { item.onSwitchChange?.(!item.switchValue); }}
+                        onClick={(e) => { item.onSwitchChange?.(!item.switchValue); }}
                         checked={item.switchValue}
                         disabled={adLoading}
                         color='#1f69ff'

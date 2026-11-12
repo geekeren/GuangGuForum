@@ -1,11 +1,9 @@
 import { Text, View } from '@tarojs/components';
 import { GzkNativeTextarea as Textarea } from 'gzk-ui/native-form';
-import { useDidHide } from '@tarojs/taro';
+import Taro, { useDidHide } from '@tarojs/taro';
 import { useEffect, useRef, useState } from 'react';
-import { Send as SendIcon } from "gzk-ui/icons";
-import { usePageScope, usePageWindowInfo } from "../../hooks/usePageScope";
-import { nextTickForPage } from "../../utils/pageScope";
 import ThemedIcon from '../../components/ThemedIcon';
+import { Send as SendIcon } from "gzk-ui/icons";
 import { resolveKeyboardDockInset } from '../../utils/keyboardDockPosition';
 
 interface Props {
@@ -18,10 +16,13 @@ interface Props {
   onSend: () => void;
 }
 
+function windowSize() {
+  try { return Taro.getWindowInfo(); } catch { return { windowHeight: 0, screenHeight: 0, safeArea: undefined }; }
+}
+
 /** Native text-only comment-style dock. Geometry reuses the shared viewport compensation. */
 export default function PrivateMessageComposer({ value, limit, disabled, posting, unavailableReason = '当前会话暂不能发送', onChange, onSend }: Props) {
-  const { owner, viewport } = usePageScope();
-  const initial = usePageWindowInfo();
+  const initial = windowSize();
   const baseline = useRef(initial.windowHeight);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(initial.windowHeight);
@@ -37,21 +38,22 @@ export default function PrivateMessageComposer({ value, limit, disabled, posting
     const next = Math.max(0, height);
     keyboardRef.current = next;
     setKeyboardHeight(next);
-    setViewportHeight(viewport.getWindowInfo().windowHeight);
+    setViewportHeight(windowSize().windowHeight);
     // One native layout pass, no polling/timers. A trailing hide/unmount cannot update the dock.
-    nextTickForPage(owner, () => { if (mounted.current && keyboardRef.current === next) setViewportHeight(viewport.getWindowInfo().windowHeight); });
+    Taro.nextTick(() => { if (mounted.current && keyboardRef.current === next) setViewportHeight(windowSize().windowHeight); });
   };
   useDidHide(() => { keyboardRef.current = 0; setKeyboardHeight(0); });
   useEffect(() => {
     mounted.current = true;
-    const resize = () => {
-      const height = viewport.getSnapshot().height;
-      if (!mounted.current) return;
+    const resize = (event: unknown) => {
+      const size = (event as { size?: { windowHeight?: number } })?.size;
+      if (!mounted.current || !size || !Number.isFinite(size.windowHeight)) return;
+      const height = size.windowHeight!;
       if (keyboardRef.current === 0) baseline.current = height;
       setViewportHeight(height);
     };
-    const stopResize = viewport.subscribe(resize);
-    return () => { mounted.current = false; stopResize(); };
+    Taro.onWindowResize?.(resize);
+    return () => { mounted.current = false; Taro.offWindowResize?.(resize); };
   }, []);
 
   return <View className='privateMessageDock' style={{ paddingBottom: `${keyboardHeight > 0 ? 8 : safeBottom + 8}px` }}>

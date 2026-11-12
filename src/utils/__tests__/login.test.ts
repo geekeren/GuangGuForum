@@ -3,18 +3,6 @@ import { parse } from "node-html-parser";
 import { login } from "../../../packages/guanggu-forum-api/src/login/login";
 import { request, getCacheService } from "../../../packages/guanggu-forum-api/src/client";
 
-vi.mock("../../hooks/usePageRenderer", async () => {
-  const renderer = await import("../renderer");
-  const usePageRenderer = () => "isSkyline" in renderer && renderer.isSkyline() ? "skyline" : "webview";
-  return { PageRendererContext: undefined, usePageRenderer, usePageScrollViewType: () => usePageRenderer() === "skyline" ? "custom" : undefined };
-});
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, false);
-});
 vi.mock("@tarojs/taro", () => ({ default: { showToast: vi.fn() } }));
 vi.mock("../../../packages/guanggu-forum-api/src/client", () => ({ request: vi.fn(), getCacheService: vi.fn() }));
 vi.mock("../../../packages/guanggu-forum-api/src/login/getLoginXsrfCode", () => ({ getLoginXsrfCode: async () => ({ xsrf_form: "test-xsrf" }) }));

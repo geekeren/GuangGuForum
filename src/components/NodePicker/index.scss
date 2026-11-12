@@ -223,18 +223,3 @@
   from { transform: translateY(0); }
   to { transform: translateY(100%); }
 }
-
-// Applies at the RootPortal boundary as well as the WebView page tree.
-.nodePickerMask.nodePickerMask--desktop {
-  .nodePickerSheet { border-radius: 16PX; border-top-width: 1PX; max-height: none; animation: none; }
-  .nodePickerSheet--closing { animation: none; }
-  .nodePickerHeader { padding: 16PX; }
-  .nodePickerTitle { font-size: 18PX; }
-  .nodePickerClose { width: 32PX; height: 32PX; }
-  .nodePickerScroll { padding: 0 16PX 16PX; height: 0; flex: 1; min-height: 0; overflow: hidden; }
-  .nodeGroup { margin-bottom: 16PX; }
-  .nodeGroupLabel { padding: 0 6PX; margin-bottom: 10PX; font-size: 13PX; }
-  .nodeGroupTags { gap: 8PX; }
-  .nodeTag { padding: 8PX 12PX; border-radius: 8PX; border-width: 1PX; }
-  .nodeTagText { font-size: 14PX; }
-}

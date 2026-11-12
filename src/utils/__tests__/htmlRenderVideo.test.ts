@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { compileString } from 'sass';
@@ -12,16 +12,9 @@ const harness = vi.hoisted(() => {
   for (const flag of ['ENABLE_INNER_HTML', 'ENABLE_ADJACENT_HTML', 'ENABLE_CLONE_NODE', 'ENABLE_CONTAINS', 'ENABLE_SIZE_APIS', 'ENABLE_TEMPLATE_CONTENT', 'ENABLE_MUTATION_OBSERVER']) {
     (globalThis as any)[flag] = flag === 'ENABLE_INNER_HTML';
   }
-  return { renderer: 'skyline', effects: [] as (() => void | (() => void))[], cleanups: [] as (() => void)[] };
+  return { renderer: 'skyline' };
 });
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, false);
-});
-vi.mock('react', async original => ({ ...await original<any>(), useRef: () => ({ current: null }), useMemo: (fn: any) => fn(), useEffect: (effect: () => void | (() => void)) => harness.effects.push(effect) }));
+vi.mock('react', async original => ({ ...await original<any>(), useRef: () => ({ current: null }), useMemo: (fn: any) => fn(), useEffect: vi.fn() }));
 vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', Span: 'Span', Video: 'Video' }));
 vi.mock('@tarojs/taro', async () => ({ default: { options: (await import('@tarojs/runtime')).options,
   setClipboardData: vi.fn(() => Promise.resolve()), showToast: vi.fn(), previewImage: vi.fn(() => Promise.resolve()),
@@ -37,8 +30,6 @@ function parse(html: string, variant?: 'body') {
   const view = tree.props.children.find((node: any) => node?.props?.dangerouslySetInnerHTML);
   const root = document.createElement('view');
   root.innerHTML = view.props.dangerouslySetInnerHTML.__html;
-  (view.ref || view.props.ref).current = root;
-  for (const effect of harness.effects.splice(0)) { const cleanup = effect(); if (cleanup) harness.cleanups.push(cleanup); }
   return { root, all: nodes(root), tree };
 }
 function event(type: string, detail: Record<string, unknown> = {}) {
@@ -48,8 +39,7 @@ function event(type: string, detail: Record<string, unknown> = {}) {
 }
 function videos(root: any) { return nodes(root).filter(node => node.nodeName === 'video'); }
 function media(root: any) { return nodes(root).filter(node => node.className?.split(' ').includes('htmlMediaHost')); }
-beforeEach(() => { vi.clearAllMocks(); harness.renderer = 'skyline'; harness.effects = []; });
-afterEach(() => { for (const cleanup of harness.cleanups.splice(0)) cleanup(); });
+beforeEach(() => { vi.clearAllMocks(); harness.renderer = 'skyline'; });
 
 describe('HTML native video through the installed Taro parser', () => {
   it.each(['skyline', 'webview'])('promotes nested source and keeps media out of inline text in %s', renderer => {
@@ -130,7 +120,7 @@ describe('HTML native video through the installed Taro parser', () => {
     // TaroElement.dispatchEvent does not synthesize native bubbling. Dispatch
     // at the actual parsed link host where HtmlRender installs its listener.
     nodes(root).find(node => node.h5tagName === 'a' && node.props.href === 'https://example.test').dispatchEvent(event('tap'));
-    expect(linkHandler).toHaveBeenCalledWith('https://example.test', undefined);
+    expect(linkHandler).toHaveBeenCalledWith('https://example.test');
   });
 
   it('shows a visible safe fallback in both comments and body for missing/unsafe sources', () => {

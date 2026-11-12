@@ -38,8 +38,6 @@ export default defineAppConfig({
     backgroundColor: "@backgroundColor",
   },
   darkmode: true,
-  resizable: true,
-  frameset: true,
   themeLocation: "theme.json",
   lazyCodeLoading: "requiredComponents",
   renderer: "skyline",

@@ -6,7 +6,6 @@ Component({
     active: { type: Boolean, value: false },
     background: { type: String, value: 'transparent' },
     thumbnail: { type: Boolean, value: false },
-    compact: { type: Boolean, value: false },
     captureOnly: { type: Boolean, value: false },
     caption: { type: String, value: '' },
     loading: { type: Boolean, value: false },

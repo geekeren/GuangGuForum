@@ -6,18 +6,6 @@ import { bindImageHostToken, ImageHostSettingsError } from 'guanggu-forum-api';
 import { clearImgUrlToken, getImgUrlToken, isValidImgUrlToken, saveImgUrlToken } from '../imageHostSettings';
 
 const harness = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], cursor: 0, refCursor: 0, username: 'account-a' }));
-vi.mock("../../hooks/usePageRenderer", async () => {
-  const renderer = await import("../renderer");
-  const usePageRenderer = () => "isSkyline" in renderer && renderer.isSkyline() ? "skyline" : "webview";
-  return { PageRendererContext: undefined, usePageRenderer, usePageScrollViewType: () => usePageRenderer() === "skyline" ? "custom" : undefined };
-});
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, false);
-});
 vi.mock('react', () => ({
   useState: (initial: any) => {
     const i = harness.cursor++;

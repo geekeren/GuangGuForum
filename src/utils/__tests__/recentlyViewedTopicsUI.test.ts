@@ -5,11 +5,6 @@ import { getRecentlyViewedTopics, clearRecentlyViewedTopics } from 'guanggu-foru
 import { clearLocalRecentlyViewedTopics, getLocalRecentlyViewedTopics } from '../recentlyViewedTopics';
 
 const runtime = vi.hoisted(() => ({ account: 'fixture-user', state: [] as any[], cursor: 0, effects: [] as any[], effectCursor: 0, work: [] as any[], listeners: new Set<any>(), records: new Map<string, any[]>() }));
-vi.mock("../../hooks/usePageScope", async () => {
-  const module = await import("@tarojs/taro");
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
-});
 vi.mock('react', () => ({
   useState: (initial: any) => { const i = runtime.cursor++; if (!(i in runtime.state)) runtime.state[i] = typeof initial === 'function' ? initial() : initial; return [runtime.state[i], (next: any) => { runtime.state[i] = next; }]; },
   useEffect: (fn: any, deps: any[]) => { const i = runtime.effectCursor++; const old = runtime.effects[i]; if (!old || deps.some((value, index) => value !== old.deps[index])) runtime.work.push(() => { old?.cleanup?.(); runtime.effects[i] = { deps, cleanup: fn() }; }); },

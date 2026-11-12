@@ -9,19 +9,6 @@ const harness = vi.hoisted(() => ({
   values: [] as any[], refs: [] as any[], effects: [] as any[], cursor: 0, refCursor: 0,
   cached: [] as any[], route: "work", username: 'tester', storage: new Map<string, any>(),
 }));
-vi.mock("../../hooks/usePageRenderer", async () => {
-  const renderer = await import("../renderer");
-  const usePageRenderer = () => "isSkyline" in renderer && renderer.isSkyline() ? "skyline" : "webview";
-  return { PageRendererContext: undefined, usePageRenderer, usePageScrollViewType: () => usePageRenderer() === "skyline" ? "custom" : undefined };
-});
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, false);
-});
-vi.mock('../../hooks/useViewport', () => ({ useViewport: () => ({ width: 375, height: 667, isDesktop: false }) }));
 vi.mock("react", () => ({
   useState(initial: any) {
     const index = harness.cursor++;
@@ -81,7 +68,7 @@ afterEach(() => vi.useRealTimers());
 describe("node navigation UI consumers", () => {
   it('opens login after 500ms when the composer mounts unauthenticated', async () => {
     vi.useFakeTimers(); harness.username = '';
-    render(CreateTopic); const cleanup = harness.effects.find(effect => effect.name === 'loadNodeNavigation')!();
+    render(CreateTopic); const cleanup = harness.effects[2]();
     await vi.advanceTimersByTimeAsync(499);
     expect(openLoginModal).not.toHaveBeenCalled();
     expect(picker(CreateTopic).props.groups).toEqual(groups(' fresh'));
@@ -95,7 +82,7 @@ describe("node navigation UI consumers", () => {
 
   it('cancels pending login navigation when the composer unmounts before 500ms', async () => {
     vi.useFakeTimers(); harness.username = '';
-    render(CreateTopic); const cleanup = harness.effects.find(effect => effect.name === 'loadNodeNavigation')!();
+    render(CreateTopic); const cleanup = harness.effects[2]();
     await vi.advanceTimersByTimeAsync(499);
     expect(openLoginModal).not.toHaveBeenCalled();
     cleanup();
@@ -106,7 +93,7 @@ describe("node navigation UI consumers", () => {
 
   it('does not schedule login navigation for an authenticated composer', async () => {
     vi.useFakeTimers();
-    render(CreateTopic); const cleanup = harness.effects.find(effect => effect.name === 'loadNodeNavigation')!();
+    render(CreateTopic); const cleanup = harness.effects[2]();
     expect(vi.getTimerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(1000);
     expect(openLoginModal).not.toHaveBeenCalled();
@@ -117,7 +104,7 @@ describe("node navigation UI consumers", () => {
   it("renders cached create-topic groups and keeps a later user selection when revalidation resolves", async () => {
     const next = deferred(); vi.mocked(fetchAndCacheNodeNavigation).mockReturnValue(next.promise);
     render(CreateTopic);
-    harness.effects.find(effect => effect.name === 'loadNodeNavigation')!();
+    harness.effects[2]();
     expect(picker(CreateTopic).props).toMatchObject({ groups: groups(), selectedSlug: "work" });
     await picker(CreateTopic).props.onSelect("code");
     next.resolve(groups(" fresh")); await flush();
@@ -131,9 +118,9 @@ describe("node navigation UI consumers", () => {
     harness.storage.set("topic_draft_normal_code", { title: "Draft", content: "Body" });
     const next = deferred(); vi.mocked(fetchAndCacheNodeNavigation).mockReturnValue(next.promise);
     render(CreateTopic);
-    harness.effects.find(effect => effect.name === 'loadNodeNavigation')!();
+    harness.effects[2]();
     expect(picker(CreateTopic).props.selectedSlug).toBe("work");
-    harness.effects.find(effect => effect.name === 'restoreDraft')!(); // later draft restoration effect
+    harness.effects[4](); // later draft restoration effect
     expect(picker(CreateTopic).props.selectedSlug).toBe("code");
     next.resolve(groups(" fresh")); await flush();
     expect(picker(CreateTopic).props.selectedSlug).toBe("code");
@@ -143,18 +130,18 @@ describe("node navigation UI consumers", () => {
   it("restores a saved node on cold startup and validates only after groups arrive", async () => {
     harness.cached = []; harness.route = "";
     harness.storage.set("last_selected_node", { slug: "code" });
-    render(CreateTopic); harness.effects.find(effect => effect.name === 'loadNodeNavigation')!(); await flush();
+    render(CreateTopic); harness.effects[2](); await flush();
     expect(picker(CreateTopic).props.selectedSlug).toBe("code");
   });
 
   it("keeps create-topic cached groups after failure and ignores a response after unmount", async () => {
     const next = deferred(); vi.mocked(fetchAndCacheNodeNavigation).mockReturnValue(next.promise);
-    render(CreateTopic); const cleanup = harness.effects.find(effect => effect.name === 'loadNodeNavigation')!();
+    render(CreateTopic); const cleanup = harness.effects[2]();
     next.reject(new Error("offline")); await flush();
     expect(picker(CreateTopic).props).toMatchObject({ groups: groups(), selectedSlug: "work" });
     cleanup();
     const later = deferred(); vi.mocked(fetchAndCacheNodeNavigation).mockReturnValue(later.promise);
-    const cleanupAgain = harness.effects.find(effect => effect.name === 'loadNodeNavigation')!();
+    const cleanupAgain = harness.effects[2]();
     cleanupAgain(); later.resolve(groups(" ignored")); await flush();
     expect(picker(CreateTopic).props.groups).toEqual(groups());
   });

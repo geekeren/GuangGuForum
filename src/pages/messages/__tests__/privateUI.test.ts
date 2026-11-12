@@ -9,11 +9,6 @@ import PrivateMessageEntry from '../PrivateMessageEntry';
 import { PrivatePageState } from '../privateState';
 
 const harness = vi.hoisted(() => ({ page: null as any, params: { cid: '11' } as Record<string, string>, refs: [] as any[], cursor: 0, state: [] as any[], stateCursor: 0 }));
-vi.mock("../../../hooks/usePageScope", async () => {
-  const module = await import("@tarojs/taro");
-  const { legacyPageScopeMock } = await import("../../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
-});
 vi.mock('react', () => ({
   useCallback: (fn: any) => fn, useEffect: () => {},
   useRef: (value: any) => { const i = harness.cursor++; if (!(i in harness.refs)) harness.refs[i] = { current: value }; return harness.refs[i]; },

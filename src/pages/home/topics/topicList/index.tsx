@@ -2,26 +2,22 @@ import React, { Component, createRef } from "react";
 import { OpenContainer, ScrollView, ShareElement, Text, View } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { TopicSummary, URLS, type ApiOptions } from "guanggu-forum-api";
-import { Comment as CommentIcon } from "gzk-ui/icons";
 import { mergeTopicIndex } from "../../../../utils/topicIndex";
 import Loading from "../../../../components/Loading";
 import { cacheService, CacheCategory } from "../../../../utils/CacheService";
 import "./index.scss";
 import UserAvatar from '../../../../components/UserAvatar';
 import TopicTag from "../../../../components/TopicTag";
+import { Comment as CommentIcon } from "gzk-ui/icons";
 import ThemedIcon from "../../../../components/ThemedIcon";
 import PinnedTopicCard from "../../../../components/PinnedTopicCard";
 import { splitTopicAnnouncement } from "../../../../utils/topicAnnouncement";
 import { urlPathVaiable } from "../../../../utils/urls";
 import PullDownRefresh, { PullDownRefreshRef } from "../../../../components/PullDownRefresh";
 import { isSkyline } from "../../../../utils/renderer";
-import { usePageNavigation, type PageScopeValue } from "../../../../hooks/usePageScope";
-import { capturePageOwner } from "../../../../utils/pageScope";
-import { getPageViewportStore } from "../../../../utils/pageViewport";
 import { PageRendererContext, type PageRenderer } from "../../../../hooks/usePageRenderer";
 
 const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
-  const navigation = usePageNavigation();
   const {
     userAvatarUrl,
     username,
@@ -42,7 +38,7 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
       transitionDuration={350}
       openColor='transparent'
       onClick={async () => {
-        await navigation.navigateTo({
+        await Taro.navigateTo({
           url: `/pages/topicDetail/index?tid=${tid}`,
         });
       }}
@@ -84,7 +80,6 @@ const TopicItem = React.memo(({ topic }: { topic: TopicSummary }) => {
 });
 
 interface TopicListProps {
-  pageScope?: PageScopeValue;
   cacheKey?: string;
   style?: React.CSSProperties;
   getTopics: (page: number, options?: ApiOptions<TopicSummary[]>) => Promise<TopicSummary[]>;
@@ -102,8 +97,6 @@ interface State {
 
 export default class TopicList extends Component<TopicListProps, State> {
   static contextType = PageRendererContext;
-  private readonly viewport: ReturnType<typeof getPageViewportStore>;
-  private stopViewport?: () => void;
   private readonly fallbackRenderer: PageRenderer;
   pullDownRef = createRef<PullDownRefreshRef>();
   requestRevision = 0;
@@ -111,8 +104,7 @@ export default class TopicList extends Component<TopicListProps, State> {
 
   constructor(props, state) {
     super(props, state);
-    this.viewport = props.pageScope?.viewport ?? getPageViewportStore(capturePageOwner());
-    this.fallbackRenderer = props.pageScope?.owner?.renderer === "skyline" || (!props.pageScope?.owner?.renderer && isSkyline()) ? "skyline" : "webview";
+    this.fallbackRenderer = (this.context as PageRenderer | undefined) ?? (isSkyline() ? "skyline" : "webview");
     this.state = {
       topics: [],
       loadingPage: 1,
@@ -121,15 +113,10 @@ export default class TopicList extends Component<TopicListProps, State> {
   }
 
   componentDidMount() {
-    this.stopViewport = this.viewport.subscribe(() => this.forceUpdate());
-    this.viewport.measure();
     void this.refreshTopics(this.props.freshOnMount ?? false);
   }
 
-  componentDidShow() { this.viewport.measure(); }
-
   componentWillUnmount() {
-    this.stopViewport?.();
     this.requestRevision += 1;
   }
 
@@ -150,6 +137,7 @@ export default class TopicList extends Component<TopicListProps, State> {
     const revision = ++this.requestRevision;
     this.loading = true;
     this.setState({ loading: true });
+    Taro.showNavigationBarLoading();
     let refreshed = false;
     const apply = (topics: TopicSummary[], resetScroll: boolean) => {
       if (revision !== this.requestRevision) return;
@@ -171,6 +159,7 @@ export default class TopicList extends Component<TopicListProps, State> {
       if (revision === this.requestRevision) {
         this.loading = false;
         this.setState({ loading: false });
+        Taro.hideNavigationBarLoading();
       }
     }
   }

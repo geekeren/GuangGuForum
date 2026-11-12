@@ -12,17 +12,9 @@ const harness = vi.hoisted(() => {
   const flags = ['ENABLE_INNER_HTML', 'ENABLE_ADJACENT_HTML', 'ENABLE_CLONE_NODE', 'ENABLE_CONTAINS', 'ENABLE_SIZE_APIS', 'ENABLE_TEMPLATE_CONTENT', 'ENABLE_MUTATION_OBSERVER'];
   for (const flag of flags) (globalThis as any)[flag] = flag === 'ENABLE_INNER_HTML';
   return { effects: [] as (() => void | (() => void))[], cleanups: [] as (() => void)[],
-    queries: [] as { selector: string; callback: (rect: any) => void; owner?: unknown }[], testScope: undefined as any, queryOwner: undefined as unknown,
+    queries: [] as { selector: string; callback: (rect: any) => void }[],
     window: { windowWidth: 390, windowHeight: 800 }, renderer: 'skyline',
     viewportSelectors: new Set<string>(), viewportRect: { width: 390, left: 0 } as Record<string, unknown> | null, contentWidth: 350, resize: null as any };
-});
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  const mock = legacyPageScopeMock(taro, useRouter, false);
-  return { ...mock, usePageScope: () => harness.testScope ?? mock.usePageScope() };
 });
 vi.mock('react', async original => ({ ...await original<any>(),
   useRef: () => ({ current: null }), useMemo: (fn: any) => fn(),
@@ -34,9 +26,9 @@ vi.mock('@tarojs/taro', async () => {
   return { default: { options: runtime.options, previewImage: vi.fn(() => Promise.resolve()),
     nextTick: (fn: () => void) => fn(), getWindowInfo: () => harness.window,
     onWindowResize: (callback: any) => { harness.resize = callback; }, offWindowResize: () => { harness.resize = null; },
-    createSelectorQuery: () => { let selector = ''; const owner = harness.queryOwner; const query = {
+    createSelectorQuery: () => { let selector = ''; const query = {
       select: (value: string) => { selector = value; return query; },
-      fields: (_: any, callback: any) => { harness.queries.push({ selector, callback, owner }); return query; },
+      fields: (_: any, callback: any) => { harness.queries.push({ selector, callback }); return query; },
       exec: vi.fn(),
     }; return query; },
   } };
@@ -104,7 +96,7 @@ function photoBounds(image: any, parentLeft: number) {
   expect(width).toBeCloseTo(parseFloat(image.style.width));
   return { left, right: left + width, width };
 }
-beforeEach(() => { harness.testScope = undefined; harness.queryOwner = undefined; vi.clearAllMocks(); harness.effects = []; harness.queries = []; harness.window = { windowWidth: 390, windowHeight: 800 }; harness.renderer = 'skyline'; harness.viewportSelectors.clear(); harness.viewportRect = { width: 390, left: 0 }; harness.contentWidth = 350; });
+beforeEach(() => { vi.clearAllMocks(); harness.effects = []; harness.queries = []; harness.window = { windowWidth: 390, windowHeight: 800 }; harness.renderer = 'skyline'; harness.viewportSelectors.clear(); harness.viewportRect = { width: 390, left: 0 }; harness.contentWidth = 350; });
 afterEach(() => { for (const cleanup of harness.cleanups.splice(0)) cleanup(); });
 
 function prepared(html: string, props: any = { variant: 'body', fullBleedImages: true }) {
@@ -363,30 +355,5 @@ describe('mounted body image geometry and isolation', () => {
     expect(Taro.previewImage).toHaveBeenCalledTimes(1);
     expect(Taro.previewImage).toHaveBeenCalledWith({ urls: ['https://img.test/original.png'] });
     expect(linkHandler).not.toHaveBeenCalled();
-  });
-});
-
-
-describe('frameset body-image and link event ownership', () => {
-  it('measures and resizes two simultaneous HTML roots in their original page, even after global Current points elsewhere', () => {
-    const page = (width: number) => {
-      const window = { windowWidth: width, windowHeight: 800 };
-      const listeners = new Set<() => void>();
-      const owner = { createSelectorQuery: () => { harness.queryOwner = owner; return Taro.createSelectorQuery(); } };
-      return { owner, viewport: { getWindowInfo: () => window, subscribe: (listener: () => void) => { listeners.add(listener); return () => listeners.delete(listener); } }, resize: (next: number) => { window.windowWidth = next; listeners.forEach(listener => listener()); } };
-    };
-    const left = page(450), right = page(600);
-    harness.testScope = left;
-    const a = mount('<p><img src="a.png"><a href="/t/1">A</a></p>');
-    harness.testScope = right;
-    const b = mount('<p><img src="b.png"><a href="/t/2">B</a></p>');
-    harness.window = { windowWidth: 1600, windowHeight: 1200 };
-    load(a.images[0], 1200, 600); expect(harness.queries[0].owner).toBe(left.owner); measure(420, 10); size(a.images[0], 420, 210, 0);
-    load(b.images[0], 1200, 600); expect(harness.queries[0].owner).toBe(right.owner); measure(560, 10); size(b.images[0], 560, 280, 0);
-    left.resize(320);
-    expect(harness.queries).toHaveLength(1); expect(harness.queries[0].owner).toBe(left.owner); measure(290, 10);
-    expect(parseFloat(a.images[0].style.width)).toBe(290); expect(parseFloat(b.images[0].style.width)).toBe(560);
-    nodes(a.root).find(node => node.__handlers?.tap && node.className?.includes('html-link')).dispatchEvent(nativeEvent('tap'));
-    expect(linkHandler).toHaveBeenLastCalledWith('/t/1', left.owner);
   });
 });

@@ -67,7 +67,7 @@ describe('canonical semantic SVG inventory', () => {
 describe('application icon semantics and preserved plus controls', () => {
   it('uses Envelope for all private entrypoints and Bell variants only for notification tabs', () => {
     for (const file of ['src/pages/messages/index.tsx', 'src/pages/messages/PrivateMessageEntry.tsx', 'src/pages/home/notifications/index.tsx']) {
-      expect(read(file)).toMatch(/import \{[^}]*\bEnvelope as \w+[^}]*\} from "gzk-ui\/icons"/);
+      expect(read(file)).toMatch(/import \{ Envelope as \w+ \} from "gzk-ui\/icons"/);
     }
     const home = read('src/pages/home/index.tsx');
     expect(home).toContain('Bell as NotificationIcon'); expect(home).toContain('BellActive as NotificationActiveIcon');

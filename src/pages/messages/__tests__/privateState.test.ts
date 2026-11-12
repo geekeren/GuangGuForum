@@ -2,11 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { PrivatePageState, messageErrorText, messageSourceRoute, messageStateLabel, messageTextError, mergeById, positiveRouteId, profileMessageRoute } from '../privateState';
 import { PrivateMemory } from '../privateMemory';
 
-vi.mock("../../../hooks/usePageScope", async () => {
-  const module = await import("@tarojs/taro");
-  const { legacyPageScopeMock } = await import("../../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
-});
 vi.mock('../../../utils/currentUser', () => ({ subscribeCurrentAccount: () => () => {} }));
 vi.mock('../../../utils/privateMessageFileCache', () => ({ privateMessageFileCache: { get: vi.fn(), put: vi.fn(), protect: vi.fn(() => () => {}) } }));
 

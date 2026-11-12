@@ -15,10 +15,3 @@
 .format-button__spinner { width: 28rpx; height: 28rpx; border: 3rpx solid rgba(255, 255, 255, 0.35); border-top-color: #fff; border-radius: 50%; animation: format-button-spin 800ms linear infinite; }
 .format-button__caption { color: #fff; font-size: 11.47px; line-height: 1.5; margin-top: 10rpx; text-align: center; }
 @keyframes format-button-spin { to { transform: rotate(360deg); } }
-/* Optional desktop visuals; capture handlers and mobile defaults stay unchanged. */
-.format-button--compact { height: 44px; }
-.format-button--compact .format-button__glyph { width: 40px; height: 40px; border-radius: 8px; }
-.format-button--compact .format-button__icon { width: 22px; height: 22px; }
-.format-button--compact.format-button--thumbnail { height: 80px; border-radius: 8px; }
-.format-button--compact .format-button__spinner { width: 18px; height: 18px; border-width: 2px; }
-.format-button--compact .format-button__caption { margin-top: 4px; font-size: 10px; }

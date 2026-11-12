@@ -5,7 +5,6 @@ import { runInNewContext } from "node:vm";
 import { document, hydrate, options, TaroEvent, TaroElement } from "@tarojs/runtime";
 import { getComponentsAlias, internalComponents } from "@tarojs/shared";
 import Taro from "@tarojs/taro";
-import { LinkChipUrl } from "gzk-ui/icon-urls";
 import TopicList from "../../pages/home/topics/topicList";
 import "../../components/HtmlRender";
 import { linkHandler } from "../linkHandler";
@@ -20,13 +19,6 @@ const featureGlobals = vi.hoisted(() => {
   return previous;
 });
 
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, false);
-});
 vi.mock("@tarojs/taro", async () => {
   const { options: runtimeOptions } = await import("@tarojs/runtime");
   return { default: { options: runtimeOptions, navigateTo: vi.fn(), previewImage: vi.fn() } };
@@ -269,7 +261,7 @@ describe("shared dual-renderer layout", () => {
 describe("Skyline HTML parser normalization", () => {
   it.each(['skyline', 'webview'] as const)('keeps the actual posting source separator and authored rule as distinct block nodes in %s', renderer => {
     vi.stubGlobal('getCurrentPages', () => [{ renderer }]);
-    const footer = source('pages/createTopic/topicContent.ts').match(/const FROM_MINI = '([^']+)';/)![1];
+    const footer = source('pages/createTopic/index.tsx').match(/const FROM_MINI = '([^']+)';/)![1];
     const root = parse(`<div><p>作者正文</p><hr><p><img src="synthetic.png"></p>${footer}</div>`);
     const blocks = root.firstChild!.childNodes;
     expect(blocks.map(node => node instanceof TaroElement ? node.className : undefined)).toEqual(['h5-p', 'h5-hr', 'h5-p', 'h5-hr', 'h5-p']);
@@ -311,7 +303,7 @@ describe("Skyline HTML parser normalization", () => {
     // checked separately in the WeChat simulator.
     mentions[0].dispatchEvent(new TaroEvent("tap", { bubbles: true, cancelable: true }));
     expect(linkHandler).toHaveBeenCalledTimes(calls + 1);
-    expect(linkHandler).toHaveBeenLastCalledWith("/u/alice", undefined);
+    expect(linkHandler).toHaveBeenLastCalledWith("/u/alice");
   });
   it("puts leading, trailing and middle comment mentions in one native text-flow context", () => {
     for (const html of [
@@ -451,7 +443,7 @@ describe("Skyline HTML parser normalization", () => {
     expect(chip.childNodes.map((node: any) => node.nodeName)).toEqual(["image", "text"]);
     const icon = nodes(root).find(n => n.className === "html-linkIcon");
     expect(icon?.nodeName).toBe("image");
-    expect(icon?.props?.src).toBe(LinkChipUrl);
+    expect(String(icon?.props?.src || "")).toContain("link-chip");
     const label = nodes(root).find(n => n.className === "html-linkLabel");
     expect(label?.textContent).toBe("github.com/geekeren/GuangGuForum/…");
     expect(root.textContent).not.toContain("↗");
@@ -493,7 +485,7 @@ describe("Skyline HTML parser normalization", () => {
     expect(stopPropagation).toHaveBeenCalledTimes(1);
     expect(parentTap).not.toHaveBeenCalled();
     expect(linkHandler).toHaveBeenCalledTimes(calls + 1);
-    expect(linkHandler).toHaveBeenLastCalledWith(href, undefined);
+    expect(linkHandler).toHaveBeenLastCalledWith(href);
     expect(source("components/HtmlRender/index.scss")).toMatch(/\.htmlInlineLinkHost\s*\{\s*display: inline;/);
   });
   it("converts every WebView emphasis ancestor containing chips without changing plain text or mentions", () => {
@@ -571,9 +563,7 @@ describe("Skyline HTML parser normalization", () => {
     expect(jsx).toContain("{skyline && <Span style={{ display: 'none' }} />}");
     expect(jsx).toContain("<View\n        ref={htmlEle}");
     expect(jsx).toContain("dangerouslySetInnerHTML={{ __html: presentedHtml }}");
-    expect(jsx).toContain('const presentedHtml = `<div ${RENDER_SCOPE_ATTRIBUTE}="${renderScope.token}">');
-    expect(jsx).toContain('presentation ? `<div ${PRESENTATION_ATTRIBUTE}="${presentation.token}">${authoredHtml}</div>` : authoredHtml');
-    expect(jsx).toContain('scope.active = true; scope.root = root;');
+    expect(jsx).toContain('const presentedHtml = presentation ?');
     expect(jsx).toContain('const renderHtml = skyline ? `<div>${cleanHtml}</div>` : cleanHtml;');
   });
   it("generates WeChat view/text/span templates with class and style in memory", () => {

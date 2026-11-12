@@ -14,9 +14,6 @@
     "strictNullChecks": true,
     "sourceMap": true,
     "baseUrl": ".",
-    "paths": {
-      "vitest": ["tools/testing/node_modules/vitest"]
-    },
     "rootDir": ".",
     "jsx": "react-jsx",
     "allowJs": true,

@@ -1,30 +1,28 @@
 import { View, Text } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import { TopicDetail, URLS, urlPathVaiable } from "guanggu-forum-api";
-import { usePageNavigation } from "../../../hooks/usePageScope";
 import styles from "./index.module.scss";
 import UserAvatar from '../../../components/UserAvatar';
 import { usernameFromUserLink } from '../../../utils/aiUser';
 
 interface Props {
   topicDetail: TopicDetail;
-  desktop?: boolean;
 }
-const RelatingTopics = ({ topicDetail, desktop = false }: Props) => {
-  const navigation = usePageNavigation();
+const RelatingTopics = ({ topicDetail }: Props) => {
   return (
-    <View className={`${styles.content}${desktop ? ` ${styles.desktop}` : ""}`}>
+    <View className={styles.content}>
       {topicDetail.relatingTopics.map((topic, index) => (
         <View
           key={index}
           className={styles.relatingTopicItem}
           onClick={async () => {
-            await navigation.navigateTo({
+            await Taro.navigateTo({
               url: `/pages/topicDetail/index?tid=${urlPathVaiable(URLS.TOPIC_DETAIL)(topic.link)?.params?.tid}`,
             });
           }}
         >
           <View className={styles.left}>
-            <UserAvatar username={usernameFromUserLink(topic.authorLink)} src={topic.authorAvatarUrl} size={54} style={desktop ? { width: '28px', height: '28px' } : undefined} className={styles.avatar} />
+            <UserAvatar username={usernameFromUserLink(topic.authorLink)} src={topic.authorAvatarUrl} size={54} className={styles.avatar} />
           </View>
           <Text className={styles.right}>{topic.title}</Text>
         </View>

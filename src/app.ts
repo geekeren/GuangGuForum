@@ -11,7 +11,7 @@ function wrapPageElement(child: ReactNode): ReactNode {
   let wrapper = themedWrappers.get(original);
   if (!wrapper) {
     // Taro's connectReactPage returns a class containing the native <root>.
-    // Keep theme metadata and the page-local scope host inside that native root.
+    // Insert theme metadata there without adding a layout wrapper to the page.
     wrapper = class extends original {
       render() {
         const root = super.render() as ReactElement<{ children?: ReactNode }>;

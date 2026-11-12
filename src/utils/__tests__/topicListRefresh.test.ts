@@ -6,14 +6,7 @@ import HomeTopics from '../../pages/home/topics';
 import NodeTopics from '../../pages/node/topicList';
 import { fetchAndCacheNodeNavigation } from '../nodeNavigation';
 
-const harness = vi.hoisted(() => ({ values: [] as any[], cursor: 0, effects: [] as any[], refs: [] as any[], refCursor: 0, viewport: { width: 375, height: 667, isDesktop: false } }));
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, false);
-});
+const harness = vi.hoisted(() => ({ values: [] as any[], cursor: 0, effects: [] as any[], refs: [] as any[], refCursor: 0 }));
 vi.mock('react', async original => ({
   ...await original<any>(),
   useState(initial: any) {
@@ -28,18 +21,13 @@ vi.mock('react', async original => ({
 }));
 vi.mock('@tarojs/components', () => Object.fromEntries(['OpenContainer', 'ScrollView', 'ShareElement', 'Text', 'View', 'Image'].map(name => [name, name])));
 vi.mock('@tarojs/taro', () => ({
-  default: { eventCenter: { on: vi.fn(), off: vi.fn() }, nextTick: vi.fn(), createSelectorQuery: vi.fn(), showNavigationBarLoading: vi.fn(), hideNavigationBarLoading: vi.fn(), showToast: vi.fn() },
+  default: { eventCenter: { on: vi.fn(), off: vi.fn() }, nextTick: vi.fn(), showNavigationBarLoading: vi.fn(), hideNavigationBarLoading: vi.fn(), showToast: vi.fn() },
   useReady: vi.fn(), useRouter: () => ({ params: { node: 'water' } }),
 }));
 vi.mock('guanggu-forum-api', () => ({
   getHotNodes: vi.fn(), getNodeTopics: vi.fn(), getRecentTopics: vi.fn(),
   createApiCacheEntry: vi.fn(), readApiCacheEntry: vi.fn(), URLS: { TOPIC_DETAIL: '/t/:tid' },
 }));
-vi.mock('../../hooks/usePageRenderer', async original => ({
-  ...await original<any>(), usePageScrollViewType: () => 'custom', usePageRenderer: () => 'skyline',
-}));
-vi.mock('../../hooks/useTheme', () => ({ useTheme: () => ({ theme: 'light' }) }));
-vi.mock('../../hooks/useViewport', () => ({ useViewport: () => harness.viewport }));
 vi.mock('../../hooks/useDataWithCache', () => ({ useDataWithCache: () => ({ request: vi.fn() }) }));
 vi.mock('../nodeNavigation', () => ({ fetchAndCacheNodeNavigation: vi.fn(), getCachedNodeNavigation: () => [] }));
 vi.mock('../CacheService', () => ({ cacheService: { get: vi.fn() }, CacheCategory: {} }));
@@ -70,7 +58,6 @@ function elements(tree: any): any[] {
 }
 beforeEach(() => {
   vi.clearAllMocks(); harness.values = []; harness.cursor = 0; harness.effects = []; harness.refs = []; harness.refCursor = 0;
-  harness.viewport = { width: 375, height: 667, isDesktop: false };
   vi.mocked(fetchAndCacheNodeNavigation).mockResolvedValue([]);
 });
 
@@ -93,14 +80,14 @@ describe('returning to topic lists after publishing', () => {
     expect(list.state).toMatchObject({ loadingPage: 1, scrollTop: 0 });
     list.render().props.children[0].props.onScroll({ detail: { scrollTop: 100 } });
     expect(list.state.scrollTop).toBeUndefined();
-    expect(Taro.hideNavigationBarLoading).not.toHaveBeenCalled();
+    expect(Taro.hideNavigationBarLoading).toHaveBeenCalledOnce();
   });
 
   it('retains the active home sorting tab when refreshTopics is emitted', () => {
     HomeTopics({});
     harness.values[0] = 1;
     harness.values[3] = { 0: true, 1: true };
-    const cleanup = harness.effects.find(effect => effect.name === 'subscribeToPublishedTopics')!();
+    const cleanup = harness.effects[2]();
     expect(Taro.eventCenter.on).toHaveBeenCalledWith('refreshTopics', expect.any(Function));
     vi.mocked(Taro.eventCenter.on).mock.calls[0][1]();
     expect(harness.values[0]).toBe(1);
@@ -115,35 +102,6 @@ describe('returning to topic lists after publishing', () => {
     expect(getRecentTopics).toHaveBeenCalledWith({ type: 'latest', page: 1 }, options);
     cleanup();
     expect(Taro.eventCenter.off).toHaveBeenCalled();
-  });
-
-  it('remeasures the actual desktop header after resizing without changing sort or accepting disposed measurements', () => {
-    const callbacks: Record<string, (rect: { height: number }) => void> = {};
-    const query = { select: vi.fn((selector: string) => ({ boundingClientRect: (callback: (rect: { height: number }) => void) => { callbacks[selector] = callback; return query; } })), exec: vi.fn() };
-    vi.mocked(Taro.nextTick).mockImplementation((callback: any) => callback());
-    vi.mocked(Taro.createSelectorQuery).mockReturnValue(query as any);
-    HomeTopics({});
-    const cleanup = harness.effects.find(effect => effect.name === 'measureTopicPane')!();
-    callbacks['#list_container']({ height: 600 }); callbacks['#topics_layout_header']({ height: 40 });
-    expect(harness.values[1]).toBe(560);
-    harness.values[0] = 1; harness.viewport = { width: 1200, height: 900, isDesktop: true };
-    harness.cursor = 0; harness.refCursor = 0; harness.effects = [];
-    HomeTopics({});
-    const desktopCleanup = harness.effects.find(effect => effect.name === 'measureTopicPane')!();
-    callbacks['#list_container']({ height: 700 }); callbacks['#topics_layout_header']({ height: 254 });
-    expect(harness.values[1]).toBe(446); expect(harness.values[0]).toBe(1);
-    desktopCleanup(); callbacks['#topics_layout_header']({ height: 100 });
-    expect(harness.values[1]).toBe(446); cleanup();
-  });
-
-  it('reapplies repeated sidebar interest requests after the user changes the center sorting tab', () => {
-    HomeTopics({ initialTab: 'interest', selectionRequest: 1 });
-    expect(harness.values[0]).toBe(3);
-    harness.values[0] = 0;
-    harness.cursor = 0; harness.refCursor = 0; harness.effects = [];
-    HomeTopics({ initialTab: 'interest', selectionRequest: 2 });
-    harness.effects.find(effect => effect.name === 'syncTopicSelection')!();
-    expect(harness.values[0]).toBe(3);
   });
 
   it('warms node navigation on every home mount even with a cache and catches offline failures', async () => {
@@ -162,7 +120,7 @@ describe('returning to topic lists after publishing', () => {
     };
     HomeTopics({});
     harness.values[3] = { 0: true, 1: true };
-    harness.effects.find(effect => effect.name === 'subscribeToPublishedTopics')!();
+    harness.effects[2]();
     const publish = vi.mocked(Taro.eventCenter.on).mock.calls[0][1];
     publish();
     let lists = render();

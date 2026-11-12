@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { ScrollView, Text, View } from '@tarojs/components';
+import Taro from '@tarojs/taro';
 import { getMessageConversations, type MessageConversationPage, type MessageSummary } from 'guanggu-forum-api';
-import { Envelope as MessageIcon } from "gzk-ui/icons";
-import { usePageNavigation } from "../../hooks/usePageScope";
 import ThemePage from '../../components/ThemePage';
 import Navbar from '../../components/Navbar';
 import UserAvatar from '../../components/UserAvatar';
 import LoginPrompt from '../../components/LoginPrompt';
 import Loading from '../../components/Loading';
 import ThemedIcon from '../../components/ThemedIcon';
+import { Envelope as MessageIcon } from "gzk-ui/icons";
 import { usePageScrollViewType } from '../../hooks/usePageRenderer';
 import { getCachedUsername } from '../../utils/currentUser';
 import { APP_ROUTES } from '../../utils/appRoutes';
@@ -32,7 +32,6 @@ interface MessageListProps {
 }
 
 export function MessageConversationList({ active = true, embedded = false, header }: MessageListProps = {}) {
-  const pageNavigation = usePageNavigation();
   const scrollType = usePageScrollViewType();
   const { store, snapshot, data, summary, ready, username, loading: checkingLogin, error: loginError, identityError, refresh } = usePrivatePage(emptyList, active);
   const flights = useRef(new Map<0 | 1, { generation: number; account: string; uid: number; more: boolean; promise: Promise<void> }>());
@@ -93,7 +92,7 @@ export function MessageConversationList({ active = true, embedded = false, heade
     if (!store.isVisible()) return;
     const current = store.snapshot();
     const event = privateGroupNavigation(current.account, current.uid, group.peer.uid, group.conversations);
-    void pageNavigation.navigateTo({ url: `${APP_ROUTES.messageThread}?cid=${group.latest.id}&peer=${group.peer.uid}`,
+    void Taro.navigateTo({ url: `${APP_ROUTES.messageThread}?cid=${group.latest.id}&peer=${group.peer.uid}`,
       success: result => {
         if (getCachedUsername() === current.account && store.snapshot().generation === current.generation) result.eventChannel?.emit(PRIVATE_GROUP_EVENT, event);
       } });
@@ -118,9 +117,8 @@ export function MessageConversationList({ active = true, embedded = false, heade
               event.stopPropagation();
               const current = store.snapshot();
               if (!group.peer.username || !store.isVisible() || current.generation !== snapshot.generation || current.account !== snapshot.account) return;
-              void pageNavigation.navigateTo({ url: `/pages/user/index?username=${encodeURIComponent(group.peer.username)}` });
-            }}
-            />
+              void Taro.navigateTo({ url: `/pages/user/index?username=${encodeURIComponent(group.peer.username)}` });
+            }} />
             <View className='privateConversationBody'>
               <View className='privateConversationHeading'><Text className='privateConversationName' maxLines={1} overflow='ellipsis'>{group.peer.display_name.trim() || group.peer.username}</Text></View>
               <Text className='privateConversationPreview' maxLines={1} overflow='ellipsis'>{group.latest.preview || '暂无消息内容'}</Text>

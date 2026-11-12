@@ -5,11 +5,6 @@ import { compileString } from 'sass';
 import UserProfileDetail from '../../components/UserProfileDetail';
 
 const runtime = vi.hoisted(() => ({ renderer: 'skyline', tab: 'topics' }));
-vi.mock("../../hooks/usePageScope", async () => {
-  const module = await import("@tarojs/taro");
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
-});
 vi.mock('react', () => ({ useState: (value: any) => [typeof value === 'string' ? runtime.tab : value, () => {}], useEffect: () => {} }));
 vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text' }));
 vi.mock('@tarojs/taro', () => ({ default: { navigateTo: vi.fn() } }));

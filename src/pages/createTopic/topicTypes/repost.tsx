@@ -1,3 +1,4 @@
+import { getScrollViewType } from "../../../utils/renderer";
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { fetchLinkSummary } from "guanggu-forum-api";
@@ -10,6 +11,7 @@ import HtmlRender from "../../../components/HtmlRender";
 import { escapeTopicHtml, topicMarkdownToSafeHtml, isSafeTopicImageUrl } from '../../../utils/topicDocument';
 import { htmlToMarkdown } from "../../../utils/htmlToMarkdown";
 import { extractSummaryUrl } from "../../../utils/linkHandler";
+import { isSkyline } from "../../../utils/renderer";
 import { BRAND_COLOR } from "../../../utils/theme";
 import type { TopicTypeDefinition, RenderFormContext, OnActivateContext } from "./registry";
 
@@ -131,7 +133,6 @@ const repostDef: TopicTypeDefinition = {
   },
 
   renderForm(ctx: RenderFormContext) {
-    const skyline = ctx.renderer === "skyline";
     const { fields, setField, title, setTitle, setContent, getRef, focusRef, handleTitleInput } = ctx;
     const sourceUrlRef = getRef("sourceUrl");
     const titleRef = getRef("title");
@@ -226,7 +227,7 @@ const repostDef: TopicTypeDefinition = {
         {ctx.renderContentInput('补充说明（可选）...', titleRef)}
 
         {fields.repostPreview && (
-          <View className={`repostMask${skyline ? " repostMask--skyline" : ""}${fields.repostClosing ? " repostMask--closing" : ""}`} onClick={cancelRepost}>
+          <View className={`repostMask${isSkyline() ? " repostMask--skyline" : ""}${fields.repostClosing ? " repostMask--closing" : ""}`} onClick={cancelRepost}>
             <View className={`repostSheet${fields.repostClosing ? " repostSheet--closing" : ""}`} onClick={(e) => e.stopPropagation()}>
               <View className="repostSheetHeader">
                 <Text className="repostSheetTitle">转载确认</Text>
@@ -244,7 +245,7 @@ const repostDef: TopicTypeDefinition = {
                 </View>
                 <Text className="repostCheckboxDesc">{fields.fullRepost ? "转载完整正文内容" : "仅转载文章摘要"}</Text>
               </View>
-              <ScrollView type={skyline ? 'custom' : undefined} scrollY className="repostSheetScroll">
+              <ScrollView type={getScrollViewType()} scrollY className="repostSheetScroll">
                 {fields.fullRepost ? (
                   <LinkPreviewCard summary={fields.repostPreview} url={fields.sourceUrl} />
                 ) : (

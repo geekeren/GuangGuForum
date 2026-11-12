@@ -4,11 +4,6 @@ import { getUserFavorites } from 'guanggu-forum-api';
 import UserProfileDetail from '../../components/UserProfileDetail';
 
 const harness = vi.hoisted(() => ({ values: [] as any[], cursor: 0 }));
-vi.mock("../../hooks/usePageScope", async () => {
-  const module = await import("@tarojs/taro");
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
-});
 vi.mock('react', async original => ({ ...await original<any>(), useEffect: vi.fn(),
   useState(initial: any) { const index = harness.cursor++; if (!(index in harness.values)) harness.values[index] = initial; return [harness.values[index], (next: any) => { harness.values[index] = next; }]; },
 }));

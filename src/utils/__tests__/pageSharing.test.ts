@@ -6,18 +6,10 @@ import Settings from "../../pages/settings";
 import TopicDetail from "../../pages/topicDetail";
 
 const harness = vi.hoisted(() => ({ detail: undefined as any, params: { tid: "123", p: "2", replyId: "456" } as Record<string, string> }));
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, false);
-});
 vi.mock("react", async original => ({
   ...await original<any>(),
   useState: (initial: any) => [typeof initial === "function" ? initial() : initial, vi.fn()],
   useRef: (initial: any) => ({ current: initial }), useEffect: vi.fn(),
-  useCallback: (callback: (...args: any[]) => unknown) => callback,
 }));
 vi.mock("@tarojs/components", () => Object.fromEntries(["View", "Text", "Button", "Switch", "Image", "ScrollView", "ShareElement"].map(name => [name, name])));
 vi.mock("@tarojs/taro", () => ({
@@ -43,11 +35,6 @@ vi.mock("../../components/AdBanner", () => ({ default: "AdBanner" }));
 vi.mock("../../pages/topicDetail/relatingTopics", () => ({ default: "RelatingTopics" }));
 vi.mock("../../pages/topicDetail/CommentComposer", () => ({ default: "CommentComposer" }));
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: "light", preference: "system" }) }));
-vi.mock("../../hooks/useViewport", () => ({ useViewport: () => ({ width: 375, height: 667, isDesktop: false }) }));
-vi.mock("../../hooks/usePageRenderer", async original => ({
-  ...await original<any>(),
-  usePageRenderer: () => "skyline", usePageScrollViewType: () => "custom",
-}));
 vi.mock("../../hooks/useDataWithCache", () => ({ useDataWithCache: () => ({ data: harness.detail, request: vi.fn(), requestFresh: vi.fn(), setData: vi.fn() }) }));
 vi.mock("../../hooks/useCurrentUsername", () => ({ useCurrentUsername: () => ({ username: "", loading: false, retry: vi.fn() }) }));
 vi.mock("../../hooks/useCommentPhotoUploads", () => ({ useCommentPhotoUploads: vi.fn() }));

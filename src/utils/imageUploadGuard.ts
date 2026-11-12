@@ -2,17 +2,15 @@ import Taro from '@tarojs/taro';
 import { getImageHostSettings, ImageHostSettingsError } from 'guanggu-forum-api';
 import { getCachedUsername } from './currentUser';
 import { APP_ROUTES } from './appRoutes';
-import { createPageNavigation, type PageOwner } from "./pageScope";
 
 const IMAGE_SETTINGS_PAGE = APP_ROUTES.imageSettings;
-let legacyNavigation: Promise<void> | null = null;
-const pendingNavigations = new WeakMap<PageOwner, Promise<void>>();
+let navigation: Promise<void> | null = null;
 
-export async function openImageHostSettings(owner?: PageOwner, isCurrent = () => true): Promise<void> {
-  if (!isCurrent() || owner?.route === IMAGE_SETTINGS_PAGE.slice(1)) return;
-  const existing = owner ? pendingNavigations.get(owner) : legacyNavigation;
-  if (existing) return existing;
-  const navigation = (async () => {
+export async function openImageHostSettings(): Promise<void> {
+  const pages = Taro.getCurrentPages();
+  if (pages[pages.length - 1]?.route === IMAGE_SETTINGS_PAGE.slice(1)) return;
+  if (navigation) return navigation;
+  navigation = (async () => {
     let confirmed = false;
     try {
       const result = await Taro.showModal({
@@ -21,26 +19,22 @@ export async function openImageHostSettings(owner?: PageOwner, isCurrent = () =>
       });
       confirmed = result.confirm;
     } catch { return; }
-    if (!confirmed || !isCurrent()) return;
+    if (!confirmed) return;
     try { await Taro.hideKeyboard(); } catch { /* Some runtimes have no active keyboard. */ }
-    if (!isCurrent()) return;
-    try { await createPageNavigation(owner).navigateTo({ url: IMAGE_SETTINGS_PAGE }); }
-    catch { if (isCurrent()) Taro.showToast({ title: '无法打开图床设置，请从设置页进入', icon: 'none' }); }
+    try { await Taro.navigateTo({ url: IMAGE_SETTINGS_PAGE }); }
+    catch { Taro.showToast({ title: '无法打开图床设置，请从设置页进入', icon: 'none' }); }
   })();
-  if (owner) pendingNavigations.set(owner, navigation); else legacyNavigation = navigation;
-  try { await navigation; } finally {
-    if (owner) pendingNavigations.delete(owner); else legacyNavigation = null;
-  }
+  try { await navigation; } finally { navigation = null; }
 }
 
-export async function ensureImageHostBound(isCurrent = () => true, owner?: PageOwner): Promise<boolean> {
+export async function ensureImageHostBound(isCurrent = () => true): Promise<boolean> {
   const account = getCachedUsername();
   if (!isCurrent()) return false;
-  if (!account) { await openImageHostSettings(owner, isCurrent); return false; }
+  if (!account) { await openImageHostSettings(); return false; }
   try {
     const settings = await getImageHostSettings();
     if (!isCurrent() || getCachedUsername() !== account) return false;
-    if (!settings.bound || settings.error) { await openImageHostSettings(owner, isCurrent); return false; }
+    if (!settings.bound || settings.error) { await openImageHostSettings(); return false; }
     return true;
   } catch (error) {
     if (isCurrent() && getCachedUsername() === account) {

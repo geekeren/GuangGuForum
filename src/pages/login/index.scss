@@ -1,7 +1,7 @@
 @import "../../vars.scss";
 
 .loginPage {
-  min-height: 100%;
+  min-height: 100vh;
   background: linear-gradient(180deg, var(--theme-brand-soft, #e0eaff) 0%, var(--theme-surface-soft, #edf3ff) 30%, $bgColor 60%);
   box-sizing: border-box;
   padding-bottom: 48rpx;

@@ -26,8 +26,8 @@ describe('own profile settings public integration', () => {
   });
 
   it('does not enroll sensitive settings APIs in the shared HTML reading cache', () => {
-    const cachePolicy = source('packages/guanggu-forum-api/src/request/cachePolicy.ts');
-    const readingApis = cachePolicy.match(/const READING_CACHE_APIS = new Set<CacheApi>\(\[([\s\S]*?)\]\)/)?.[1];
+    const client = source('packages/guanggu-forum-api/src/client.ts');
+    const readingApis = client.match(/const READING_CACHE_APIS = new Set<CacheApi>\(\[([\s\S]*?)\]\)/)?.[1];
     expect(readingApis).toBeDefined();
     expect(readingApis).not.toContain('getOwnProfileSettings');
     expect(readingApis).not.toContain('saveOwnProfileSettings');

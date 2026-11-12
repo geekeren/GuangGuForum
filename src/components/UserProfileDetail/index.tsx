@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Text, View } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import { UserProfile, URLS, urlPathVaiable, getUserFavorites, FavoriteTopic } from "guanggu-forum-api";
-import { Comment as CommentIcon } from "gzk-ui/icons";
-import { usePageNavigation } from "../../hooks/usePageScope";
 import UserAvatar from '../UserAvatar';
 import TopicTag from "../TopicTag";
+import { Comment as CommentIcon } from "gzk-ui/icons";
 import ThemedIcon from "../ThemedIcon";
 import Loading from "../Loading";
 import RecentlyViewedTopics from '../RecentlyViewedTopics';
@@ -31,7 +31,6 @@ const TAB_LIST = [
 type TabKey = (typeof TAB_LIST)[number]["key"] | 'recent';
 
 export default function UserProfileDetail({ profile, className = "", actions, navPaddingTop, backgroundOwner, showRecentlyViewed = false, active = true }: Props) {
-  const pageNavigation = usePageNavigation();
   const skyline = usePageRenderer() === "skyline";
   const singleLine = skyline ? { overflow: "ellipsis", maxLines: 1 } as const : {};
   const twoLines = skyline ? { overflow: "ellipsis", maxLines: 2 } as const : {};
@@ -53,14 +52,14 @@ export default function UserProfileDetail({ profile, className = "", actions, na
   const navigateToTopic = (link: string) => {
     const tid = urlPathVaiable(URLS.TOPIC_DETAIL)(link)?.params?.tid;
     if (tid) {
-      pageNavigation.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
+      Taro.navigateTo({ url: `/pages/topicDetail/index?tid=${tid}` });
     }
   };
 
   const navigateToNode = (link: string, nodeName: string) => {
     const node = urlPathVaiable(URLS.NODE_HOME_PAGE)(link)?.params?.node;
     if (node) {
-      pageNavigation.navigateTo({
+      Taro.navigateTo({
         url: `/pages/node/topicList/index?node=${node}&nodeName=${nodeName}`,
       });
     }
@@ -75,47 +74,46 @@ export default function UserProfileDetail({ profile, className = "", actions, na
   };
 
   const profileCard = (
-      <View className='profileCard' style={{
+      <View className="profileCard" style={{
         paddingTop: navPaddingTop,
-      }}
-      >
-        <View className='topRow'>
-          <View className='avatar'>
+      }}>
+        <View className="topRow">
+          <View className="avatar">
             <UserAvatar username={profile.username} src={profile.avatarUrl} size={140} />
           </View>
-          <View className='nameBlock'>
-            <View className='nameRow'>
-              <Text className='username' {...singleLine}>{displayName}</Text>
+          <View className="nameBlock">
+            <View className="nameRow">
+              <Text className="username" {...singleLine}>{displayName}</Text>
               {profile.level && (
-                <Text className='levelBadge'>{profile.level}</Text>
+                <Text className="levelBadge">{profile.level}</Text>
               )}
             </View>
             {displayName !== profile.username && (
-              <Text className='nickname' {...singleLine}>{profile.username}</Text>
+              <Text className="nickname" {...singleLine}>{profile.username}</Text>
             )}
-            <Text className='memberInfo'>
+            <Text className="memberInfo">
               {profile.memberNumber}
               {profile.joinDate && ` · ${profile.joinDate.replace("入住于", "")}`}
             </Text>
           </View>
           {actions}
         </View>
-        <View className='stats'>
-          <View className='stat-item'>
-            <Text className='stat-value'>{profile.topicCount || 0}</Text>
-            <Text className='stat-label'>主题</Text>
+        <View className="stats">
+          <View className="stat-item">
+            <Text className="stat-value">{profile.topicCount || 0}</Text>
+            <Text className="stat-label">主题</Text>
           </View>
-          <View className='stat-item'>
-            <Text className='stat-value'>{profile.replyCount || 0}</Text>
-            <Text className='stat-label'>回复</Text>
+          <View className="stat-item">
+            <Text className="stat-value">{profile.replyCount || 0}</Text>
+            <Text className="stat-label">回复</Text>
           </View>
-          <View className='stat-item'>
-            <Text className='stat-value'>{profile.favoriteCount || 0}</Text>
-            <Text className='stat-label'>收藏</Text>
+          <View className="stat-item">
+            <Text className="stat-value">{profile.favoriteCount || 0}</Text>
+            <Text className="stat-label">收藏</Text>
           </View>
-          <View className='stat-item'>
-            <Text className='stat-value'>{profile.reputation || 0}</Text>
-            <Text className='stat-label'>信用</Text>
+          <View className="stat-item">
+            <Text className="stat-value">{profile.reputation || 0}</Text>
+            <Text className="stat-label">信用</Text>
           </View>
         </View>
       </View>
@@ -124,67 +122,67 @@ export default function UserProfileDetail({ profile, className = "", actions, na
     <>
       {/* 个人简介 */}
       {(profile.city || profile.email || profile.blog || profile.website) && (
-        <View className='detailCard'>
-          <Text className='cardTitle'>个人简介</Text>
+        <View className="detailCard">
+          <Text className="cardTitle">个人简介</Text>
           {profile.city && (
-            <View className='detailRow'>
-              <Text className='detailLabel'>城市</Text>
-              <Text className='detailValue'>{profile.city}</Text>
+            <View className="detailRow">
+              <Text className="detailLabel">城市</Text>
+              <Text className="detailValue">{profile.city}</Text>
             </View>
           )}
           {profile.email && (
-            <View className='detailRow'>
-              <Text className='detailLabel'>Email</Text>
-              <Text className='detailValue'>{profile.email}</Text>
+            <View className="detailRow">
+              <Text className="detailLabel">Email</Text>
+              <Text className="detailValue">{profile.email}</Text>
             </View>
           )}
           {profile.blog && (
-            <View className='detailRow'>
-              <Text className='detailLabel'>Blog</Text>
-              <Text className='detailValue'>{profile.blog}</Text>
+            <View className="detailRow">
+              <Text className="detailLabel">Blog</Text>
+              <Text className="detailValue">{profile.blog}</Text>
             </View>
           )}
           {profile.website && profile.website !== profile.blog && (
-            <View className='detailRow'>
-              <Text className='detailLabel'>网站</Text>
-              <Text className='detailValue'>{profile.website}</Text>
+            <View className="detailRow">
+              <Text className="detailLabel">网站</Text>
+              <Text className="detailValue">{profile.website}</Text>
             </View>
           )}
         </View>
       )}
 
       {/* Tab 卡片 */}
-      <View className='tabCard'>
-        <View className='tabBar'>
+      <View className="tabCard">
+        <View className="tabBar">
           {tabs.map((tab) => (
             <View
               key={tab.key}
               className={`tabItem ${activeTab === tab.key ? "tabItem--active" : ""}`}
               onClick={() => setActiveTab(tab.key)}
             >
-              <Text className='tabLabel'>{tab.label}</Text>
-              {activeTab === tab.key && <View className='tabUnderline' />}
+              <Text className="tabLabel">{tab.label}</Text>
+              {activeTab === tab.key && <View className="tabUnderline" />}
             </View>
           ))}
         </View>
 
-        <View className='tabBody'>
+        <View className="tabBody">
           {activeTab === 'recent' && showRecentlyViewed && <RecentlyViewedTopics key={profile.username} username={profile.username} active={active} />}
           {activeTab === "topics" &&
             (profile.topics.length > 0 ? (
               profile.topics.map((topic, idx) => (
                 <View
                   key={idx}
-                  className='topicItem'
+                  className="topicItem"
                   onClick={() => navigateToTopic(topic.link)}
                 >
-                  <Text className='topicTitle' {...twoLines}>{topic.title}</Text>
-                  <View className='topicMeta'>
+                  <Text className="topicTitle" {...twoLines}>{topic.title}</Text>
+                  <View className="topicMeta">
                     {renderTopicTag(topic.category)}
-                    <Text className='topicTime' {...singleLine}>
+                    <Text className="topicTime" {...singleLine}>
                       {topic.lastUpdated}
                     </Text>
-                    <View className='topicCommentCount'>
+                    <View className="topicCommentCount">
                       <ThemedIcon src={CommentIcon} tone='muted' lightColor='#000000' />
                       <Text>{topic.commentCount || 0}</Text>
                     </View>
@@ -192,7 +190,7 @@ export default function UserProfileDetail({ profile, className = "", actions, na
                 </View>
               ))
             ) : (
-              <Text className='emptyTip'>暂无帖子</Text>
+              <Text className="emptyTip">暂无帖子</Text>
             ))}
 
           {activeTab === "replies" &&
@@ -200,21 +198,21 @@ export default function UserProfileDetail({ profile, className = "", actions, na
               profile.replies.map((reply, idx) => (
                 <View
                   key={idx}
-                  className='replyItem'
+                  className="replyItem"
                   onClick={() => navigateToTopic(reply.topicLink)}
                 >
-                  <Text className='replyTitle' {...singleLine}>
+                  <Text className="replyTitle" {...singleLine}>
                     <Text>
                       {reply.topicTitle || reply.replyTitle.replace(/^回复了\s+\S+\s+创建的主题\s*/, "")}
                     </Text>
                   </Text>
-                  <Text className='replyContent' {...twoLines}>
+                  <Text className="replyContent" {...twoLines}>
                     {reply.content.replace(/<[^>]*>/g, "").trim()}
                   </Text>
                 </View>
               ))
             ) : (
-              <Text className='emptyTip'>暂无回复</Text>
+              <Text className="emptyTip">暂无回复</Text>
             ))}
 
           {activeTab === "favorites" &&
@@ -224,16 +222,16 @@ export default function UserProfileDetail({ profile, className = "", actions, na
               favorites.map((topic, idx) => (
                 <View
                   key={idx}
-                  className='topicItem'
+                  className="topicItem"
                   onClick={() => navigateToTopic(topic.link)}
                 >
-                  <Text className='topicTitle' {...twoLines}>{topic.title}</Text>
-                  <View className='topicMeta'>
+                  <Text className="topicTitle" {...twoLines}>{topic.title}</Text>
+                  <View className="topicMeta">
                     {renderTopicTag(topic.category)}
-                    <Text className='topicTime' {...singleLine}>
+                    <Text className="topicTime" {...singleLine}>
                       {topic.lastUpdated}
                     </Text>
-                    <View className='topicCommentCount'>
+                    <View className="topicCommentCount">
                       <ThemedIcon src={CommentIcon} tone='muted' lightColor='#000000' />
                       <Text>{topic.commentCount || 0}</Text>
                     </View>
@@ -241,7 +239,7 @@ export default function UserProfileDetail({ profile, className = "", actions, na
                 </View>
               ))
             ) : (
-              <Text className='emptyTip'>暂无收藏</Text>
+              <Text className="emptyTip">暂无收藏</Text>
             ))}
         </View>
       </View>

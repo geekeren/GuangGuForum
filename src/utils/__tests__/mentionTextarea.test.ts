@@ -1,21 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MentionTextarea from "../../components/MentionTextarea";
 import { isSkyline } from "../renderer";
-import UserAvatar from "../../components/UserAvatar";
-import AiUserTag from "../../components/AiUserTag";
-import { AI_USER_LABEL } from "../aiUser";
 
 const harness = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], cursor: 0, refCursor: 0 }));
-vi.mock("../../hooks/usePageRenderer", async () => {
-  const renderer = await import("../renderer");
-  const usePageRenderer = () => "isSkyline" in renderer && renderer.isSkyline() ? "skyline" : "webview";
-  return { PageRendererContext: undefined, usePageRenderer, usePageScrollViewType: () => usePageRenderer() === "skyline" ? "custom" : undefined };
-});
-vi.mock("../../hooks/usePageScope", async () => {
-  const module = await import("@tarojs/taro");
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
-});
 vi.mock("react", () => ({
   useEffect: () => {},
   useState: (initial: any) => { const i = harness.cursor++; if (!(i in harness.state)) harness.state[i] = initial; return [harness.state[i], (value: any) => { harness.state[i] = typeof value === "function" ? value(harness.state[i]) : value; }]; },
@@ -59,11 +46,7 @@ describe("inline mention editor", () => {
     expect(candidates.map(e => e.props.ariaLabel)).toEqual(['提及author', '提及ordinary', '提及huanxituo']);
     expect(find(candidates[0], 'mentionCandidateBadge').props.children).toBe('楼主');
     expect(find(candidates[1], 'mentionCandidateBadge')).toBeUndefined();
-    // Inspect shared-avatar wiring without consuming the editor's fake hook slots.
-    const avatar = all(candidates[2]).find(element => element.type === UserAvatar);
-    expect(avatar.props).toMatchObject({ username: 'huanxituo', compactAiTag: false, imageClassName: 'mentionCandidateAvatar' });
-    expect(AiUserTag({ username: avatar.props.username, compact: avatar.props.compactAiTag })?.props.children).toBe(AI_USER_LABEL);
-    expect(AiUserTag({ username: 'ordinary', compact: false })).toBeNull();
+    expect(find(candidates[2], 'mentionCandidateBadge--ai').props.children).toBe('AI');
     candidates[2].props.onClick();
     expect(value).toBe('@huanxituo ');
     tree = editor(value, change, users, undefined, extra);
@@ -87,10 +70,7 @@ describe("inline mention editor", () => {
     const extra = { topicAuthor: 'huanxituo' };
     input(editor(value, change, [], undefined, extra)).onInput({ detail: { value: '@', cursor: 1 } });
     let tree = editor(value, change, [], undefined, extra);
-    const avatar = all(tree).find(element => element.type === UserAvatar);
-    expect(avatar.props).toMatchObject({ username: 'huanxituo', compactAiTag: false });
-    expect(find(avatar, 'mentionCandidateOwnerBadge').props.children).toBe('楼主');
-    expect(AiUserTag({ username: avatar.props.username, compact: avatar.props.compactAiTag })?.props.children).toBe(AI_USER_LABEL);
+    expect(all(tree).filter(e => e.props?.className?.split(' ').includes('mentionCandidateBadge')).map(e => e.props.children)).toEqual(['楼主', 'AI']);
     input(tree).onInput({ detail: { value: '@huanxituo @', cursor: 11 } });
     tree = editor(value, change, [], undefined, extra);
     expect(find(tree, 'mentionCandidate')).toBeUndefined();
@@ -348,8 +328,7 @@ describe("inline mention editor", () => {
     expect(find(tree, 'mentionCandidatesList').type).toBe('View');
     expect(list.catchMove).toBe(true);
     expect(all(tree).some(e => e.type === 'ScrollView')).toBe(false);
-    const avatar = all(tree).find(element => element.type === UserAvatar && element.props.username === "Alice");
-    expect(avatar.props).toMatchObject({ src: extra.mentionAvatars.Alice, imageClassName: "mentionCandidateAvatar", className: "mentionCandidateAvatarWrap", size: 54 });
+    expect(find(tree, "mentionCandidateAvatar").props.src).toBe(extra.mentionAvatars.Alice);
     expect(find(tree, "mentionCandidateName").props.children).toBe("Alice");
     find(tree, "mentionCandidate").props.onClick();
     tree = editor(value, change, ["Alice", "Bob"], undefined, extra);

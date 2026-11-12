@@ -49,7 +49,7 @@ describe("openLoginModal", () => {
     expect(decodeURIComponent(call.url)).toContain("/pages/topicDetail/index?tid=123");
   });
 
-  it("does not derive an unowned redirect from another visible page", () => {
+  it("derives redirect from current page when no fromUrl", () => {
     mockGetCurrentPages.mockReturnValue([
       { route: "pages/topicDetail/index", options: { tid: "456" } },
     ]);
@@ -57,8 +57,7 @@ describe("openLoginModal", () => {
     expect(wxNavigateToMock).toHaveBeenCalled();
     const call = wxNavigateToMock.mock.calls[0][0];
     const decoded = decodeURIComponent(call.url);
-    expect(decoded).toContain("/pages/home/index");
-    expect(decoded).not.toContain("tid=456");
+    expect(decoded).toContain("/pages/topicDetail/index?tid=456");
   });
 
   it("appends modal=true when isSkyline returns true", () => {

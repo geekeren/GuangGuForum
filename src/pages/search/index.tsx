@@ -1,6 +1,7 @@
+import { getScrollViewType } from "../../utils/renderer";
 import { View, Text, Image, ScrollView } from "@tarojs/components";
 import { GzkNativeInput as Input, GzkButton as Button, GzkPicker as Picker } from "gzk-ui/native-form";
-import Taro from "@tarojs/taro";
+import Taro, { useRouter } from "@tarojs/taro";
 import { useState, useRef, useEffect } from "react";
 import {
   searchTopics,
@@ -12,10 +13,6 @@ import {
   SearchResult,
   NodeGroup,
 } from "guanggu-forum-api";
-import { SearchNodesUrl as NodesIcon } from "gzk-ui/icon-urls";
-import { SearchHistory as HistoryIcon , Trash as TrashIcon , SearchFilter as FilterIcon , SearchSort as SortIcon , Search as SearchIcon } from "gzk-ui/icons";
-import { usePageRenderer } from "../../hooks/usePageRenderer";
-import { usePageRouter, usePageNavigation } from "../../hooks/usePageScope";
 import Navbar from "../../components/Navbar";
 import ThemedIcon from "../../components/ThemedIcon";
 import NodePicker from "../../components/NodePicker";
@@ -23,9 +20,16 @@ import BottomSheet from "../../components/BottomSheet";
 import { getCachedNodeNavigation, fetchAndCacheNodeNavigation } from "../../utils/nodeNavigation";
 import SearchHotTopics from "../../components/SearchHotTopics";
 import TopicTag from "../../components/TopicTag";
+import { SearchNodesUrl as NodesIcon } from "gzk-ui/icon-urls";
+import { SearchHistory as HistoryIcon } from "gzk-ui/icons";
+import { Trash as TrashIcon } from "gzk-ui/icons";
+import { SearchFilter as FilterIcon } from "gzk-ui/icons";
 import { clearSearchHistory, getSearchHistory, rememberSearch, splitSearchHighlight } from "../../utils/searchPresentation";
+import { SearchSort as SortIcon } from "gzk-ui/icons";
+import { Search as SearchIcon } from "gzk-ui/icons";
 import { useSearchPlaceholder } from "../../hooks/useSearchPlaceholder";
 import { decodeSearchRouteValue, getPlaceholderTopicRoute } from "../../utils/searchRoute";
+import { isSkyline } from "../../utils/renderer";
 import { getSearchPreferences, saveSearchPreferences } from "../../utils/searchPreferences";
 import "./index.scss";
 
@@ -49,9 +53,8 @@ const defaultFilters: Omit<SearchParams, "q"> = {
 };
 
 export default function Search() {
-  const navigation = usePageNavigation();
-  const skyline = usePageRenderer() === "skyline";
-  const routeNode = decodeSearchRouteValue(usePageRouter().params.node);
+  const skyline = isSkyline();
+  const routeNode = decodeSearchRouteValue(useRouter().params.node);
   const [keyword, setKeyword] = useState("");
   const { placeholder, topic: placeholderTopic } = useSearchPlaceholder(!keyword.trim());
   const [nodeReady, setNodeReady] = useState(!routeNode);
@@ -256,7 +259,7 @@ export default function Search() {
     setOpening(placeholderTopic!.topicLink);
     Taro.hideKeyboard();
     try {
-      await navigation.navigateTo({ url });
+      await Taro.navigateTo({ url });
     } catch {
       if (mounted.current && id === openingId.current) Taro.showToast({ icon: "none", title: "打开失败，请重试" });
     } finally {
@@ -277,7 +280,7 @@ export default function Search() {
       if (!mounted.current || id !== openingId.current) return;
       const params = Object.entries(target).map(([key, value]) =>
         `${key === "page" ? "p" : key}=${encodeURIComponent(value)}`).join("&");
-      await navigation.navigateTo({ url: `/pages/topicDetail/index?${params}` });
+      await Taro.navigateTo({ url: `/pages/topicDetail/index?${params}` });
     } catch (err) {
       if (mounted.current && id === openingId.current) Taro.showToast({
         icon: "none", title: err instanceof Error ? err.message : "打开失败，请重试",
@@ -303,11 +306,9 @@ export default function Search() {
           setNodePickerError("");
           setNodePickerLoading(false);
           changeFilter(defaultFilters, 0, true);
-        }}
-        >重置筛选</Text>
+        }}>重置筛选</Text>
         <Button className='searchSubmit' loading={loading} disabled={loading || !!opening || (!!keyword.trim() && !nodeReady)} onClick={() => submit()}>搜索</Button>
-      </View>}
-    >
+      </View>}>
         <View className='searchAdvanced'>
           <View className='searchField'>
             <Text className='searchFieldLabel'>主题作者</Text>
@@ -347,8 +348,7 @@ export default function Search() {
           />
           {keyword && <View className='searchClearButton' onClick={() => {
             invalidate(); setKeyword("");
-          }}
-          ><View className='searchClearCircle'><View className='searchClearStroke searchClearStroke--first' /><View className='searchClearStroke searchClearStroke--second' /></View></View>}
+          }}><View className='searchClearCircle'><View className='searchClearStroke searchClearStroke--first' /><View className='searchClearStroke searchClearStroke--second' /></View></View>}
           <Button className='searchSubmit' loading={loading} disabled={loading || !!opening || (!!keyword.trim() && !nodeReady)} onClick={() => submit()}>搜索</Button>
         </View>
 
@@ -392,18 +392,16 @@ export default function Search() {
           <View className='searchHistoryTags'>
             {history.map(query => <Text key={query} className='searchHistoryTag' onClick={() => {
               invalidate(); keywordRef.current = query; setKeyword(query); void submit(query);
-            }}
-            >{query}</Text>)}
+            }}>{query}</Text>)}
           </View>
         </View>}
         {!showHotTopics && <View className='searchResultTabs'>
           {resultTabs.map(tab => <View key={tab.value} className={`searchResultTab${filters.scope === tab.value ? " searchResultTab--active" : ""}`}
-            onClick={() => changeFilter({ scope: tab.value })}
-          ><Text>{tab.label}</Text></View>)}
+            onClick={() => changeFilter({ scope: tab.value })}><Text>{tab.label}</Text></View>)}
         </View>}
         {response?.notice && <Text className='searchNotice'>{response.notice}</Text>}
         {showHotTopics ? <View className='searchResults searchResults--hot'><SearchHotTopics /></View> :
-        <ScrollView type={skyline ? 'custom' : undefined} scrollY enhanced className='searchResultScroll' scrollTop={resultScrollTop}>
+        <ScrollView type={getScrollViewType()} scrollY enhanced className='searchResultScroll' scrollTop={resultScrollTop}>
         <View className='searchResults'>
           {loading && <View className='searchEmpty'><Text className='searchEmptyText'>正在搜索网站内容…</Text></View>}
           {error && <View className='searchEmpty'>
@@ -428,13 +426,11 @@ export default function Search() {
         </View>
         {response && (response.previousPage || response.nextPage) && <View className='searchPagination'>
           <Button className={`searchPageButton searchPageButton--previous${response.previousPage ? "" : " searchPageButton--disabled"}`} disabled={!response.previousPage}
-            onClick={() => response.previousPage && submitted.current && runSearch({ ...submitted.current, page: response.previousPage })}
-          >
+            onClick={() => response.previousPage && submitted.current && runSearch({ ...submitted.current, page: response.previousPage })}>
             <View className='searchPageArrow searchPageArrow--previous' /><Text>上一页</Text>
           </Button>
           <Button className={`searchPageButton searchPageButton--next${response.nextPage ? "" : " searchPageButton--disabled"}`} disabled={!response.nextPage}
-            onClick={() => response.nextPage && submitted.current && runSearch({ ...submitted.current, page: response.nextPage })}
-          >
+            onClick={() => response.nextPage && submitted.current && runSearch({ ...submitted.current, page: response.nextPage })}>
             <Text>下一页</Text><View className='searchPageArrow searchPageArrow--next' />
           </Button>
         </View>}

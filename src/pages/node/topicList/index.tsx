@@ -1,8 +1,7 @@
 import { Text, View } from "@tarojs/components";
-import Taro from "@tarojs/taro";
+import Taro, { useRouter } from "@tarojs/taro";
 import { getNodeTopics } from "guanggu-forum-api";
 import { useEffect, useRef } from "react";
-import { usePageScope, usePageRouter, usePageNavigation } from "../../../hooks/usePageScope";
 import TopicList from "../../home/topics/topicList";
 import Navbar from "../../../components/Navbar";
 import "./index.scss";
@@ -13,10 +12,8 @@ import { decodeSearchRouteValue } from "../../../utils/searchRoute";
 interface NodeTopicsProps {
   node: string;
 }
-const NodeTopics = (_props: NodeTopicsProps) => {
-  const pageScope = usePageScope();
-  const navigation = usePageNavigation();
-  const router = usePageRouter();
+const NodeTopics = (props: NodeTopicsProps) => {
+  const router = useRouter();
   const node = decodeSearchRouteValue(router.params.node);
   const nodeName = decodeSearchRouteValue(router.params.nodeName);
   const listRef = useRef<TopicList>(null);
@@ -29,7 +26,7 @@ const NodeTopics = (_props: NodeTopicsProps) => {
 
   useEffect(() => {
     if (!node) {
-      navigation.navigateBack().then();
+      Taro.navigateBack().then();
       return;
     }
   }, [node]);
@@ -44,7 +41,7 @@ const NodeTopics = (_props: NodeTopicsProps) => {
         <SearchEntry className='nodeSearchEntry' node={node} nodeName={nodeName} />
         <View
           className='createTopicBtn'
-          onClick={() => navigation.navigateTo({ url: `/pages/createTopic/index?node=${node}` })}
+          onClick={() => Taro.navigateTo({ url: `/pages/createTopic/index?node=${node}` })}
         >
           <Text>发帖</Text>
         </View>
@@ -52,7 +49,6 @@ const NodeTopics = (_props: NodeTopicsProps) => {
       <AutoHeight style={{ flex: 1 }}>
         {(height) => (
           <TopicList
-            pageScope={pageScope}
             ref={listRef}
             style={{ height }}
             cacheKey={`node_topics_${node}`}

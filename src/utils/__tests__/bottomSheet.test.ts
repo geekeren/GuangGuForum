@@ -5,18 +5,6 @@ import BottomSheet from "../../components/BottomSheet";
 import { themeVariables } from "../themePreferences";
 
 const theme = vi.hoisted(() => ({ current: "dark" as "light" | "dark" }));
-vi.mock("../../hooks/usePageRenderer", async () => {
-  const renderer = await import("../renderer");
-  const usePageRenderer = () => "isSkyline" in renderer && renderer.isSkyline() ? "skyline" : "webview";
-  return { PageRendererContext: undefined, usePageRenderer, usePageScrollViewType: () => usePageRenderer() === "skyline" ? "custom" : undefined };
-});
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, false);
-});
 vi.mock("../../hooks/useTheme", () => ({ useTheme: () => ({ theme: theme.current }) }));
 vi.mock("../CacheService", () => ({ cacheService: {}, CacheCategory: {} }));
 
@@ -112,7 +100,7 @@ describe("shared bottom sheet", () => {
   });
   it("does not query or subscribe while hidden and unmounts after the closing animation", () => {
     expect(render({ visible: false })).toBeNull();
-    expect(Taro.getWindowInfo).toHaveBeenCalledOnce(); // The owning viewport hook is a read, not a native query.
+    expect(Taro.getWindowInfo).not.toHaveBeenCalled();
     harness.effects.forEach(effect => effect());
     expect(Taro.onKeyboardHeightChange).not.toHaveBeenCalled();
     harness.state = [];

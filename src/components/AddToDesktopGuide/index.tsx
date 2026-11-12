@@ -2,7 +2,6 @@ import { View, Text, Image } from "@tarojs/components";
 import Taro from "@tarojs/taro";
 import { useEffect, useState, useRef } from "react";
 import { MoreDotsUrl as MoreDotsIcon } from "gzk-ui/icon-urls";
-import { usePageWindowInfo } from "../../hooks/usePageScope";
 import { getNavInfo } from "../../utils/dimension";
 import { cacheService, CacheCategory } from "../../utils/CacheService";
 import "./index.scss";
@@ -44,7 +43,6 @@ interface Props {
 }
 
 export default function AddToDesktopGuide({ force, onClose }: Props = {}) {
-  const windowInfo = usePageWindowInfo();
   const [visible, setVisible] = useState(!!force);
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
@@ -80,14 +78,14 @@ export default function AddToDesktopGuide({ force, onClose }: Props = {}) {
 
   if (!visible) return null;
 
-  const nav = getNavInfo(windowInfo);
+  const nav = getNavInfo();
   const dotsCenterX = nav.capsuleLeft + nav.capsuleWidth / 4;
   const arrowRight = nav.screenWidth - dotsCenterX - 8;
 
   return (
     <View className={`addToDesktopGuide ${closing ? "addToDesktopGuide--closing" : ""}`}>
       <View
-        className='guideBubble'
+        className="guideBubble"
         style={{
           top: nav.statusBarHeight + nav.capsulePaddingTop + nav.capsuleHeight + 12 + "px",
           right: nav.marginSides + "px",
@@ -95,17 +93,17 @@ export default function AddToDesktopGuide({ force, onClose }: Props = {}) {
         onClick={(e) => e.stopPropagation()}
       >
         <View
-          className='guideArrow'
+          className="guideArrow"
           style={{ right: arrowRight + "px" }}
         />
-        <View className='guideTipRow'>
-          <Text className='guideTipText'>点击 </Text>
-          <Image src={MoreDotsIcon} svg className='guideMoreIcon' />
+        <View className="guideTipRow">
+          <Text className="guideTipText">点击 </Text>
+          <Image src={MoreDotsIcon} svg className="guideMoreIcon" />
         </View>
-        <Text className='guideTipSub'>添加到「我的小程序」或桌面{"\n"}下次快速打开过早客</Text>
+        <Text className="guideTipSub">添加到「我的小程序」或桌面{"\n"}下次快速打开过早客</Text>
       </View>
-      <View className='guideClose' onClick={handleClose}>
-        <Text className='guideCloseText'>我知道了</Text>
+      <View className="guideClose" onClick={handleClose}>
+        <Text className="guideCloseText">我知道了</Text>
       </View>
     </View>
   );

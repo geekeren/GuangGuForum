@@ -33,7 +33,7 @@ describe('native topic control capture bridge', () => {
     expect(assets).toEqual(['./content.wxml']);
     for (const asset of assets) expect(existsSync(resolve(directory, asset))).toBe(true);
     expect(entry).toContain('is="topic-control-content"');
-    expect(entry).toContain('data="{{icon, label, disabled, active, background, thumbnail, compact, caption, loading}}"');
+    expect(entry).toContain('data="{{icon, label, disabled, active, background, thumbnail, caption, loading}}"');
     const content = readFileSync(resolve(directory, 'content.wxml'), 'utf8');
     expect(content).toContain('<template name="topic-control-content">');
     expect(content).toContain('src="{{icon}}"'); expect(content).toContain('catchtouchend="formatEnd"');
@@ -91,17 +91,7 @@ describe('native topic control capture bridge', () => {
   it('does not format, focus, hide the keyboard or create timers inside the bridge', () => {
     const source = readFileSync(resolve(directory, 'index.js'), 'utf8');
     for (const forbidden of ['setTimeout', 'Date.now', 'editor.', 'hideKeyboard', 'focus(']) expect(source).not.toContain(forbidden);
-    expect(Object.keys(component().properties)).toEqual(['icon', 'label', 'disabled', 'active', 'background', 'thumbnail', 'compact', 'captureOnly', 'caption', 'loading']);
-  });
-  it('adds optional compact desktop dimensions without changing default mobile capture behavior', () => {
-    expect(component().properties.compact.value).toBe(false);
-    const template = readFileSync(resolve(directory, 'content.wxml'), 'utf8');
-    const css = readFileSync(resolve(directory, 'index.wxss'), 'utf8');
-    expect(template).toContain("{{compact ? 'format-button--compact' : ''}}");
-    expect(css).toMatch(/\.format-button--compact\s*\{[^}]*height:\s*44px/);
-    expect(css).toMatch(/\.format-button--compact \.format-button__icon\s*\{[^}]*width:\s*22px;[^}]*height:\s*22px/);
-    const control = instance(); control.run('formatStart'); control.run('formatEnd');
-    expect(control.events).toEqual(['formatend']);
+    expect(Object.keys(component().properties)).toEqual(['icon', 'label', 'disabled', 'active', 'background', 'thumbnail', 'caption', 'loading']);
   });
   it('mirrors the independent glyph size and supports captured thumbnail/retry content', () => {
     const template = readFileSync(resolve(directory, 'content.wxml'), 'utf8');

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const pageSource = readFileSync(resolve(process.cwd(), 'src/pages/createTopic/index.tsx'), 'utf8');
 const editorSource = readFileSync(resolve(process.cwd(), 'src/pages/createTopic/TopicEditor.tsx'), 'utf8');
-const jsx = (source: string, className: string) => source.split('\n').find(line => (line.includes(`className="${className}"`) || line.includes(`className='${className}'`))) || '';
+const jsx = (source: string, className: string) => source.split('\n').find(line => line.includes(`className="${className}"`)) || '';
 
 describe('create topic scrolling surface', () => {
   it('keeps the page itself scrollbar-free', () => {

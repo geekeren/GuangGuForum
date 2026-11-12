@@ -1,21 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Taro from '@tarojs/taro';
-import { createImageUploadController, uploadImage } from 'guanggu-forum-api';
 import TopicEditor, { restoreTopicAttachments } from '../../pages/createTopic/TopicEditor';
 import ComposerEmojiPanel from '../../components/ComposerEmojiPanel';
 import { EMPTY_FORMAT_STATUS } from '../../pages/createTopic/nativeEditorStatus';
 import { getCommonEmojiUsage, recordCommentEmojiUsage } from '../emojiUsage';
 import { ensureImageHostBound } from '../imageUploadGuard';
 import { STICKERS } from '../stickers';
+import { createImageUploadController, uploadImage } from 'guanggu-forum-api';
 
-const harness = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], cursor: 0, refCursor: 0, effects: [] as any[], keyboard: null as any, hide: null as any, show: null as any, theme: 'light' as 'light' | 'dark', resize: null as any, geometry: null as any, cleanups: [] as Array<() => void>, bodyTop: 300, measuredDockHeight: 80, windowWidth: 430, windowHeight: 900, account: 'tester', editorRect: undefined as any, centerRect: undefined as any }));
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, true);
-});
+const harness = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], cursor: 0, refCursor: 0, effects: [] as any[], keyboard: null as any, hide: null as any, show: null as any, theme: 'light' as 'light' | 'dark', resize: null as any, geometry: null as any, cleanups: [] as Array<() => void>, bodyTop: 300, measuredDockHeight: 80, windowWidth: 430, account: 'tester' }));
 vi.mock('react', () => ({
   useEffect: (effect: any) => harness.effects.push(effect),
   useImperativeHandle: (ref: any, create: any) => { if (ref) ref.current = create(); },
@@ -29,8 +22,8 @@ vi.mock('react', () => ({
 // Current production uses page lifecycle, RootPortal and native viewport measurement.
 vi.mock('@tarojs/components', () => ({ View: 'View', Text: 'Text', Image: 'Image', ScrollView: 'ScrollView', RootPortal: 'RootPortal' }));
 vi.mock('@tarojs/taro', () => ({
-  default: { getWindowInfo: () => ({ windowWidth: harness.windowWidth, windowHeight: harness.windowHeight, screenHeight: 932, safeArea: { bottom: 898 } }), onWindowResize: (cb: any) => { harness.resize = cb; }, offWindowResize: vi.fn(), hideKeyboard: vi.fn(), showToast: vi.fn(), chooseMedia: vi.fn(), onKeyboardHeightChange: (cb: any) => { harness.keyboard = cb; }, offKeyboardHeightChange: vi.fn(),
-    nextTick: (cb: any) => cb(), createSelectorQuery: () => { const query = { select: () => query, boundingClientRect: (cb?: any) => { if (typeof cb === 'function') cb(harness.geometry); return query; }, exec: (cb?: any) => { if (typeof cb === 'function') cb([{ top: harness.bodyTop }, { height: 500 }, { height: 1000 }, { height: harness.measuredDockHeight }, harness.geometry, harness.editorRect, harness.centerRect]); } }; return query; } },
+  default: { getWindowInfo: () => ({ windowWidth: harness.windowWidth, windowHeight: 900, screenHeight: 932, safeArea: { bottom: 898 } }), onWindowResize: (cb: any) => { harness.resize = cb; }, offWindowResize: vi.fn(), hideKeyboard: vi.fn(), showToast: vi.fn(), chooseMedia: vi.fn(), onKeyboardHeightChange: (cb: any) => { harness.keyboard = cb; }, offKeyboardHeightChange: vi.fn(),
+    nextTick: (cb: any) => cb(), createSelectorQuery: () => { const query = { select: () => query, boundingClientRect: (cb?: any) => { if (typeof cb === 'function') cb(harness.geometry); return query; }, exec: (cb?: any) => { if (typeof cb === 'function') cb([{ top: harness.bodyTop }, { height: 500 }, { height: 1000 }, { height: harness.measuredDockHeight }, harness.geometry]); } }; return query; } },
   useDidHide: (cb: any) => { harness.hide = cb; }, useDidShow: (cb: any) => { harness.show = cb; }, useReady: vi.fn(),
 }));
 vi.mock('guanggu-forum-api', () => ({ createImageUploadController: vi.fn(), ImageUploadError: class extends Error {}, uploadImage: vi.fn() }));
@@ -66,9 +59,9 @@ function ready() { body().onFocus(); status(); const format = vi.fn(); body().ha
 function mountEffects() { for (const effect of harness.effects.splice(0)) { const cleanup = effect(); if (typeof cleanup === 'function') harness.cleanups.push(cleanup); } }
 async function settle() { await vi.advanceTimersByTimeAsync(600); }
 beforeEach(() => {
-  process.env.TARO_ENV = 'h5'; harness.account = 'tester'; harness.editorRect = undefined; harness.centerRect = undefined;
+  process.env.TARO_ENV = 'h5'; harness.account = 'tester';
   vi.restoreAllMocks();
-  vi.useFakeTimers(); harness.state = []; harness.refs = []; harness.effects = []; harness.cleanups = []; harness.bodyTop = 300; harness.measuredDockHeight = 80; harness.windowWidth = 430; harness.windowHeight = 900; harness.geometry = { width: 430, top: 0, bottom: 900, height: 900 }; vi.clearAllMocks();
+  vi.useFakeTimers(); harness.state = []; harness.refs = []; harness.effects = []; harness.cleanups = []; harness.bodyTop = 300; harness.measuredDockHeight = 80; harness.windowWidth = 430; harness.geometry = { width: 430, top: 0, bottom: 900, height: 900 }; vi.clearAllMocks();
   vi.mocked(Taro.hideKeyboard).mockReset().mockResolvedValue({ errMsg: 'hideKeyboard:ok' });
   vi.mocked(getCommonEmojiUsage).mockReturnValue({ emojis: [], stickers: [] });
   vi.mocked(createImageUploadController).mockReturnValue({ abort: vi.fn(), signal: {} } as any);
@@ -80,38 +73,6 @@ beforeEach(() => {
 afterEach(() => { dispose?.(); harness.theme = 'light'; process.env.TARO_ENV = initialTaroEnv; vi.useRealTimers(); });
 
 describe('topic editor format toolbar', () => {
-  it('narrows the desktop portal to the measured editor column, keeps the probe full-window and restores mobile geometry on resize', async () => {
-    process.env.TARO_ENV = 'weapp'; props.desktop = true;
-    harness.windowWidth = 1280; harness.geometry = { width: 1280, top: 0, bottom: 900, height: 900 };
-    harness.editorRect = { left: 240, width: 600 }; harness.centerRect = { bottom: 876 }; harness.measuredDockHeight = 58;
-    render(); mountEffects(); ready(); mountEffects(); await settle();
-    const host = find(render(), 'topicEditorDockHost').props;
-    expect(host.className).toContain('topicEditorDockHost--desktop');
-    expect(host.style).toMatchObject({ left: '240px', width: '600px', height: '900px' });
-    expect(dock().style.bottom).toBe('24px');
-    expect(find(render(), 'topicEditorBodyScroll').props.style.height).toBe('502px');
-    expect(button('加粗').compact).toBe(true);
-    expect(find(render(), 'topicEditorViewportProbe').props.style).toBeUndefined();
-    props.desktop = false; harness.windowWidth = 430; harness.windowHeight = 900; harness.geometry = { width: 430, top: 0, bottom: 900, height: 900 };
-    render(); mountEffects(); await settle();
-    expect(find(render(), 'topicEditorDockHost').props.style.width).toBe('430px');
-    expect(button('加粗').compact).toBe(false);
-    expect(props.onChange).not.toHaveBeenCalled();
-  });
-  it('treats a height-only desktop window resize as a new baseline rather than old keyboard pan', async () => {
-    props.desktop = true; harness.windowWidth = 1280; harness.geometry = { width: 1280, top: 0, bottom: 900, height: 900 };
-    harness.editorRect = { left: 240, width: 600 }; harness.centerRect = { bottom: 876 }; harness.measuredDockHeight = 58;
-    render(); mountEffects(); ready(); mountEffects(); await settle();
-    for (const height of [600, 900]) {
-      harness.windowHeight = height; harness.geometry = { width: 1280, top: 0, bottom: height, height };
-      harness.centerRect = { bottom: height - 24 };
-      render(); mountEffects(); await settle();
-      expect(find(render(), 'topicEditorDockHost').props.style.bottom).toBe('0px');
-      expect(dock().style.bottom).toBe('24px');
-      expect(find(render(), 'topicEditorDockHost').props.style.height).toBe(`${height}px`);
-    }
-    expect(props.onChange).not.toHaveBeenCalled();
-  });
   it.each(['加粗', '无序列表'])('uses one click for %s without a gesture lease or refocus', label => {
     process.env.TARO_ENV = 'weapp'; const format = ready(); const tool = button(label);
     expect(all(render()).filter(e => e.type === 'topic-format-button' && e.props?.label === label)).toHaveLength(1);
@@ -354,7 +315,7 @@ describe('topic editor floating tools and attachments', () => {
     harness.geometry = scenario === 'no probe' ? null : { width, top: pan ? -320 : 0, bottom: 580, height: pan ? 900 : 580 };
     keyboard(320); await settle();
     const tree = render(), scroll = find(tree, 'topicEditorBodyScroll').props;
-    if (scenario === 'no probe') { expect(scroll.style).toEqual({ height: '360px' }); return; } // Pane-safe fallback uses the owning store, never viewport CSS units.
+    if (scenario === 'no probe') { expect(scroll.style).toBeUndefined(); return; }
     const host = find(tree, 'topicEditorDockHost').props.style;
     // Native position:fixed bottom is relative to the current probe bottom;
     // negative inset raises that client bottom back to the normal dock boundary.

@@ -1,14 +1,14 @@
 import { WebView } from "@tarojs/components";
+import Taro from "@tarojs/taro";
 import { useState, useEffect } from "react";
-import { usePageRouter } from "../../hooks/usePageScope";
 import "./index.scss";
 
 const WebviewPage = () => {
-  const router = usePageRouter();
   const [url, setUrl] = useState("");
 
   useEffect(() => {
-    const encodedUrl = router.params.url;
+    const instance = Taro.getCurrentInstance();
+    const encodedUrl = instance?.router?.params?.url;
     if (encodedUrl) {
       try {
         const decodedUrl = decodeURIComponent(encodedUrl);
@@ -19,7 +19,7 @@ const WebviewPage = () => {
         // ignore
       }
     }
-  }, [router.params.url]);
+  }, []);
 
   if (!url) return null;
 

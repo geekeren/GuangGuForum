@@ -3,7 +3,6 @@ import { ScrollView, Text, View } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { acceptPrivateMessageRequest, getMessageCompose, getMessageConversations, getMessageThread, getUserProfile, sendPrivateMessage,
   type MessageCompose, type MessageConversation, type MessageConversationPage, type MessageThread } from 'guanggu-forum-api';
-import { usePageOwner, usePageNavigation, usePageRouter } from "../../hooks/usePageScope";
 import ThemePage from '../../components/ThemePage';
 import Navbar from '../../components/Navbar';
 import UserAvatar from '../../components/UserAvatar';
@@ -53,9 +52,7 @@ async function newClientKey() {
 }
 
 function MessageThreadView() {
-  const owner = usePageOwner();
-  const pageNavigation = usePageNavigation();
-  const { params } = usePageRouter();
+  const { params } = Taro.useRouter();
   const cid = positiveRouteId(params.cid);
   const peerUid = positiveRouteId(params.peer);
   const recipientId = positiveRouteId(params.to);
@@ -151,7 +148,7 @@ function MessageThreadView() {
   // The opener event is just metadata. Only this page's fresh summary can authorize use of its UID.
   useEffect(() => {
     if (!peerUid) return;
-    const channel = (owner as { getOpenerEventChannel?: () => Taro.EventChannel } | undefined)?.getOpenerEventChannel?.();
+    const channel = Taro.getCurrentInstance?.().page?.getOpenerEventChannel?.();
     const receive = (value: unknown) => {
       const current = store.snapshot();
       if (!store.isVisible()) return;
@@ -288,7 +285,7 @@ function MessageThreadView() {
   const openPeerProfile = (handle: string) => {
     const current = store.snapshot();
     if (!handle || !store.isVisible() || current.generation !== snapshot.generation || current.account !== snapshot.account) return;
-    void pageNavigation.navigateTo({ url: `/pages/user/index?username=${encodeURIComponent(handle)}` });
+    void Taro.navigateTo({ url: `/pages/user/index?username=${encodeURIComponent(handle)}` });
   };
 
   return <View className='privateMessagesPage privateMessagesPage--thread'>
@@ -351,18 +348,15 @@ function MessageThreadView() {
           className={`privateThreadSendTarget ${selectedCid === id ? 'privateThreadSendTarget--selected' : ''}`} onClick={() => {
             if (!store.isVisible() || store.snapshot().data.posting) return;
             store.clearSendKey(); store.update(value => ({ ...value, selectedCid: id, targetChosen: true, postError: '' }));
-          }}
-        >#{id}{data.threadsByCid[id].thread?.source ? ` · ${data.threadsByCid[id].thread!.source!.title}` : ''}</Text>)}</View>}
+          }}>#{id}{data.threadsByCid[id].thread?.source ? ` · ${data.threadsByCid[id].thread!.source!.title}` : ''}</Text>)}</View>}
         {peer && <PrivateMessageComposer value={data.draft} limit={maxLength} disabled={!canSend} posting={data.posting} unavailableReason={unavailableReason}
-          onChange={value => { store.draftChanged(value); store.update(current => ({ ...current, draft: value, postError: '' })); }} onSend={send}
-        />}
+          onChange={value => { store.draftChanged(value); store.update(current => ({ ...current, draft: value, postError: '' })); }} onSend={send} />}
       </>}
   </View>;
 }
 
 function SourceNotice({ source, visible }: { source: NonNullable<MessageThread['source']>; visible: () => boolean }) {
-  const pageNavigation = usePageNavigation();
   const route = messageSourceRoute(source);
-  return <View className={`privateMessageNotice ${route ? 'privateMessageAction' : ''}`} onClick={() => { if (route && visible()) void pageNavigation.navigateTo({ url: route }); }}><Text>来自帖子：{source.title}</Text></View>;
+  return <View className={`privateMessageNotice ${route ? 'privateMessageAction' : ''}`} onClick={() => { if (route && visible()) void Taro.navigateTo({ url: route }); }}><Text>来自帖子：{source.title}</Text></View>;
 }
 export default function MessageThreadPage() { return <ThemePage><MessageThreadView /></ThemePage>; }

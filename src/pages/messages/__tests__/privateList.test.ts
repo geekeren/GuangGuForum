@@ -7,11 +7,6 @@ import { privateMessageMemory } from '../privateMemory';
 import { privateMessageFileCache } from '../../../utils/privateMessageFileCache';
 
 const runtime = vi.hoisted(() => ({ page: null as any, account: 'fixture-user', refs: [] as any[], cursor: 0, effects: [] as any[], effectCursor: 0, work: [] as any[], state: [] as any[], stateCursor: 0, readyOverride: undefined as boolean | undefined }));
-vi.mock("../../../hooks/usePageScope", async () => {
-  const module = await import("@tarojs/taro");
-  const { legacyPageScopeMock } = await import("../../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(module.default, "useRouter" in module ? module.useRouter : undefined);
-});
 vi.mock('react', () => ({
   useState: (initial: any) => { const i = runtime.stateCursor++; if (!(i in runtime.state)) runtime.state[i] = initial; return [runtime.state[i], (next: any) => { runtime.state[i] = next; }]; },
   useRef: (initial: any) => { const i = runtime.cursor++; if (!(i in runtime.refs)) runtime.refs[i] = { current: initial }; return runtime.refs[i]; },

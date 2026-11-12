@@ -7,13 +7,6 @@ import type { TopicAttachment } from '../../pages/createTopic/TopicEditor';
 import type { EditorSnapshot } from '../../pages/createTopic/RichTopicBody';
 
 const h = vi.hoisted(() => ({ state: [] as any[], refs: [] as any[], effects: [] as any[], cursor: 0, refCursor: 0, owner: 'tester', storage: new Map<string, any>() }));
-vi.mock("../../hooks/usePageScope", async () => {
-  const taroModule = await import("@tarojs/taro");
-  const taro = taroModule.default;
-  const useRouter = "useRouter" in taroModule ? taroModule.useRouter : undefined;
-  const { legacyPageScopeMock } = await import("../../testSupport/legacyPageScopeMock");
-  return legacyPageScopeMock(taro, useRouter, false);
-});
 vi.mock('react', () => ({
   useState(initial: any) { const i = h.cursor++; if (!(i in h.state)) h.state[i] = typeof initial === 'function' ? initial() : initial; return [h.state[i], (next: any) => { h.state[i] = typeof next === 'function' ? next(h.state[i]) : next; }]; },
   useRef(initial: any) { return h.refs[h.refCursor++] ??= { current: initial }; },
@@ -26,7 +19,6 @@ vi.mock('../nodeNavigation', () => ({ getCachedNodeNavigation: () => [], fetchAn
 vi.mock('../currentUser', () => ({ getCachedUsername: () => h.owner }));
 vi.mock('../auth', () => ({ openLoginModal: vi.fn() }));
 vi.mock('../CacheService', () => ({ cacheService: { get: (key: string) => h.storage.get(key), set: (key: string, value: any) => h.storage.set(key, value), remove: (key: string) => h.storage.delete(key) }, CacheCategory: { Topic: 'topic' } }));
-vi.mock('../../hooks/useViewport', () => ({ useViewport: () => ({ width: 375, height: 667, isDesktop: false }) }));
 vi.mock('../../hooks/usePageRenderer', () => ({ usePageRenderer: () => 'skyline' }));
 vi.mock('../../pages/createTopic/TopicEditor', () => ({ default: 'TopicEditor', restoreTopicAttachments: (value: unknown) => value || [] }));
 vi.mock('../../components/ClearableInput', () => ({ ClearableTextarea: 'ClearableTextarea', ClearableInput: 'ClearableInput' }));
@@ -43,7 +35,7 @@ function snapshot(value: EditorSnapshot = { markdown: 'synthetic body', errors: 
 const photo = (change: Partial<Extract<TopicAttachment, { kind: 'photo' }>> = {}): TopicAttachment => ({ id: 'photo', kind: 'photo', owner: 'tester', path: 'wxfile://synthetic', phase: 'complete', progress: 100, url: 'https://img.test/photo.jpg', ...change });
 beforeEach(() => {
   h.state = []; h.refs = []; h.effects = []; h.storage.clear(); h.owner = 'tester'; vi.clearAllMocks();
-  render(); h.effects.find(effect => effect.name === 'restoreDraft')!(); render();
+  render(); h.effects.find(effect => effect.toString().includes('lastMeta'))!(); render();
   render().find(node => node.props?.onInput && node.props?.onNext)!.props.onInput('Synthetic title'); snapshot();
 });
 describe('independent topic attachment preview and submission', () => {
@@ -75,7 +67,7 @@ describe('independent topic attachment preview and submission', () => {
     const attachment = photo({ richManaged: true });
     h.storage.set('topic_draft_last', { topicType: 'normal', nodeSlug: 'water' });
     h.storage.set('topic_draft_normal_water', { title: 'Old title', content: 'legacy source', document, attachments: [attachment] });
-    render(); h.effects.find(effect => effect.name === 'restoreDraft')!();
+    render(); h.effects.find(effect => effect.toString().includes('lastMeta'))!();
     expect(body().document).toBe(document); expect(body().attachments).toEqual([attachment]);
     snapshot({ markdown: 'legacy source', document, errors: [], unsupported: [] });
     await button('previewBtn').onClick();
